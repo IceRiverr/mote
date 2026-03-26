@@ -8,7 +8,10 @@
     "noUnusedParameters": true,
     "sourceMap": true,
     "rootDir": "./src",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "lib": ["ESNext", "DOM"],
+    "types": ["@webgpu/types"],
+    "skipLibCheck": true
   },
   "include": ["src"]
 }

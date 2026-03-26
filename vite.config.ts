@@ -3,6 +3,11 @@ import { resolve } from 'path';
 
 export default defineConfig({
   root: '.',
+  resolve: {
+    alias: {
+      '@mote/engine': resolve(__dirname, 'packages/engine/src/index.ts'),
+    },
+  },
   build: {
     outDir: 'dist',
     target: 'esnext',

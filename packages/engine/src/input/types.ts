@@ -1,4 +1,4 @@
-export const enum ActionType {
+export enum ActionType {
   Button,  // bool: Jump, Shoot, Pause
   Axis1D,  // float -1..1: Throttle
   Axis2D,  // vec2: Move, Look

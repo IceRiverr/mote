@@ -7,12 +7,14 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "sourceMap": true,
-    "rootDir": ".",
-    "outDir": "./dist",
     "lib": ["ESNext", "DOM"],
     "types": ["@webgpu/types"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@mote/engine":   ["./packages/engine/src/index.ts"],
+      "@mote/engine/*": ["./packages/engine/src/*"]
+    }
   },
-  "include": ["src", "games"],
-  "exclude": ["vite.config.ts"]
+  "include": ["packages", "games"],
+  "exclude": ["vite.config.ts", "**/dist/**"]
 }

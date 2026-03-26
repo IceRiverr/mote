@@ -1,11 +1,5 @@
-import { GfxDevice } from '../../src/core/GfxDevice.js';
-import { SpriteBatch, TextureAtlas } from '../../src/renderer/2d/SpriteBatch.js';
-import { Camera2D } from '../../src/renderer/2d/Camera2D.js';
-import { GameLoop } from '../../src/framework/GameLoop.js';
-import { InputManager, ActionMap, ActionType } from '../../src/input/index.js';
-import type { AtlasRegion } from '../../src/core/types.js';
-import { Vec2 } from '../../src/math/Vec2.js';
-import { Color } from '../../src/math/Color.js';
+import { GfxDevice, SpriteBatch, TextureAtlas, Camera2D, GameLoop, InputManager, ActionMap, ActionType, Vec2, Color } from '@mote/engine';
+import type { AtlasRegion } from '@mote/engine';
 
 // ── Tilemap atlas constants ───────────────────────────────────────────────────
 const ATLAS_W     = 192;

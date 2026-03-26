@@ -83,12 +83,53 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// 导出按钮
-document.getElementById('btnExportTs')!.addEventListener('click', () => editor.export('ts'));
-document.getElementById('btnExportJson')!.addEventListener('click', () => editor.export('json'));
+// 顶部工具栏按钮
+document.getElementById('btnNew')!.addEventListener('click', () => {
+  if (confirm('确定要新建地图吗？当前未保存的更改将丢失。')) {
+    editor.newMap();
+  }
+});
+
+document.getElementById('btnImport')!.addEventListener('click', () => {
+  editor.importMap();
+});
+
+document.getElementById('btnExport')!.addEventListener('click', () => {
+  // 默认导出为 TypeScript
+  editor.export('ts');
+});
+
+// 右侧导出按钮
+document.getElementById('btnExportTs')!.addEventListener('click', () => {
+  editor.export('ts');
+});
+document.getElementById('btnExportJson')!.addEventListener('click', () => {
+  editor.export('json');
+});
+
+// 导出对话框按钮
+document.getElementById('confirmExport')!.addEventListener('click', () => {
+  editor.confirmExport();
+});
+document.getElementById('cancelExport')!.addEventListener('click', () => {
+  editor.cancelExport();
+});
+
+// 导出对话框支持 Enter 键确认
+document.getElementById('exportNameInput')!.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    editor.confirmExport();
+  } else if (e.key === 'Escape') {
+    editor.cancelExport();
+  }
+});
 
 // 网格切换
 document.getElementById('btnGrid')!.addEventListener('click', () => editor.toggleGrid());
+
+// 缩放按钮
+document.getElementById('btnZoomIn')!.addEventListener('click', () => editor.zoomIn());
+document.getElementById('btnZoomOut')!.addEventListener('click', () => editor.zoomOut());
 
 // 初始化
 initConfigSelect();

@@ -70,6 +70,30 @@
     cursor: not-allowed;
   }
 
+  /* 图标按钮样式 */
+  .icon-btn {
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    transition: all 0.2s;
+  }
+
+  .icon-btn:hover {
+    color: #6bb8ff;
+    background: #6bb8ff15;
+    border-color: #6bb8ff44;
+  }
+
+  .icon-btn:active {
+    transform: scale(0.95);
+  }
+
+  .icon-btn svg {
+    stroke: currentColor;
+  }
+
   select {
     padding: 6px 12px;
     background: #1a1a24;
@@ -199,11 +223,15 @@
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    padding: 20px;
   }
 
   #canvas {
     border-radius: 8px;
     box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
   }
 
   .canvas-info {
@@ -367,6 +395,61 @@
   .hidden {
     display: none !important;
   }
+
+  /* Toast 通知样式 */
+  .toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2000;
+    animation: toastSlideIn 0.3s ease;
+  }
+
+  .toast-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    background: #1a3a1a;
+    border: 1px solid #4a9a4a;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(74, 154, 74, 0.3);
+  }
+
+  .toast-icon {
+    font-size: 18px;
+  }
+
+  .toast-message {
+    font-size: 14px;
+    color: #8fd48f;
+    font-weight: 500;
+  }
+
+  @keyframes toastSlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  @keyframes toastFadeOut {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  .toast.hiding {
+    animation: toastFadeOut 0.3s ease forwards;
+  }
 </style>
 </head>
 <body>
@@ -383,6 +466,29 @@
     </div>
   </div>
 
+  <!-- 导出名称输入弹窗 -->
+  <div id="exportModal" class="config-modal hidden">
+    <div class="config-panel" style="min-width: 360px;">
+      <div class="config-title">导出地图</div>
+      <div style="margin-bottom: 20px;">
+        <div class="prop-label" style="margin-bottom: 8px;">地图名称</div>
+        <input type="text" class="prop-input" id="exportNameInput" placeholder="untitled" style="width: 100%; font-size: 14px;">
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn" id="cancelExport" style="flex: 1;">取消</button>
+        <button class="btn btn-primary" id="confirmExport" style="flex: 1;">导出</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导出成功提示 -->
+  <div id="exportSuccessToast" class="toast hidden">
+    <div class="toast-content">
+      <span class="toast-icon">✅</span>
+      <span class="toast-message" id="toastMessage">导出成功</span>
+    </div>
+  </div>
+
   <!-- 主界面 -->
   <div class="toolbar">
     <div class="toolbar-section">
@@ -391,8 +497,18 @@
       <button class="btn" id="btnExport">导出</button>
     </div>
     <div class="toolbar-section">
-      <button class="btn" id="btnUndo" title="撤销 (Ctrl+Z)">↩️</button>
-      <button class="btn" id="btnRedo" title="重做 (Ctrl+Y)">↪️</button>
+      <button class="btn icon-btn" id="btnUndo" title="撤销 (Ctrl+Z)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7v6h6"></path>
+          <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+        </svg>
+      </button>
+      <button class="btn icon-btn" id="btnRedo" title="重做 (Ctrl+Y)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 7v6h-6"></path>
+          <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path>
+        </svg>
+      </button>
     </div>
     <div class="toolbar-section">
       <button class="btn" id="btnGrid" title="显示网格 (G)">网格</button>

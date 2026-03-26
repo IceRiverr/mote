@@ -1,7 +1,13 @@
 import type { MapData, TileDef } from './MapData.js';
 import { BrushTool } from './tools/BrushTool.js';
 import { EraserTool } from './tools/EraserTool.js';
+import { RectTool } from './tools/RectTool.js';
 import type { Tool } from './tools/Tool.js';
+import { CommandHistory } from './commands/Command.js';
+import type { Command } from './commands/Command.js';
+
+// 重新导出 RectTool 类型用于 instanceof 检查
+export { RectTool };
 
 interface GameConfig {
   id: string;
@@ -64,8 +70,17 @@ export class MapEditor {
   private selectedTileId = 0;
   private showGrid = true;
   
+  // 缩放比例 (0.5 - 3.0)
+  private zoomLevel = 1.0;
+  private readonly MIN_ZOOM = 0.5;
+  private readonly MAX_ZOOM = 3.0;
+  private readonly ZOOM_STEP = 0.25;
+  
   // 绘制缓存
   private ctx2d!: CanvasRenderingContext2D;
+
+  // 命令历史（用于撤销/重做）
+  private commandHistory = new CommandHistory();
 
   async init(): Promise<void> {
     this.canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -78,13 +93,22 @@ export class MapEditor {
     // 初始化工具
     this.tools.set('brush', new BrushTool(this));
     this.tools.set('eraser', new EraserTool(this));
+    this.tools.set('rect', new RectTool(this));
     this.currentTool = this.tools.get('brush')!;
     
     // 绑定鼠标事件
     this.bindMouseEvents();
     
+    // 监听窗口大小变化
+    window.addEventListener('resize', () => {
+      this.resizeCanvas();
+    });
+    
     // 开始渲染循环
     this.startRenderLoop();
+
+    // 初始化撤销/重做按钮状态
+    this.updateUndoRedoUI();
   }
 
   loadConfig(configId: string): void {
@@ -117,14 +141,69 @@ export class MapEditor {
     const w = this.mapData.width * this.config.tileSize;
     const h = this.mapData.height * this.config.tileSize;
     
-    // 限制最大尺寸
-    const maxSize = 1024;
-    const scale = Math.min(1, maxSize / Math.max(w, h));
+    // 获取容器大小
+    const wrapper = this.canvas.parentElement;
+    if (!wrapper) return;
     
-    this.canvas.width = w * scale;
-    this.canvas.height = h * scale;
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const padding = 40; // 内边距
+    const availWidth = wrapperRect.width - padding * 2;
+    const availHeight = wrapperRect.height - padding * 2;
+    
+    // 基础缩放（适应容器，保持宽高比）
+    const scaleX = availWidth / w;
+    const scaleY = availHeight / h;
+    const baseScale = Math.min(scaleX, scaleY, 1); // 最大1:1显示
+    
+    // 应用用户设置的缩放级别
+    const finalScale = baseScale * this.zoomLevel;
+    
+    this.canvas.width = w * finalScale;
+    this.canvas.height = h * finalScale;
     this.canvas.style.width = `${this.canvas.width}px`;
     this.canvas.style.height = `${this.canvas.height}px`;
+  }
+
+  /**
+   * 放大
+   */
+  zoomIn(): void {
+    if (this.zoomLevel < this.MAX_ZOOM) {
+      this.zoomLevel = Math.min(this.MAX_ZOOM, this.zoomLevel + this.ZOOM_STEP);
+      this.applyZoom();
+    }
+  }
+
+  /**
+   * 缩小
+   */
+  zoomOut(): void {
+    if (this.zoomLevel > this.MIN_ZOOM) {
+      this.zoomLevel = Math.max(this.MIN_ZOOM, this.zoomLevel - this.ZOOM_STEP);
+      this.applyZoom();
+    }
+  }
+
+  /**
+   * 重置缩放
+   */
+  resetZoom(): void {
+    this.zoomLevel = 1.0;
+    this.applyZoom();
+  }
+
+  /**
+   * 应用缩放并更新UI
+   */
+  private applyZoom(): void {
+    this.resizeCanvas();
+    
+    // 更新UI显示
+    const zoomPercent = Math.round(this.zoomLevel * 100);
+    const zoomDisplay = document.getElementById('zoomLevel');
+    if (zoomDisplay) {
+      zoomDisplay.textContent = `${zoomPercent}%`;
+    }
   }
 
   private updatePalette(): void {
@@ -152,11 +231,77 @@ export class MapEditor {
 
   private updateProperties(): void {
     if (!this.mapData) return;
-    
+
     (document.getElementById('mapName') as HTMLInputElement).value = this.mapData.name;
     (document.getElementById('mapWidth') as HTMLInputElement).value = String(this.mapData.width);
     (document.getElementById('mapHeight') as HTMLInputElement).value = String(this.mapData.height);
     document.getElementById('tileSize')!.textContent = `${this.mapData.tileSize} px`;
+
+    // 绑定尺寸输入框事件（只绑定一次）
+    this.bindDimensionInputs();
+  }
+
+  private dimensionListenersBound = false;
+
+  private bindDimensionInputs(): void {
+    if (this.dimensionListenersBound) return;
+
+    const widthInput = document.getElementById('mapWidth') as HTMLInputElement;
+    const heightInput = document.getElementById('mapHeight') as HTMLInputElement;
+
+    const handleResize = () => {
+      if (!this.mapData) return;
+
+      const newWidth = Math.max(4, Math.min(128, parseInt(widthInput.value) || this.mapData.width));
+      const newHeight = Math.max(4, Math.min(128, parseInt(heightInput.value) || this.mapData.height));
+
+      if (newWidth !== this.mapData.width || newHeight !== this.mapData.height) {
+        this.resizeMap(newWidth, newHeight);
+        widthInput.value = String(newWidth);
+        heightInput.value = String(newHeight);
+      }
+    };
+
+    widthInput.addEventListener('change', handleResize);
+    heightInput.addEventListener('change', handleResize);
+
+    this.dimensionListenersBound = true;
+  }
+
+  private resizeMap(newWidth: number, newHeight: number): void {
+    if (!this.mapData) return;
+
+    const oldWidth = this.mapData.width;
+    const oldHeight = this.mapData.height;
+    const oldTiles = this.mapData.tiles;
+
+    // 创建新数组
+    const newTiles = new Array(newWidth * newHeight).fill(0);
+
+    // 复制原有数据（保留左上角的区域）
+    const copyWidth = Math.min(oldWidth, newWidth);
+    const copyHeight = Math.min(oldHeight, newHeight);
+
+    for (let y = 0; y < copyHeight; y++) {
+      for (let x = 0; x < copyWidth; x++) {
+        newTiles[y * newWidth + x] = oldTiles[y * oldWidth + x];
+      }
+    }
+
+    // 更新地图数据
+    this.mapData.width = newWidth;
+    this.mapData.height = newHeight;
+    this.mapData.tiles = newTiles;
+
+    // 调整出生点（确保在地图内）
+    this.mapData.spawnPoint.x = Math.min(this.mapData.spawnPoint.x, newWidth - 1);
+    this.mapData.spawnPoint.y = Math.min(this.mapData.spawnPoint.y, newHeight - 1);
+
+    // 重新调整画布
+    this.resizeCanvas();
+    this.markDirty();
+
+    console.log(`地图尺寸调整为: ${newWidth}x${newHeight}`);
   }
 
   private bindMouseEvents(): void {
@@ -191,14 +336,17 @@ export class MapEditor {
   }
 
   private getTilePos(e: MouseEvent): { x: number; y: number } {
+    if (!this.mapData) return { x: 0, y: 0 };
+
     const rect = this.canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
-    const y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
-    
-    const tileSize = this.config?.tileSize || 64;
+    // 计算鼠标在画布上的相对位置（0-1 比例）
+    const relX = (e.clientX - rect.left) / rect.width;
+    const relY = (e.clientY - rect.top) / rect.height;
+
+    // 转换为瓦片坐标
     return {
-      x: Math.floor(x / tileSize),
-      y: Math.floor(y / tileSize),
+      x: Math.floor(relX * this.mapData.width),
+      y: Math.floor(relY * this.mapData.height),
     };
   }
 
@@ -264,6 +412,30 @@ export class MapEditor {
       ctx.arc(px, py, size / 4, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    // 绘制矩形工具预览
+    if (this.currentTool instanceof RectTool) {
+      const preview = this.currentTool.getPreviewRect();
+      if (preview) {
+        const px = preview.x * size;
+        const py = preview.y * size;
+        const pw = preview.w * size;
+        const ph = preview.h * size;
+
+        // 绘制半透明填充
+        const tileId = this.getSelectedTile();
+        const tile = this.config.tiles.find(t => t.id === tileId);
+        ctx.fillStyle = (tile?.color || '#ffffff') + '40'; // 25% 透明度
+        ctx.fillRect(px, py, pw, ph);
+
+        // 绘制虚线边框
+        ctx.strokeStyle = '#6bb8ff';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(px, py, pw, ph);
+        ctx.setLineDash([]);
+      }
+    }
   }
 
   // 公共 API
@@ -293,30 +465,120 @@ export class MapEditor {
   }
 
   undo(): void {
-    // TODO: 实现撤销
-    console.log('Undo');
+    if (this.commandHistory.undo()) {
+      this.markDirty();
+      this.updateUndoRedoUI();
+    }
   }
 
   redo(): void {
-    // TODO: 实现重做
-    console.log('Redo');
+    if (this.commandHistory.redo()) {
+      this.markDirty();
+      this.updateUndoRedoUI();
+    }
+  }
+
+  /**
+   * 执行命令（添加到历史记录）
+   */
+  executeCommand(cmd: Command): void {
+    this.commandHistory.execute(cmd);
+    this.updateUndoRedoUI();
+  }
+
+  /**
+   * 更新撤销/重做按钮状态
+   */
+  private updateUndoRedoUI(): void {
+    const undoBtn = document.getElementById('btnUndo');
+    const redoBtn = document.getElementById('btnRedo');
+    
+    if (undoBtn) {
+      undoBtn.style.opacity = this.commandHistory.canUndo() ? '1' : '0.4';
+    }
+    if (redoBtn) {
+      redoBtn.style.opacity = this.commandHistory.canRedo() ? '1' : '0.4';
+    }
   }
 
   markDirty(): void {
     document.getElementById('saveStatus')!.textContent = '未保存';
   }
 
-  export(format: 'ts' | 'json'): void {
+  // 当前待导出的格式和回调
+  private pendingExport: { format: 'ts' | 'json'; resolve: (name: string | null) => void } | null = null;
+
+  /**
+   * 显示导出对话框，返回用户输入的名称（或 null 如果取消）
+   */
+  private showExportDialog(format: 'ts' | 'json'): Promise<string | null> {
+    return new Promise((resolve) => {
+      this.pendingExport = { format, resolve };
+
+      const modal = document.getElementById('exportModal')!;
+      const input = document.getElementById('exportNameInput') as HTMLInputElement;
+      const currentName = (document.getElementById('mapName') as HTMLInputElement).value || 'untitled';
+
+      input.value = currentName;
+      input.focus();
+      input.select();
+
+      modal.classList.remove('hidden');
+    });
+  }
+
+  /**
+   * 确认导出（由 main.ts 调用）
+   */
+  async confirmExport(): Promise<void> {
+    if (!this.pendingExport) return;
+
+    const input = document.getElementById('exportNameInput') as HTMLInputElement;
+    const name = input.value.trim() || 'untitled';
+
+    // 隐藏模态框
+    document.getElementById('exportModal')!.classList.add('hidden');
+
+    const { format, resolve } = this.pendingExport;
+    this.pendingExport = null;
+
+    resolve(name);
+
+    // 执行实际导出
+    await this.doExport(format, name);
+  }
+
+  /**
+   * 取消导出（由 main.ts 调用）
+   */
+  cancelExport(): void {
+    if (!this.pendingExport) return;
+
+    document.getElementById('exportModal')!.classList.add('hidden');
+
+    const { resolve } = this.pendingExport;
+    this.pendingExport = null;
+
+    resolve(null);
+  }
+
+  /**
+   * 开始导出流程
+   */
+  async export(format: 'ts' | 'json'): Promise<void> {
     if (!this.mapData || !this.config) return;
 
-    // 获取当前名称作为默认值
-    const currentName = (document.getElementById('mapName') as HTMLInputElement).value || 'untitled';
+    const name = await this.showExportDialog(format);
+    if (name === null) return; // 用户取消
 
-    // 弹出输入框让用户输入地图名
-    const inputName = prompt('输入地图名称（用于文件名和导出常量）：', currentName);
+    // 实际导出在 confirmExport 中执行
+  }
 
-    // 用户点击取消则退出
-    if (inputName === null) return;
+  /**
+   * 执行实际导出
+   */
+  private async doExport(format: 'ts' | 'json', inputName: string): Promise<void> {
+    if (!this.mapData || !this.config) return;
 
     // 规范化名称：移除非字母数字字符，转为有效标识符
     const sanitizedName = inputName.trim().replace(/[^a-zA-Z0-9_]/g, '_').replace(/^[0-9]/, '_$&') || 'untitled';
@@ -329,8 +591,9 @@ export class MapEditor {
     const fileName = sanitizedName.toLowerCase().replace(/_/g, '-');
 
     let content: string;
-    let filename: string;
+    let defaultFilename: string;
     let mimeType: string;
+    let fileExtension: string;
 
     if (format === 'ts') {
       // 导出为 TypeScript
@@ -358,20 +621,79 @@ ${tilesStr}  ] as const,
 // 默认导出，方便直接导入
 export default ${constName};
 `;
-      filename = `${fileName}.ts`;
+      defaultFilename = `${fileName}.ts`;
       mimeType = 'text/typescript';
+      fileExtension = '.ts';
     } else {
-      // 导出为 JSON
-      const jsonData = {
-        ...this.mapData,
-        name: sanitizedName,
-      };
-      content = JSON.stringify(jsonData, null, 2);
-      filename = `${fileName}.json`;
+      // 导出为 JSON，自定义格式让 tiles 按行列排列
+      const tilesRows: string[] = [];
+      for (let y = 0; y < this.mapData.height; y++) {
+        const rowTiles: string[] = [];
+        for (let x = 0; x < this.mapData.width; x++) {
+          const tileId = this.mapData.tiles[y * this.mapData.width + x];
+          rowTiles.push(String(tileId));
+        }
+        tilesRows.push(`    ${rowTiles.join(', ')}`);
+      }
+
+      content = `{
+  "version": ${this.mapData.version},
+  "name": "${sanitizedName}",
+  "width": ${this.mapData.width},
+  "height": ${this.mapData.height},
+  "tileSize": ${this.mapData.tileSize},
+  "tiles": [
+${tilesRows.join(',\n')}
+  ],
+  "spawnPoint": {
+    "x": ${this.mapData.spawnPoint.x},
+    "y": ${this.mapData.spawnPoint.y}
+  }
+}`;
+      defaultFilename = `${fileName}.json`;
       mimeType = 'application/json';
+      fileExtension = '.json';
     }
 
-    // 下载文件
+    // 尝试使用 File System Access API 让用户选择保存路径
+    if ('showSaveFilePicker' in window) {
+      try {
+        const fileHandle = await (window as any).showSaveFilePicker({
+          suggestedName: defaultFilename,
+          types: [
+            {
+              description: format === 'ts' ? 'TypeScript 文件' : 'JSON 文件',
+              accept: {
+                [mimeType]: [fileExtension],
+              },
+            },
+          ],
+        });
+
+        // 写入文件
+        const writable = await fileHandle.createWritable();
+        await writable.write(content);
+        await writable.close();
+
+        document.getElementById('saveStatus')!.textContent = `已导出: ${fileHandle.name}`;
+
+        // 显示成功提示
+        this.showExportSuccess(fileHandle.name);
+      } catch (err) {
+        // 用户取消选择或发生错误
+        if ((err as Error).name !== 'AbortError') {
+          console.error('导出失败:', err);
+          // 回退到传统下载方式
+          this.downloadFile(content, defaultFilename, mimeType);
+        }
+      }
+    } else {
+      // 浏览器不支持 File System Access API，使用传统下载方式
+      this.downloadFile(content, defaultFilename, mimeType);
+    }
+  }
+
+  private downloadFile(content: string, filename: string, mimeType: string): void {
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -381,5 +703,191 @@ export default ${constName};
     URL.revokeObjectURL(url);
 
     document.getElementById('saveStatus')!.textContent = `已导出: ${filename}`;
+
+    // 显示成功提示
+    this.showExportSuccess(filename);
+  }
+
+  /**
+   * 新建地图
+   */
+  newMap(): void {
+    if (!this.config) return;
+
+    // 重置为默认尺寸
+    this.mapData = {
+      version: 1,
+      name: 'untitled',
+      width: this.config.defaultWidth,
+      height: this.config.defaultHeight,
+      tileSize: this.config.tileSize,
+      tiles: new Array(this.config.defaultWidth * this.config.defaultHeight).fill(0),
+      spawnPoint: { x: Math.floor(this.config.defaultWidth / 2), y: Math.floor(this.config.defaultHeight / 2) },
+    };
+
+    // 更新 UI
+    this.updateProperties();
+    this.resizeCanvas();
+    this.markDirty();
+
+    // 清空命令历史
+    this.commandHistory.clear();
+    this.updateUndoRedoUI();
+
+    document.getElementById('saveStatus')!.textContent = '新建地图';
+  }
+
+  /**
+   * 导入地图
+   */
+  importMap(): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,.ts';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        const content = await file.text();
+        let data: any;
+
+        if (file.name.endsWith('.json')) {
+          data = JSON.parse(content);
+        } else {
+          // 解析 TypeScript 文件
+          data = this.parseTypeScriptMap(content);
+          if (!data) {
+            alert('无法解析 TypeScript 文件，请确保格式正确');
+            return;
+          }
+        }
+
+        // 验证数据结构
+        if (!data.tiles || !data.width || !data.height) {
+          alert('无效的地图文件');
+          return;
+        }
+
+        // 应用导入的数据
+        this.mapData = {
+          version: data.version || 1,
+          name: data.name || 'imported',
+          width: data.width,
+          height: data.height,
+          tileSize: data.tileSize || this.config?.tileSize || 64,
+          tiles: data.tiles,
+          spawnPoint: data.spawnPoint || { x: Math.floor(data.width / 2), y: Math.floor(data.height / 2) },
+        };
+
+        // 更新 UI
+        this.updateProperties();
+        this.resizeCanvas();
+        this.markDirty();
+
+        // 清空命令历史
+        this.commandHistory.clear();
+        this.updateUndoRedoUI();
+
+        document.getElementById('saveStatus')!.textContent = `已导入: ${file.name}`;
+      } catch (err) {
+        console.error('导入失败:', err);
+        alert('导入失败: ' + (err as Error).message);
+      }
+    };
+    input.click();
+  }
+
+  /**
+   * 解析 TypeScript 地图文件
+   */
+  private parseTypeScriptMap(content: string): { tiles: number[]; width: number; height: number; name: string; tileSize: number; spawnPoint: { x: number; y: number } } | null {
+    // 创建 T 枚举名称到 ID 的反向映射
+    const tileNameToId = new Map<string, number>();
+    this.config?.tiles.forEach(tile => {
+      tileNameToId.set(tile.name, tile.id);
+    });
+
+    // 尝试提取 width 和 height
+    const widthMatch = content.match(/width:\s*(\d+)/);
+    const heightMatch = content.match(/height:\s*(\d+)/);
+    const tileSizeMatch = content.match(/tileSize:\s*(\d+)/);
+    const nameMatch = content.match(/name:\s*['"]([^'"]+)['"]/);
+
+    // 尝试提取 spawnPoint
+    const spawnXMatch = content.match(/spawnPoint:\s*\{[^}]*x:\s*(\d+)/);
+    const spawnYMatch = content.match(/spawnPoint:\s*\{[^}]*y:\s*(\d+)/);
+
+    // 提取 tiles 数组内容
+    // 匹配 tiles: [ ... ] 或 tiles: [ ... ] as const
+    const tilesMatch = content.match(/tiles:\s*\[([\s\S]*?)\](?:\s*as\s+const)?/);
+    if (!tilesMatch) return null;
+
+    const tilesContent = tilesMatch[1];
+
+    // 解析 tiles 内容，支持两种格式：
+    // 1. T.VOID, T.WALL, ... (枚举格式)
+    // 2. 0, 1, 2, ... (数字格式)
+    const tiles: number[] = [];
+    const tileEntries = tilesContent.split(',');
+
+    for (const entry of tileEntries) {
+      const trimmed = entry.trim();
+      if (!trimmed) continue;
+
+      // 尝试匹配 T.XXX 格式
+      const enumMatch = trimmed.match(/^T\.(\w+)$/);
+      if (enumMatch) {
+        const tileName = enumMatch[1];
+        const tileId = tileNameToId.get(tileName);
+        if (tileId !== undefined) {
+          tiles.push(tileId);
+        } else {
+          console.warn(`未知的瓦片类型: T.${tileName}`);
+          tiles.push(0); // 默认使用 VOID
+        }
+      } else {
+        // 尝试直接解析数字
+        const numId = parseInt(trimmed, 10);
+        if (!isNaN(numId)) {
+          tiles.push(numId);
+        }
+      }
+    }
+
+    const width = widthMatch ? parseInt(widthMatch[1], 10) : Math.floor(Math.sqrt(tiles.length));
+    const height = heightMatch ? parseInt(heightMatch[1], 10) : Math.ceil(tiles.length / width);
+
+    return {
+      tiles,
+      width,
+      height,
+      name: nameMatch ? nameMatch[1] : 'imported',
+      tileSize: tileSizeMatch ? parseInt(tileSizeMatch[1], 10) : (this.config?.tileSize || 64),
+      spawnPoint: {
+        x: spawnXMatch ? parseInt(spawnXMatch[1], 10) : Math.floor(width / 2),
+        y: spawnYMatch ? parseInt(spawnYMatch[1], 10) : Math.floor(height / 2),
+      },
+    };
+  }
+
+  /**
+   * 显示导出成功提示
+   */
+  private showExportSuccess(filename: string): void {
+    const toast = document.getElementById('exportSuccessToast')!;
+    const message = document.getElementById('toastMessage')!;
+
+    message.textContent = `已导出: ${filename}`;
+    toast.classList.remove('hidden', 'hiding');
+
+    // 3秒后自动隐藏
+    setTimeout(() => {
+      toast.classList.add('hiding');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+        toast.classList.remove('hiding');
+      }, 300);
+    }, 3000);
   }
 }

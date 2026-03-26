@@ -178,8 +178,20 @@ async function init(): Promise<void> {
   // Spawn hero on a walkable tile near the center
   const hero = new Hero(7, 7);
 
-  // Camera follows hero
+  // 设置摄像机边界 - 限制在实际的地图区域内（排除外圈的 VOID）
+  // 地图从 (TILE, TILE) 开始，到 ((COLS-1)*TILE, (ROWS-1)*TILE) 结束
+  const MAP_X = TILE;
+  const MAP_Y = TILE;
+  const MAP_W = (COLS - 2) * TILE;  // 排除左右外圈
+  const MAP_H = (ROWS - 2) * TILE;  // 排除上下外圈
+  camera.setMapBounds(MAP_X, MAP_Y, MAP_W, MAP_H);
+
+  // Camera starts at hero position
   camera.position = new Vec2(hero.x, hero.y);
+
+  // 设置死区：玩家在屏幕中央 40% 区域内移动时，摄像机不跟随
+  // 只有当玩家走到屏幕边缘 30% 区域时，摄像机才开始滑动
+  camera.setDeadZone(0.4);
 
   statusEl.textContent = 'WebGPU ✓ — Dungeon — WASD / 方向键 移动';
 
@@ -188,10 +200,10 @@ async function init(): Promise<void> {
     const move = input.action('Move').vec2();
     hero.update(dt, move);
 
-    // Camera smoothly follows hero
+    // 使用死区跟随：玩家在屏幕中央区域移动时，摄像机不跟随
+    // 只有当玩家走到屏幕边缘区域时，摄像机才开始滑动
     const LERP = 1 - Math.pow(0.001, dt);
-    camera.position.x += (hero.x - camera.position.x) * LERP;
-    camera.position.y += (hero.y - camera.position.y) * LERP;
+    camera.followWithDeadZone(new Vec2(hero.x, hero.y), LERP);
     camera.update(dt);
     input.endFrame();
   };

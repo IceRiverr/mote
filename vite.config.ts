@@ -13,9 +13,10 @@ export default defineConfig({
     target: 'esnext',
     rollupOptions: {
       input: {
-        main:     resolve(__dirname, 'index.html'),
-        tinyTown: resolve(__dirname, 'games/tiny-town/index.html'),
-        dungeon:  resolve(__dirname, 'games/dungeon/index.html'),
+        main:       resolve(__dirname, 'index.html'),
+        tinyTown:   resolve(__dirname, 'games/tiny-town/index.html'),
+        dungeon:    resolve(__dirname, 'games/dungeon/index.html'),
+        mapEditor:  resolve(__dirname, 'packages/map-editor/index.html'),
       },
     },
   },

@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mote Map Editor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    background: #0a0a0f;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* 顶部工具栏 */
+  .toolbar {
+    height: 48px;
+    background: #111118;
+    border-bottom: 1px solid #1e1e2e;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+  }
+
+  .toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-right: 16px;
+    border-right: 1px solid #1e1e2e;
+    margin-right: 8px;
+  }
+
+  .toolbar-section:last-child {
+    border-right: none;
+    margin-left: auto;
+  }
+
+  .btn {
+    padding: 6px 12px;
+    background: #1a1a24;
+    border: 1px solid #2a2a3a;
+    border-radius: 4px;
+    color: #888;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+
+  .btn:hover {
+    background: #252532;
+    border-color: #3a3a4a;
+    color: #ccc;
+  }
+
+  .btn.active {
+    background: #6bb8ff22;
+    border-color: #6bb8ff;
+    color: #6bb8ff;
+  }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  select {
+    padding: 6px 12px;
+    background: #1a1a24;
+    border: 1px solid #2a2a3a;
+    border-radius: 4px;
+    color: #ccc;
+    cursor: pointer;
+  }
+
+  /* 主内容区 */
+  .main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* 左侧面板 */
+  .sidebar-left {
+    width: 200px;
+    background: #111118;
+    border-right: 1px solid #1e1e2e;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-title {
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #1e1e2e;
+  }
+
+  .tools {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .tool-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: #888;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+
+  .tool-btn:hover {
+    background: #1a1a24;
+    color: #ccc;
+  }
+
+  .tool-btn.active {
+    background: #6bb8ff15;
+    border-color: #6bb8ff44;
+    color: #6bb8ff;
+  }
+
+  .tool-icon {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  .palette {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+
+  .tile-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    margin-bottom: 4px;
+    background: #1a1a24;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .tile-item:hover {
+    border-color: #3a3a4a;
+  }
+
+  .tile-item.active {
+    border-color: #6bb8ff;
+    background: #6bb8ff15;
+  }
+
+  .tile-preview {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid #333;
+  }
+
+  .tile-name {
+    font-size: 13px;
+    color: #aaa;
+  }
+
+  .tile-item.active .tile-name {
+    color: #6bb8ff;
+  }
+
+  /* 画布区域 */
+  .canvas-wrapper {
+    flex: 1;
+    position: relative;
+    background: #0a0a0f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  #canvas {
+    border-radius: 8px;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  }
+
+  .canvas-info {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 6px;
+    font-size: 12px;
+    color: #666;
+    font-family: monospace;
+  }
+
+  /* 右侧面板 */
+  .sidebar-right {
+    width: 220px;
+    background: #111118;
+    border-left: 1px solid #1e1e2e;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .properties {
+    padding: 16px;
+  }
+
+  .prop-group {
+    margin-bottom: 20px;
+  }
+
+  .prop-label {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .prop-value {
+    font-size: 14px;
+    color: #ccc;
+    font-family: monospace;
+  }
+
+  .prop-input {
+    width: 100%;
+    padding: 8px 12px;
+    background: #1a1a24;
+    border: 1px solid #2a2a3a;
+    border-radius: 4px;
+    color: #ccc;
+    font-size: 13px;
+  }
+
+  .prop-input:focus {
+    outline: none;
+    border-color: #6bb8ff;
+  }
+
+  .export-btns {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: #6bb8ff22;
+    border-color: #6bb8ff;
+    color: #6bb8ff;
+  }
+
+  .btn-primary:hover {
+    background: #6bb8ff33;
+  }
+
+  /* 底部状态栏 */
+  .statusbar {
+    height: 28px;
+    background: #0d0d12;
+    border-top: 1px solid #1e1e2e;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    font-size: 12px;
+    color: #555;
+    gap: 16px;
+  }
+
+  .status-sep {
+    color: #333;
+  }
+
+  /* 配置选择弹窗 */
+  .config-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .config-panel {
+    background: #111118;
+    border: 1px solid #1e1e2e;
+    border-radius: 12px;
+    padding: 32px;
+    min-width: 320px;
+  }
+
+  .config-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #e0e0e0;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+
+  .config-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
+  .config-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #1a1a24;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .config-item:hover {
+    border-color: #6bb8ff44;
+    background: #252532;
+  }
+
+  .config-item input[type="radio"] {
+    accent-color: #6bb8ff;
+  }
+
+  .config-name {
+    font-size: 14px;
+    color: #ccc;
+  }
+
+  .config-desc {
+    font-size: 12px;
+    color: #666;
+    margin-top: 2px;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+</style>
+</head>
+<body>
+  <!-- 配置选择弹窗 -->
+  <div id="configModal" class="config-modal">
+    <div class="config-panel">
+      <div class="config-title">选择游戏配置</div>
+      <div class="config-list" id="configList">
+        <!-- 动态填充 -->
+      </div>
+      <button class="btn btn-primary" id="confirmConfig" style="width: 100%;">
+        开始编辑
+      </button>
+    </div>
+  </div>
+
+  <!-- 主界面 -->
+  <div class="toolbar">
+    <div class="toolbar-section">
+      <button class="btn" id="btnNew">新建</button>
+      <button class="btn" id="btnImport">导入</button>
+      <button class="btn" id="btnExport">导出</button>
+    </div>
+    <div class="toolbar-section">
+      <button class="btn" id="btnUndo" title="撤销 (Ctrl+Z)">↩️</button>
+      <button class="btn" id="btnRedo" title="重做 (Ctrl+Y)">↪️</button>
+    </div>
+    <div class="toolbar-section">
+      <button class="btn" id="btnGrid" title="显示网格 (G)">网格</button>
+      <button class="btn" id="btnZoomOut">-</button>
+      <span id="zoomLevel" style="color: #666; font-size: 12px; min-width: 50px; text-align: center;">100%</span>
+      <button class="btn" id="btnZoomIn">+</button>
+    </div>
+    <div class="toolbar-section">
+      <select id="gameSelect">
+        <option value="">选择游戏...</option>
+      </select>
+      <a class="btn" href="/">🏠 首页</a>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar-left">
+      <div class="panel-title">工具</div>
+      <div class="tools">
+        <button class="tool-btn active" data-tool="brush">
+          <span class="tool-icon">🖱️</span>
+          <span>画笔 (B)</span>
+        </button>
+        <button class="tool-btn" data-tool="eraser">
+          <span class="tool-icon">⌫</span>
+          <span>橡皮 (E)</span>
+        </button>
+        <button class="tool-btn" data-tool="fill">
+          <span class="tool-icon">🪣</span>
+          <span>填充 (F)</span>
+        </button>
+        <button class="tool-btn" data-tool="rect">
+          <span class="tool-icon">▭</span>
+          <span>矩形 (R)</span>
+        </button>
+      </div>
+
+      <div class="panel-title">瓦片</div>
+      <div class="palette" id="palette">
+        <!-- 动态填充 -->
+      </div>
+    </div>
+
+    <div class="canvas-wrapper">
+      <canvas id="canvas" width="800" height="600"></canvas>
+      <div class="canvas-info" id="canvasInfo">
+        坐标: (0, 0) | 瓦片: VOID
+      </div>
+    </div>
+
+    <div class="sidebar-right">
+      <div class="panel-title">属性</div>
+      <div class="properties">
+        <div class="prop-group">
+          <div class="prop-label">地图名称</div>
+          <input type="text" class="prop-input" id="mapName" value="untitled">
+        </div>
+        <div class="prop-group">
+          <div class="prop-label">地图尺寸</div>
+          <div style="display: flex; gap: 8px;">
+            <input type="number" class="prop-input" id="mapWidth" value="16" min="4" max="128" style="width: 50%;">
+            <input type="number" class="prop-input" id="mapHeight" value="12" min="4" max="128" style="width: 50%;">
+          </div>
+        </div>
+        <div class="prop-group">
+          <div class="prop-label">瓦片大小</div>
+          <div class="prop-value" id="tileSize">64 px</div>
+        </div>
+        <div class="prop-group">
+          <div class="prop-label">当前工具</div>
+          <div class="prop-value" id="currentTool">画笔</div>
+        </div>
+        <div class="prop-group">
+          <div class="prop-label">选中瓦片</div>
+          <div class="prop-value" id="selectedTile">VOID</div>
+        </div>
+      </div>
+
+      <div class="export-btns">
+        <button class="btn btn-primary" id="btnExportTs" title="导出为 .ts 文件，可自定义名称">📄 导出 TypeScript</button>
+        <button class="btn" id="btnExportJson" title="导出为 .json 文件，可自定义名称">📋 导出 JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <span id="statusText">就绪</span>
+    <span class="status-sep">|</span>
+    <span id="saveStatus">未保存</span>
+    <span class="status-sep">|</span>
+    <span id="configName">未选择配置</span>
+  </div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

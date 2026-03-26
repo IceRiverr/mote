@@ -1,0 +1,23 @@
+{
+  "name": "floe",
+  "version": "1.0.0",
+  "description": "这是我的一个游戏开发实验项目。",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && scp -r dist/* root@8.210.175.90:/var/www/iceriver.cc/"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "typescript": "^6.0.2",
+    "vite": "^8.0.2"
+  }
+}

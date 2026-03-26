@@ -15,6 +15,7 @@ export default defineConfig({
       input: {
         main:     resolve(__dirname, 'index.html'),
         tinyTown: resolve(__dirname, 'games/tiny-town/index.html'),
+        dungeon:  resolve(__dirname, 'games/dungeon/index.html'),
       },
     },
   },

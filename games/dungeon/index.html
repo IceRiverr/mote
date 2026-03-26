@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dungeon — mote</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0f;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: #e0e0e0;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .back {
+    color: #6bb8ff;
+    text-decoration: none;
+    font-size: 0.85rem;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+  .back:hover { opacity: 1; }
+  h1 { font-size: 1.2rem; font-weight: 300; letter-spacing: 0.08em; }
+  h1 span { color: #c084fc; font-weight: 600; }
+  canvas {
+    border-radius: 8px;
+    box-shadow: 0 0 40px rgba(192, 132, 252, 0.15);
+    image-rendering: pixelated;
+  }
+  #status { margin-top: 12px; font-size: 0.8rem; color: #666; }
+  #fallback {
+    display: none; margin-top: 20px; padding: 20px;
+    background: #1a1a2e; border-radius: 8px; border: 1px solid #333;
+    max-width: 500px; text-align: center; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <a class="back" href="/">← 返回游戏列表</a>
+    <h1><span>Dungeon</span></h1>
+  </div>
+  <canvas id="canvas" width="640" height="480"></canvas>
+  <div id="status">Initializing WebGPU...</div>
+  <div id="fallback">
+    <p>⚠️ WebGPU is not available on this device/browser.</p>
+    <p style="margin-top:8px; font-size:0.8rem; color:#666;">
+      Requires: Chrome 113+ / Edge 113+ / Safari 26+
+    </p>
+  </div>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

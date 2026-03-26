@@ -36,6 +36,57 @@
     border-radius: 8px;
     box-shadow: 0 0 40px rgba(192, 132, 252, 0.15);
     image-rendering: pixelated;
+    touch-action: none;
+  }
+  /* D-pad for touch controls */
+  .dpad-container {
+    position: fixed;
+    bottom: 40px;
+    left: 40px;
+    width: 140px;
+    height: 140px;
+    display: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .dpad-container.visible {
+    display: block;
+  }
+  .dpad {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  .dpad-btn {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .dpad-btn:active, .dpad-btn.active {
+    background: rgba(107, 184, 255, 0.3);
+    border-color: rgba(107, 184, 255, 0.6);
+    color: #6bb8ff;
+  }
+  .dpad-up { top: 0; left: 48px; }
+  .dpad-down { bottom: 0; left: 48px; }
+  .dpad-left { top: 48px; left: 0; }
+  .dpad-right { top: 48px; right: 0; }
+  .dpad-center {
+    top: 48px;
+    left: 48px;
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    pointer-events: none;
   }
   #status { margin-top: 12px; font-size: 0.8rem; color: #666; }
   #fallback {
@@ -58,6 +109,18 @@
       Requires: Chrome 113+ / Edge 113+ / Safari 26+
     </p>
   </div>
+
+  <!-- Touch D-pad -->
+  <div class="dpad-container" id="dpad">
+    <div class="dpad">
+      <div class="dpad-btn dpad-up" data-dir="up">▲</div>
+      <div class="dpad-btn dpad-down" data-dir="down">▼</div>
+      <div class="dpad-btn dpad-left" data-dir="left">◀</div>
+      <div class="dpad-btn dpad-right" data-dir="right">▶</div>
+      <div class="dpad-btn dpad-center">●</div>
+    </div>
+  </div>
+
   <script type="module" src="./main.ts"></script>
 </body>
 </html>

@@ -4,6 +4,65 @@ import {
 } from '@mote/engine';
 import { Rect } from '@mote/engine';
 
+// ── Touch D-Pad Controller ───────────────────────────────────────────────────
+class TouchDPad {
+  private dirs = { up: false, down: false, left: false, right: false };
+  private value = new Vec2(0, 0);
+  private container: HTMLElement | null;
+
+  constructor(containerId: string) {
+    this.container = document.getElementById(containerId);
+    if (!this.container) return;
+
+    // Show d-pad on touch devices or small screens (mobile)
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const isSmallScreen = window.innerWidth <= 1024 || window.innerHeight <= 600;
+    if (isTouchDevice || isSmallScreen) {
+      this.container.classList.add('visible');
+    }
+
+    const buttons = this.container.querySelectorAll('.dpad-btn[data-dir]');
+    buttons.forEach(btn => {
+      const dir = btn.getAttribute('data-dir') as keyof typeof this.dirs;
+
+      const onStart = (e: Event) => {
+        e.preventDefault();
+        this.dirs[dir] = true;
+        btn.classList.add('active');
+        this.updateValue();
+      };
+
+      const onEnd = (e: Event) => {
+        e.preventDefault();
+        this.dirs[dir] = false;
+        btn.classList.remove('active');
+        this.updateValue();
+      };
+
+      btn.addEventListener('touchstart', onStart, { passive: false });
+      btn.addEventListener('touchend', onEnd);
+      btn.addEventListener('touchcancel', onEnd);
+      btn.addEventListener('mousedown', onStart);
+      btn.addEventListener('mouseup', onEnd);
+      btn.addEventListener('mouseleave', onEnd);
+    });
+  }
+
+  private updateValue(): void {
+    let x = 0;
+    let y = 0;
+    if (this.dirs.left) x = -1;
+    else if (this.dirs.right) x = 1;
+    if (this.dirs.up) y = -1;
+    else if (this.dirs.down) y = 1;
+    this.value = new Vec2(x, y);
+  }
+
+  getVector(): Vec2 {
+    return this.value;
+  }
+}
+
 // 导入地图数据和瓦片定义
 import { ROOM_01 } from './maps/room_01.js';
 import { T, BLOCKED_TILES, SPRITE_FILES } from './TileIds.js';
@@ -178,6 +237,9 @@ async function init(): Promise<void> {
   gameplay.enable();
   input.addMap(gameplay);
 
+  // Touch D-pad for mobile
+  const touchDPad = new TouchDPad('dpad');
+
   // Load tile sprites
   const uniqueFiles = [...new Set(Object.values(SPRITE_FILES).filter(Boolean))] as string[];
   const atlasMap = new Map<string, TextureAtlas>();
@@ -204,12 +266,19 @@ async function init(): Promise<void> {
   // Camera starts at hero position
   camera.position = new Vec2(hero.x, hero.y);
 
-  statusEl.textContent = `WebGPU ✓ — Dungeon (${COLS}x${ROWS}) — WASD 移动`;
+  const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  statusEl.textContent = `WebGPU ✓ — Dungeon (${COLS}x${ROWS}) — WASD/手柄/触屏` + (hasTouch ? ' (检测到触屏设备)' : '');
 
   loop.onUpdate = (dt) => {
     input.update();
     const move = input.action('Move').vec2();
-    hero.update(dt, move);
+    const touch = touchDPad.getVector();
+    // Combine keyboard/gamepad with touch input
+    const combinedMove = new Vec2(
+      move.x !== 0 ? move.x : touch.x,
+      move.y !== 0 ? move.y : touch.y
+    );
+    hero.update(dt, combinedMove);
     cameraCtrl.update(new Vec2(hero.x, hero.y), dt);
     camera.update(dt);
     input.endFrame();

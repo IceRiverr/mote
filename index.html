@@ -1,47 +1,88 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Floe Engine</title>
 <style>
-  * { margin: 0; padding: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     background: #0a0a0f;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100vh;
     font-family: 'Segoe UI', system-ui, sans-serif;
     color: #e0e0e0;
   }
-  canvas {
-    border-radius: 8px;
-    box-shadow: 0 0 40px rgba(100, 180, 255, 0.15);
-    image-rendering: pixelated;
-  }
-  h1 { margin-bottom: 16px; font-size: 1.4rem; font-weight: 300; letter-spacing: 0.1em; }
+  header { text-align: center; margin-bottom: 48px; }
+  h1 { font-size: 2rem; font-weight: 200; letter-spacing: 0.15em; }
   h1 span { color: #6bb8ff; font-weight: 600; }
-  #status { margin-top: 12px; font-size: 0.85rem; color: #888; }
-  #fallback {
-    display: none; margin-top: 20px; padding: 20px;
-    background: #1a1a2e; border-radius: 8px; border: 1px solid #333;
-    max-width: 500px; text-align: center; line-height: 1.6;
+  .subtitle { margin-top: 8px; font-size: 0.85rem; color: #444; letter-spacing: 0.05em; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+    width: min(900px, 90vw);
+  }
+
+  .card {
+    background: #111118;
+    border: 1px solid #1e1e2e;
+    border-radius: 12px;
+    padding: 24px 20px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .card:hover {
+    border-color: #6bb8ff44;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(100, 180, 255, 0.08);
+  }
+  .card-title {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #c8e0ff;
+  }
+  .card-desc {
+    font-size: 0.8rem;
+    color: #555;
+    line-height: 1.5;
+  }
+  .card-tag {
+    margin-top: 4px;
+    font-size: 0.7rem;
+    color: #6bb8ff88;
+    letter-spacing: 0.05em;
+  }
+
+  footer {
+    margin-top: 64px;
+    font-size: 0.75rem;
+    color: #2a2a3a;
   }
 </style>
 </head>
 <body>
-  <h1><span>mote</span> 引擎，这是一个轻量级的2d游戏引擎。感谢我的女朋友，圆圆，最爱你了，宝贝！！！</h1>
-  <canvas id="canvas" width="640" height="480"></canvas>
-  <div id="status">Initializing WebGPU...</div>
-  <div id="fallback">
-    <p>⚠️ WebGPU is not available on this device/browser.</p>
-    <p style="margin-top:8px; font-size:0.8rem; color:#666;">
-      Requires: Chrome 113+ / Edge 113+ / Safari 26+<br>
-      Android: Chrome 121+ (ARM/Qualcomm, Android 12+)
-    </p>
+  <header>
+    <h1><span>Floe</span> Engine</h1>
+    <p class="subtitle">游戏列表</p>
+  </header>
+
+  <div class="grid">
+    <a class="card" href="/games/tiny-town/">
+      <div class="card-title">Tiny Town</div>
+      <div class="card-desc">Kenney Tiny Town 素材的 Tilemap 渲染演示，支持键盘 / 手柄平移视角。</div>
+      <div class="card-tag">DEMO · TILEMAP</div>
+    </a>
   </div>
-  <script type="module" src="/src/main.ts"></script>
+
+  <footer>Floe Engine — WebGPU</footer>
 </body>
 </html>

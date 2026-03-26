@@ -61,7 +61,7 @@ GfxDevice
 DX11 映射：
 DX11
 WebGPU
-floe-engine
+mote-engine
 D3D11CreateDevice
 requestAdapter + requestDevice
 GfxDevice.init()
@@ -435,7 +435,7 @@ BroadcastChannel / postMessage
 
 ---
 7. 项目目录结构
-floe-engine/
+mote-engine/
 ├── src/
 │   ├── core/                    # Layer 1: WebGPU Abstraction
 │   │   ├── GfxDevice.ts

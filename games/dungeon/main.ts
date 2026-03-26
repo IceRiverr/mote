@@ -2,6 +2,7 @@ import {
   GfxDevice, SpriteBatch, TextureAtlas, Camera2D,
   GameLoop, InputManager, ActionMap, ActionType, Vec2, Color,
 } from '@mote/engine';
+import { Rect } from '@mote/engine';
 
 const TILE        = 64;
 const ASSETS      = '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)';
@@ -70,6 +71,89 @@ const SPRITE_FILES: Record<T, string | null> = {
   [T.TRAP]:        'floor_trap.png',
   [T.CAMPFIRE]:    'floor_campfire.png',
 };
+
+// ── Camera Controller (Game-specific logic) ───────────────────────────────────
+/**
+ * 边界限制摄像机控制器
+ * - 玩家在屏幕中央区域移动时，摄像机保持静止（死区）
+ * - 玩家靠近地图边缘时，摄像机被边界限制
+ */
+class DungeonCameraController {
+  private readonly camera: Camera2D;
+
+  // 地图边界
+  private readonly bounds: Rect;
+
+  // 死区大小（0-1，表示占视口的比例）
+  deadZoneSize = 0.4;
+
+  constructor(camera: Camera2D, mapX: number, mapY: number, mapW: number, mapH: number) {
+    this.camera = camera;
+    this.bounds = new Rect(mapX, mapY, mapW, mapH);
+  }
+
+  /**
+   * 更新摄像机位置
+   * @param target 目标位置（玩家位置）
+   * @param dt 时间增量
+   */
+  update(target: Vec2, dt: number): void {
+    const halfW = (this.camera.viewport.width  * 0.5) / this.camera.zoom;
+    const halfH = (this.camera.viewport.height * 0.5) / this.camera.zoom;
+
+    // 计算死区边界（以摄像机当前位置为中心）
+    const deadHalfW = halfW * this.deadZoneSize;
+    const deadHalfH = halfH * this.deadZoneSize;
+
+    const deadLeft   = this.camera.position.x - deadHalfW;
+    const deadRight  = this.camera.position.x + deadHalfW;
+    const deadTop    = this.camera.position.y - deadHalfH;
+    const deadBottom = this.camera.position.y + deadHalfH;
+
+    // 计算目标位置需要移动多少才能让玩家回到死区内
+    let deltaX = 0;
+    let deltaY = 0;
+
+    if (target.x < deadLeft)   deltaX = target.x - deadLeft;
+    if (target.x > deadRight)  deltaX = target.x - deadRight;
+    if (target.y < deadTop)    deltaY = target.y - deadTop;
+    if (target.y > deadBottom) deltaY = target.y - deadBottom;
+
+    // 只在需要时移动摄像机
+    if (deltaX !== 0 || deltaY !== 0) {
+      const LERP = 1 - Math.pow(0.001, dt);
+      this.camera.position.x += deltaX * LERP;
+      this.camera.position.y += deltaY * LERP;
+    }
+
+    // 应用边界限制
+    this._clampToBounds();
+  }
+
+  private _clampToBounds(): void {
+    const halfW = (this.camera.viewport.width  * 0.5) / this.camera.zoom;
+    const halfH = (this.camera.viewport.height * 0.5) / this.camera.zoom;
+
+    // 计算摄像机中心的最小/最大允许位置
+    const minX = this.bounds.left + halfW;
+    const maxX = this.bounds.right - halfW;
+    const minY = this.bounds.top + halfH;
+    const maxY = this.bounds.bottom - halfH;
+
+    // 如果地图比视口小，居中显示
+    if (this.bounds.width <= halfW * 2) {
+      this.camera.position.x = this.bounds.x + this.bounds.width * 0.5;
+    } else {
+      this.camera.position.x = Math.max(minX, Math.min(maxX, this.camera.position.x));
+    }
+
+    if (this.bounds.height <= halfH * 2) {
+      this.camera.position.y = this.bounds.y + this.bounds.height * 0.5;
+    } else {
+      this.camera.position.y = Math.max(minY, Math.min(maxY, this.camera.position.y));
+    }
+  }
+}
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
 class Hero {
@@ -178,20 +262,18 @@ async function init(): Promise<void> {
   // Spawn hero on a walkable tile near the center
   const hero = new Hero(7, 7);
 
-  // 设置摄像机边界 - 限制在实际的地图区域内（排除外圈的 VOID）
-  // 地图从 (TILE, TILE) 开始，到 ((COLS-1)*TILE, (ROWS-1)*TILE) 结束
-  const MAP_X = TILE;
-  const MAP_Y = TILE;
-  const MAP_W = (COLS - 2) * TILE;  // 排除左右外圈
-  const MAP_H = (ROWS - 2) * TILE;  // 排除上下外圈
-  camera.setMapBounds(MAP_X, MAP_Y, MAP_W, MAP_H);
+  // 创建自定义摄像机控制器
+  // 地图边界：从 (TILE, TILE) 开始，到 ((COLS-1)*TILE, (ROWS-1)*TILE) 结束
+  const cameraCtrl = new DungeonCameraController(
+    camera,
+    TILE, TILE,                    // 地图起点（排除外圈 VOID）
+    (COLS - 2) * TILE,             // 地图宽度
+    (ROWS - 2) * TILE,             // 地图高度
+  );
+  cameraCtrl.deadZoneSize = 0.4;   // 40% 死区
 
   // Camera starts at hero position
   camera.position = new Vec2(hero.x, hero.y);
-
-  // 设置死区：玩家在屏幕中央 40% 区域内移动时，摄像机不跟随
-  // 只有当玩家走到屏幕边缘 30% 区域时，摄像机才开始滑动
-  camera.setDeadZone(0.4);
 
   statusEl.textContent = 'WebGPU ✓ — Dungeon — WASD / 方向键 移动';
 
@@ -200,10 +282,8 @@ async function init(): Promise<void> {
     const move = input.action('Move').vec2();
     hero.update(dt, move);
 
-    // 使用死区跟随：玩家在屏幕中央区域移动时，摄像机不跟随
-    // 只有当玩家走到屏幕边缘区域时，摄像机才开始滑动
-    const LERP = 1 - Math.pow(0.001, dt);
-    camera.followWithDeadZone(new Vec2(hero.x, hero.y), LERP);
+    // 使用自定义摄像机控制器更新
+    cameraCtrl.update(new Vec2(hero.x, hero.y), dt);
     camera.update(dt);
     input.endFrame();
   };

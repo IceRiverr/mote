@@ -1,5 +1,5 @@
-import { Mat4 } from '../../math/Mat4.js';
-import { Vec2 } from '../../math/Vec2.js';
+import { Mat4 } from './Mat4.js';
+import { Vec2 } from './Vec2.js';
 
 export class Camera2D {
   position: Vec2;

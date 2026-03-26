@@ -1,10 +1,10 @@
-import type { GfxDevice } from '../../core/GfxDevice.js';
-import type { GfxBuffer } from '../../core/GfxResources.js';
-import type { GfxTexture } from '../../core/GfxResources.js';
-import type { AtlasRegion } from '../../core/types.js';
+import type { GfxDevice } from './GfxDevice.js';
+import type { GfxBuffer } from './GfxResources.js';
+import type { GfxTexture } from './GfxResources.js';
+import type { AtlasRegion } from './types.js';
 import type { Camera2D } from './Camera2D.js';
-import type { Color } from '../../math/Color.js';
-import SPRITE_WGSL from '../shaders/sprite_batch.wgsl?raw';
+import type { Color } from './Color.js';
+import SPRITE_WGSL from './shaders/SpriteBatch.wgsl?raw';
 
 // ── TextureAtlas ──────────────────────────────────────────────────────────────
 

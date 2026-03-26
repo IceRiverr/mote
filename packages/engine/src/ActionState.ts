@@ -1,4 +1,4 @@
-import type { ActionDef } from './types.js';
+import type { ActionDef } from './InputTypes.js';
 import type { InputManager } from './InputManager.js';
 
 export class ActionState {

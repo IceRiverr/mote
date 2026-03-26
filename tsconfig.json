@@ -10,6 +10,7 @@
     "lib": ["ESNext", "DOM"],
     "types": ["@webgpu/types"],
     "skipLibCheck": true,
+    "noEmit": true,
     "paths": {
       "@mote/engine":   ["./packages/engine/src/index.ts"],
       "@mote/engine/*": ["./packages/engine/src/*"]

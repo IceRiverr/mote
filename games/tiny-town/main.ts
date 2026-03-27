@@ -1,4 +1,4 @@
-import { GfxDevice, SpriteBatch, TextureAtlas, Camera2D, GameLoop, InputManager, ActionMap, ActionType, Vec2, Color } from '@mote/engine';
+import { createGfxDevice, SpriteBatch, TextureAtlas, Camera2D, GameLoop, InputManager, ActionMap, ActionType, Vec2, Color } from '@mote/engine';
 import type { AtlasRegion } from '@mote/engine';
 
 // ── Tilemap atlas constants ───────────────────────────────────────────────────
@@ -55,7 +55,7 @@ async function init(): Promise<void> {
     return;
   }
 
-  const gfx    = await GfxDevice.create(canvas);
+  const gfx    = await createGfxDevice(canvas);
   const batch  = new SpriteBatch(gfx);
   const camera = new Camera2D(canvas.width, canvas.height);
   const loop   = new GameLoop(60);

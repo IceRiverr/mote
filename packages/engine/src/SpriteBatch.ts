@@ -1,32 +1,32 @@
-import type { GfxDevice } from './GfxDevice.js';
-import type { GfxBuffer } from './GfxResources.js';
-import type { GfxTexture } from './GfxResources.js';
+import type { IGfxDevice, IGfxBuffer, IGfxTexture, IGfxPipeline, IGfxBindGroup, IGfxBindGroupLayout } from './gfx/IGfxDevice.js';
+import { BufferUsage } from './gfx/IGfxDevice.js';
 import type { AtlasRegion } from './types.js';
 import type { Camera2D } from './Camera2D.js';
 import type { Color } from './Color.js';
 import SPRITE_WGSL from './shaders/SpriteBatch.wgsl?raw';
+import SPRITE_VERT_GLSL from './shaders/sprite_batch.vert.glsl?raw';
+import SPRITE_FRAG_GLSL from './shaders/sprite_batch.frag.glsl?raw';
 
 // ── TextureAtlas ──────────────────────────────────────────────────────────────
 
 export class TextureAtlas {
-  readonly texture: GfxTexture;
-  readonly bindGroup: GPUBindGroup;
+  readonly texture: IGfxTexture;
+  readonly bindGroup: IGfxBindGroup;
   private regions: Map<string, AtlasRegion> = new Map();
 
-  constructor(texture: GfxTexture, bindGroup: GPUBindGroup) {
+  constructor(texture: IGfxTexture, bindGroup: IGfxBindGroup) {
     this.texture = texture;
     this.bindGroup = bindGroup;
   }
 
-  static async load(gfx: GfxDevice, imageUrl: string, jsonUrl?: string): Promise<TextureAtlas> {
+  static async load(gfx: IGfxDevice, imageUrl: string, jsonUrl?: string): Promise<TextureAtlas> {
     const texture = await gfx.loadTexture(imageUrl);
-    const sampler = gfx.device.createSampler({ magFilter: 'nearest', minFilter: 'nearest' });
-    const bindGroup = gfx.device.createBindGroup({
-      label: `atlas:${imageUrl}`,
-      layout: SpriteBatch.getAtlasBindGroupLayout(gfx),
+    const layout = SpriteBatch.getAtlasBindGroupLayout(gfx);
+    const bindGroup = gfx.createBindGroup({
+      layout,
       entries: [
-        { binding: 0, resource: sampler },
-        { binding: 1, resource: texture.gpuTexture.createView() },
+        { binding: 0, sampler: true },
+        { binding: 1, texture },
       ],
     });
     const atlas = new TextureAtlas(texture, bindGroup);
@@ -36,13 +36,12 @@ export class TextureAtlas {
       const tw = texture.width, th = texture.height;
       for (const [name, frame] of Object.entries(data)) {
         atlas.regions.set(name, {
-          u0: frame.x / tw,       v0: frame.y / th,
+          u0: frame.x / tw,            v0: frame.y / th,
           u1: (frame.x + frame.w) / tw, v1: (frame.y + frame.h) / th,
-          pixelWidth: frame.w,    pixelHeight: frame.h,
+          pixelWidth: frame.w,          pixelHeight: frame.h,
         });
       }
     } else {
-      // Whole texture as single region
       atlas.regions.set('__full__', { u0: 0, v0: 0, u1: 1, v1: 1, pixelWidth: texture.width, pixelHeight: texture.height });
     }
 
@@ -75,65 +74,74 @@ export class SpriteBatch {
   private static readonly INDICES_PER_QUAD  = 6;
   private static readonly VERTEX_STRIDE     = 32;  // 8 floats × 4 bytes
 
-  private static _atlasLayout: GPUBindGroupLayout | null = null;
+  private static _atlasLayout: IGfxBindGroupLayout | null = null;
 
-  private readonly gfx: GfxDevice;
-  private readonly pipeline: GPURenderPipeline;
-  private readonly vertexBuffer: GfxBuffer;
-  private readonly indexBuffer: GfxBuffer;
-  private readonly cameraUniformBuffer: GfxBuffer;
-  private readonly cameraBindGroup: GPUBindGroup;
+  private readonly gfx: IGfxDevice;
+  private readonly pipeline: IGfxPipeline;
+  private readonly vertexBuffer: IGfxBuffer;
+  private readonly indexBuffer: IGfxBuffer;
+  private readonly cameraUniformBuffer: IGfxBuffer;
+  private readonly cameraBindGroup: IGfxBindGroup;
 
   private readonly cpuBuffer: Float32Array;
   private quadCount = 0;
   private currentAtlas: TextureAtlas | null = null;
   private batches: BatchEntry[] = [];
 
-  constructor(gfx: GfxDevice) {
+  constructor(gfx: IGfxDevice) {
     this.gfx = gfx;
-    const device = gfx.device;
     const MAX = SpriteBatch.MAX_QUADS;
 
-    // CPU-side vertex staging buffer
     this.cpuBuffer = new Float32Array(MAX * SpriteBatch.VERTICES_PER_QUAD * SpriteBatch.FLOATS_PER_VERTEX);
 
-    // GPU vertex buffer (dynamic, written every frame)
     this.vertexBuffer = gfx.createBuffer({
       label: 'SpriteBatch:vertex',
       size: MAX * SpriteBatch.VERTICES_PER_QUAD * SpriteBatch.VERTEX_STRIDE,
-      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+      usage: BufferUsage.VERTEX | BufferUsage.COPY_DST,
     });
 
-    // GPU index buffer (static, generated once)
     this.indexBuffer = gfx.createBuffer({
       label: 'SpriteBatch:index',
-      size: MAX * SpriteBatch.INDICES_PER_QUAD * 2, // Uint16
-      usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+      size: MAX * SpriteBatch.INDICES_PER_QUAD * 2,
+      usage: BufferUsage.INDEX | BufferUsage.COPY_DST,
     });
-    device.queue.writeBuffer(this.indexBuffer.gpuBuffer, 0, generateIndices(MAX));
+    gfx.writeBuffer(this.indexBuffer, generateIndices(MAX));
 
-    // Camera uniform buffer (64 bytes = mat4)
     this.cameraUniformBuffer = gfx.createBuffer({
       label: 'SpriteBatch:cameraUniform',
       size: 64,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      usage: BufferUsage.UNIFORM | BufferUsage.COPY_DST,
     });
 
-    // Pipeline
-    this.pipeline = createSpritePipeline(device, gfx.format);
+    this.pipeline = gfx.createPipeline({
+      label: 'SpritePipeline',
+      wgsl: SPRITE_WGSL,
+      vertGlsl: SPRITE_VERT_GLSL,
+      fragGlsl: SPRITE_FRAG_GLSL,
+      vertexStride: SpriteBatch.VERTEX_STRIDE,
+      vertexAttributes: [
+        { shaderLocation: 0, offset: 0,  format: 'float32x2' },
+        { shaderLocation: 1, offset: 8,  format: 'float32x2' },
+        { shaderLocation: 2, offset: 16, format: 'float32x4' },
+      ],
+      blendMode: 'alpha',
+      bindGroupLayouts: [
+        [{ binding: 0, type: 'uniform', name: 'u_viewProjection' }],
+        [{ binding: 0, type: 'sampler' }, { binding: 1, type: 'texture', name: 'u_texture' }],
+      ],
+    });
 
-    // Camera bind group (group 0)
-    this.cameraBindGroup = device.createBindGroup({
-      label: 'SpriteBatch:cameraBindGroup',
-      layout: this.pipeline.getBindGroupLayout(0),
-      entries: [{ binding: 0, resource: { buffer: this.cameraUniformBuffer.gpuBuffer } }],
+    const cameraLayout = gfx.getBindGroupLayout(this.pipeline, 0);
+    this.cameraBindGroup = gfx.createBindGroup({
+      layout: cameraLayout,
+      entries: [{ binding: 0, buffer: this.cameraUniformBuffer }],
     });
 
     // Cache atlas layout for TextureAtlas.load()
-    SpriteBatch._atlasLayout = this.pipeline.getBindGroupLayout(1);
+    SpriteBatch._atlasLayout = gfx.getBindGroupLayout(this.pipeline, 1);
   }
 
-  static getAtlasBindGroupLayout(_gfx: GfxDevice): GPUBindGroupLayout {
+  static getAtlasBindGroupLayout(_gfx: IGfxDevice): IGfxBindGroupLayout {
     if (!SpriteBatch._atlasLayout) throw new Error('SpriteBatch not yet constructed');
     return SpriteBatch._atlasLayout;
   }
@@ -142,8 +150,7 @@ export class SpriteBatch {
     this.quadCount = 0;
     this.batches.length = 0;
     this.currentAtlas = null;
-    // Upload camera VP matrix
-    this.gfx.device.queue.writeBuffer(this.cameraUniformBuffer.gpuBuffer, 0, camera.getViewProjectionMatrix().data);
+    this.gfx.writeBuffer(this.cameraUniformBuffer, camera.getViewProjectionMatrix().data);
   }
 
   drawQuad(
@@ -160,10 +167,6 @@ export class SpriteBatch {
     const hw = w * 0.5, hh = h * 0.5;
     const cos = Math.cos(rotation), sin = Math.sin(rotation);
 
-    // Corner offsets (local space, center at origin)
-    //  3 ---- 2
-    //  |      |
-    //  0 ---- 1
     const lx = [-hw,  hw,  hw, -hw];
     const ly = [-hh, -hh,  hh,  hh];
     const uvs: [number, number][] = [
@@ -193,33 +196,31 @@ export class SpriteBatch {
     if (this.quadCount === 0) return;
 
     const byteSize = this.quadCount * SpriteBatch.VERTICES_PER_QUAD * SpriteBatch.VERTEX_STRIDE;
-    this.gfx.device.queue.writeBuffer(this.vertexBuffer.gpuBuffer, 0, this.cpuBuffer.buffer, 0, byteSize);
+    this.gfx.writeBuffer(this.vertexBuffer, this.cpuBuffer.subarray(0, byteSize / 4));
 
-    const encoder = this.gfx.device.createCommandEncoder();
-    const pass = encoder.beginRenderPass({
-      colorAttachments: [{
-        view: this.gfx.getCurrentTextureView(),
-        clearValue: { r: 0.04, g: 0.04, b: 0.08, a: 1.0 },
-        loadOp: 'clear',
-        storeOp: 'store',
-      }],
-    });
+    const frame = this.gfx.beginFrame();
+    const pass = frame.beginRenderPass([0.04, 0.04, 0.08, 1.0]);
 
     pass.setPipeline(this.pipeline);
-    pass.setVertexBuffer(0, this.vertexBuffer.gpuBuffer);
-    pass.setIndexBuffer(this.indexBuffer.gpuBuffer, 'uint16');
+    pass.setVertexBuffer(0, this.vertexBuffer);
+    pass.setIndexBuffer(this.indexBuffer, 'uint16');
     pass.setBindGroup(0, this.cameraBindGroup);
 
     for (const batch of this.batches) {
       pass.setBindGroup(1, batch.atlas.bindGroup);
-      pass.drawIndexed(batch.quadCount * SpriteBatch.INDICES_PER_QUAD, 1, batch.startQuad * SpriteBatch.INDICES_PER_QUAD, 0, 0);
+      pass.drawIndexed(
+        batch.quadCount * SpriteBatch.INDICES_PER_QUAD,
+        1,
+        batch.startQuad * SpriteBatch.INDICES_PER_QUAD,
+      );
     }
 
     pass.end();
-    this.gfx.device.queue.submit([encoder.finish()]);
+    frame.submit();
     this.quadCount = 0;
     this.batches.length = 0;
     this.currentAtlas = null;
+
   }
 
   private _breakBatch(atlas: TextureAtlas): void {
@@ -228,7 +229,6 @@ export class SpriteBatch {
   }
 
   private _flush(): void {
-    // Overflow guard: end current frame and start fresh
     this.end();
     this.quadCount = 0;
     this.batches.length = 0;
@@ -256,36 +256,4 @@ function generateIndices(maxQuads: number): Uint16Array {
     indices[offset + 5] = base + 0;
   }
   return indices;
-}
-
-function createSpritePipeline(device: GPUDevice, format: GPUTextureFormat): GPURenderPipeline {
-  const shaderModule = device.createShaderModule({ label: 'sprite_batch', code: SPRITE_WGSL });
-  return device.createRenderPipeline({
-    label: 'SpritePipeline',
-    layout: 'auto',
-    vertex: {
-      module: shaderModule,
-      entryPoint: 'vs_main',
-      buffers: [{
-        arrayStride: 32,
-        attributes: [
-          { shaderLocation: 0, offset: 0,  format: 'float32x2' },
-          { shaderLocation: 1, offset: 8,  format: 'float32x2' },
-          { shaderLocation: 2, offset: 16, format: 'float32x4' },
-        ],
-      }],
-    },
-    fragment: {
-      module: shaderModule,
-      entryPoint: 'fs_main',
-      targets: [{
-        format,
-        blend: {
-          color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-          alpha: { srcFactor: 'one',       dstFactor: 'one-minus-src-alpha', operation: 'add' },
-        },
-      }],
-    },
-    primitive: { topology: 'triangle-list', cullMode: 'none' },
-  });
 }

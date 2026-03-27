@@ -1,5 +1,126 @@
-import { ActionMap } from './ActionMap.js';
-import type { ActionState } from './ActionState.js';
+// ═════════════════════════════════════════════════════════════════════════════
+// Input System — Unified Module
+// Contains: InputManager, ActionMap, ActionState, and all type definitions
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── Enums & Types ────────────────────────────────────────────────────────────
+
+export enum ActionType {
+  Button,  // bool: Jump, Shoot, Pause
+  Axis1D,  // float -1..1: Throttle
+  Axis2D,  // vec2: Move, Look
+}
+
+export interface CompositeAxis2D {
+  up:    string;
+  down:  string;
+  left:  string;
+  right: string;
+}
+
+export interface ActionDef {
+  type:        ActionType;
+  /** Button / Axis1D: 键盘/鼠标/手柄按钮，任一触发即可 */
+  bindings?:   string[];
+  /** Axis2D: 键盘组合方向键，可多套 */
+  composites?: CompositeAxis2D[];
+  /** Axis2D: 手柄摇杆，格式 "Gamepad0_Stick0" */
+  gamepadStick?: string;
+}
+
+// ── ActionState ──────────────────────────────────────────────────────────────
+
+export class ActionState {
+  constructor(
+    private readonly mgr: InputManager,
+    private readonly def: ActionDef,
+  ) {}
+
+  // ── Button ────────────────────────────────────────────────────────────────
+
+  get down(): boolean {
+    if (!this.def.bindings) return false;
+    for (const key of this.def.bindings)
+      if (this.mgr.rawDown(key)) return true;
+    return false;
+  }
+
+  get pressed(): boolean {
+    if (!this.def.bindings) return false;
+    for (const key of this.def.bindings)
+      if (this.mgr.rawPressed(key)) return true;
+    return false;
+  }
+
+  get released(): boolean {
+    if (!this.def.bindings) return false;
+    for (const key of this.def.bindings)
+      if (this.mgr.rawReleased(key)) return true;
+    return false;
+  }
+
+  // ── Axis2D ────────────────────────────────────────────────────────────────
+
+  vec2(): { x: number; y: number } {
+    // 1. 手柄摇杆优先（有输入时直接返回）
+    if (this.def.gamepadStick) {
+      const s = this.mgr.rawStick(this.def.gamepadStick);
+      if (s.x !== 0 || s.y !== 0) return s;
+    }
+
+    // 2. 键盘 composite
+    if (!this.def.composites) return { x: 0, y: 0 };
+    let x = 0, y = 0;
+    for (const c of this.def.composites) {
+      if (this.mgr.rawDown(c.right)) x =  1;
+      if (this.mgr.rawDown(c.left))  x = -1;
+      if (this.mgr.rawDown(c.down))  y =  1;
+      if (this.mgr.rawDown(c.up))    y = -1;
+    }
+    // 对角线归一化（和 Unity Composite 一致）
+    if (x !== 0 && y !== 0) {
+      const inv = 1 / Math.SQRT2;
+      return { x: x * inv, y: y * inv };
+    }
+    return { x, y };
+  }
+
+  // ── Axis1D ────────────────────────────────────────────────────────────────
+
+  axis(): number {
+    if (!this.def.bindings || this.def.bindings.length < 2) return 0;
+    const pos = this.mgr.rawDown(this.def.bindings[1]) ? 1 : 0;
+    const neg = this.mgr.rawDown(this.def.bindings[0]) ? 1 : 0;
+    return pos - neg;
+  }
+}
+
+// ── ActionMap ────────────────────────────────────────────────────────────────
+
+export class ActionMap {
+  readonly name: string;
+  enabled = false;
+  private readonly actions = new Map<string, ActionState>();
+
+  constructor(
+    name: string,
+    defs: Record<string, ActionDef>,
+    mgr: InputManager,
+  ) {
+    this.name = name;
+    for (const [k, def] of Object.entries(defs))
+      this.actions.set(k, new ActionState(mgr, def));
+  }
+
+  action(name: string): ActionState {
+    const a = this.actions.get(name);
+    if (!a) throw new Error(`Action "${name}" not found in map "${this.name}"`);
+    return a;
+  }
+
+  enable():  void { this.enabled = true; }
+  disable(): void { this.enabled = false; }
+}
 
 const DEFAULT_PREVENT_KEYS = [
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',

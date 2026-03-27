@@ -1,8 +1,16 @@
-import type { IGfxDevice, IGfxBuffer, IGfxTexture, IGfxPipeline, IGfxBindGroup, IGfxBindGroupLayout } from './gfx/IGfxDevice.js';
-import { BufferUsage } from './gfx/IGfxDevice.js';
-import type { AtlasRegion } from './types.js';
-import type { Camera2D } from './Camera2D.js';
-import type { Color } from './Color.js';
+import type { IGfxDevice, IGfxBuffer, IGfxTexture, IGfxPipeline, IGfxBindGroup, IGfxBindGroupLayout } from './IGfxDevice.js';
+import { BufferUsage } from './IGfxDevice.js';
+import type { Camera2D } from '../Camera2D.js';
+import type { Color } from '../Color.js';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface AtlasRegion {
+  u0: number; v0: number;
+  u1: number; v1: number;
+  pixelWidth: number;
+  pixelHeight: number;
+}
 import SPRITE_WGSL from './shaders/SpriteBatch.wgsl?raw';
 import SPRITE_VERT_GLSL from './shaders/sprite_batch.vert.glsl?raw';
 import SPRITE_FRAG_GLSL from './shaders/sprite_batch.frag.glsl?raw';

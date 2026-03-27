@@ -2,8 +2,8 @@ import type {
   IGfxDevice, IGfxBuffer, IGfxTexture, IGfxPipeline, IGfxBindGroup, IGfxBindGroupLayout,
   IFrameEncoder, IRenderPass,
   BufferDesc, TextureDesc, PipelineDesc, BindGroupDesc, BindGroupEntry,
-} from '../../gfx/IGfxDevice.js';
-import { BufferUsage } from '../../gfx/IGfxDevice.js';
+} from './IGfxDevice.js';
+import { BufferUsage } from './IGfxDevice.js';
 
 // ── Resource wrappers ─────────────────────────────────────────────────────────
 

@@ -8,7 +8,7 @@ export * from './Mat4.js';
 export * from './Rect.js';
 export * from './Vec2.js';
 export * from './Camera2D.js';
-export * from './SpriteBatch.js';
+export * from './gfx/SpriteBatch.js';
 export { createGfxDevice } from './gfx/createGfxDevice.js';
 export { BufferUsage } from './gfx/IGfxDevice.js';
 export type {
@@ -16,7 +16,4 @@ export type {
   IFrameEncoder, IRenderPass,
   BufferDesc, TextureDesc, PipelineDesc, BindGroupDesc, BindGroupEntry,
 } from './gfx/IGfxDevice.js';
-export type { AtlasRegion } from './types.js';
-// Legacy exports — kept for backwards compatibility
-export { GfxDevice } from './GfxDevice.js';
-export { GfxBuffer, GfxTexture } from './GfxResources.js';
+export type { AtlasRegion } from './gfx/SpriteBatch.js';

@@ -1,5 +1,5 @@
 export * from './GameLoop.js';
-export * from './InputManager.js';
+export * from './Input.js';
 export * from './Color.js';
 export * from './Mat4.js';
 export * from './Rect.js';

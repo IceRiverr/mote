@@ -14,12 +14,8 @@ class TouchDPad {
     this.container = document.getElementById(containerId);
     if (!this.container) return;
 
-    // Show d-pad on touch devices or small screens (mobile)
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    const isSmallScreen = window.innerWidth <= 1024 || window.innerHeight <= 600;
-    if (isTouchDevice || isSmallScreen) {
-      this.container.classList.add('visible');
-    }
+    // Always show d-pad
+    this.container.classList.add('visible');
 
     const buttons = this.container.querySelectorAll('.dpad-btn[data-dir]');
     buttons.forEach(btn => {

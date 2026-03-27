@@ -32,22 +32,28 @@
   .back:hover { opacity: 1; }
   h1 { font-size: 1.2rem; font-weight: 300; letter-spacing: 0.08em; }
   h1 span { color: #c084fc; font-weight: 600; }
+  .game-wrapper {
+    position: relative;
+    display: inline-block;
+  }
   canvas {
     border-radius: 8px;
     box-shadow: 0 0 40px rgba(192, 132, 252, 0.15);
     image-rendering: pixelated;
     touch-action: none;
+    display: block;
   }
-  /* D-pad for touch controls */
+  /* D-pad for touch controls - positioned relative to game area */
   .dpad-container {
-    position: fixed;
-    bottom: 40px;
-    left: 40px;
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
     width: 140px;
     height: 140px;
     display: none;
     user-select: none;
     -webkit-user-select: none;
+    pointer-events: auto;
   }
   .dpad-container.visible {
     display: block;
@@ -61,21 +67,28 @@
     position: absolute;
     width: 44px;
     height: 44px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.7);
+    border: 2px solid rgba(0, 0, 0, 0.9);
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 20px;
-    color: rgba(255, 255, 255, 0.7);
+    color: #fff;
+    text-shadow: 0 0 4px #000, 0 0 8px #000;
     cursor: pointer;
     transition: all 0.1s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  .dpad-btn:hover {
+    background: rgba(20, 20, 20, 0.85);
+    border-color: rgba(100, 100, 100, 0.8);
   }
   .dpad-btn:active, .dpad-btn.active {
-    background: rgba(107, 184, 255, 0.3);
-    border-color: rgba(107, 184, 255, 0.6);
+    background: rgba(0, 0, 0, 0.9);
+    border-color: #6bb8ff;
     color: #6bb8ff;
+    box-shadow: 0 0 12px rgba(107, 184, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
   .dpad-up { top: 0; left: 48px; }
   .dpad-down { bottom: 0; left: 48px; }
@@ -84,9 +97,10 @@
   .dpad-center {
     top: 48px;
     left: 48px;
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(30, 30, 30, 0.8);
+    border-color: rgba(0, 0, 0, 0.9);
     pointer-events: none;
+    color: #888;
   }
   #status { margin-top: 12px; font-size: 0.8rem; color: #666; }
   #fallback {
@@ -101,24 +115,25 @@
     <a class="back" href="/">← 返回游戏列表</a>
     <h1><span>Dungeon</span></h1>
   </div>
-  <canvas id="canvas" width="640" height="480"></canvas>
+  <div class="game-wrapper">
+    <canvas id="canvas" width="640" height="480"></canvas>
+    <!-- Touch D-pad -->
+    <div class="dpad-container" id="dpad">
+      <div class="dpad">
+        <div class="dpad-btn dpad-up" data-dir="up">▲</div>
+        <div class="dpad-btn dpad-down" data-dir="down">▼</div>
+        <div class="dpad-btn dpad-left" data-dir="left">◀</div>
+        <div class="dpad-btn dpad-right" data-dir="right">▶</div>
+        <div class="dpad-btn dpad-center">●</div>
+      </div>
+    </div>
+  </div>
   <div id="status">Initializing WebGPU...</div>
   <div id="fallback">
     <p>⚠️ WebGPU is not available on this device/browser.</p>
     <p style="margin-top:8px; font-size:0.8rem; color:#666;">
       Requires: Chrome 113+ / Edge 113+ / Safari 26+
     </p>
-  </div>
-
-  <!-- Touch D-pad -->
-  <div class="dpad-container" id="dpad">
-    <div class="dpad">
-      <div class="dpad-btn dpad-up" data-dir="up">▲</div>
-      <div class="dpad-btn dpad-down" data-dir="down">▼</div>
-      <div class="dpad-btn dpad-left" data-dir="left">◀</div>
-      <div class="dpad-btn dpad-right" data-dir="right">▶</div>
-      <div class="dpad-btn dpad-center">●</div>
-    </div>
   </div>
 
   <script type="module" src="./main.ts"></script>

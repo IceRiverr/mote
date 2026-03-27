@@ -1,9 +1,6 @@
 export * from './GameLoop.js';
 export * from './Input.js';
-export * from './Color.js';
-export * from './Mat4.js';
-export * from './Rect.js';
-export * from './Vec2.js';
+export * from './Math.js';
 export * from './Camera2D.js';
 export * from './gfx/SpriteBatch.js';
 export { createGfxDevice } from './gfx/createGfxDevice.js';

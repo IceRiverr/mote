@@ -1,7 +1,7 @@
 import type { IGfxDevice, IGfxBuffer, IGfxTexture, IGfxPipeline, IGfxBindGroup, IGfxBindGroupLayout } from './IGfxDevice.js';
 import { BufferUsage } from './IGfxDevice.js';
 import type { Camera2D } from '../Camera2D.js';
-import type { Color } from '../Color.js';
+import type { Color } from '../Math.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

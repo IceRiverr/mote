@@ -4,6 +4,7 @@ export * from './Math.js';
 export * from './Camera2D.js';
 export * from './audio.js';
 export * from './gfx/SpriteBatch.js';
+export * from './gfx/TextRenderer.js';
 export { createGfxDevice } from './gfx/createGfxDevice.js';
 export { BufferUsage } from './gfx/IGfxDevice.js';
 export type {

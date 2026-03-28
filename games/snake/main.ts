@@ -1,6 +1,7 @@
 import {
   createGfxDevice, SpriteBatch, TextureAtlas, Camera2D,
   GameLoop, InputManager, ActionMap, ActionType, Vec2, Color,
+  TextRenderer,
 } from '@mote/engine';
 
 // 动态创建白色纹理 Data URL
@@ -252,7 +253,7 @@ class Game {
     }
   }
 
-  draw(batch: SpriteBatch, atlas: TextureAtlas, time: number, camera: Camera2D): void {
+  draw(batch: SpriteBatch, atlas: TextureAtlas, time: number, camera: Camera2D, textRenderer: TextRenderer): void {
     batch.begin(camera);
 
     // 绘制背景 - 使用一个大的纯色矩形代替多个格子
@@ -262,21 +263,46 @@ class Game {
     this.food.draw(batch, atlas, time);
 
     if (this.state === 'menu') {
-      this.drawCenteredText(batch, atlas, 'SNAKE', 0, -40, 2.5, new Color(0.29, 0.87, 0.5, 1.0));
-      this.drawCenteredText(batch, atlas, 'Press Arrow Keys to Start', 0, 20, 1.0, new Color(0.6, 0.6, 0.6, 1.0));
+      // 使用中文标题 "贪吃蛇" - 调整坐标确保在屏幕内
+      this.drawCenteredText(textRenderer, '贪吃蛇', 0, -80, 32, new Color(0.29, 0.87, 0.5, 1.0));
+      this.drawCenteredText(textRenderer, '按方向键开始游戏', 0, 0, 14, new Color(0.6, 0.6, 0.6, 1.0));
+    } else if (this.state === 'playing') {
+      // 显示当前得分
+      this.drawText(textRenderer, `得分: ${this.score}`, 10, 10, 14, new Color(1, 1, 1, 0.9));
+      if (this.highScore > 0) {
+        this.drawText(textRenderer, `最高分: ${this.highScore}`, 10, 28, 12, new Color(1, 1, 1, 0.6));
+      }
     } else if (this.state === 'gameover') {
-      this.drawCenteredText(batch, atlas, 'GAME OVER', 0, -20, 2.0, GAME_OVER_COLOR);
-      this.drawCenteredText(batch, atlas, `Score: ${this.score}`, 0, 30, 1.2, new Color(1, 1, 1, 1));
-      this.drawCenteredText(batch, atlas, 'Press Arrow Keys to Restart', 0, 70, 1.0, new Color(0.6, 0.6, 0.6, 1.0));
+      this.drawCenteredText(textRenderer, '游戏结束', 0, -60, 28, GAME_OVER_COLOR);
+      this.drawCenteredText(textRenderer, `得分: ${this.score}`, 0, -10, 18, new Color(1, 1, 1, 1));
+      this.drawCenteredText(textRenderer, '按方向键重新开始', 0, 40, 14, new Color(0.6, 0.6, 0.6, 1.0));
     }
 
     batch.end();
   }
 
-  drawCenteredText(batch: SpriteBatch, atlas: TextureAtlas, _text: string, offsetX: number, offsetY: number, scale: number, color: Color): void {
-    const x = CANVAS_WIDTH / 2 + offsetX;
-    const y = CANVAS_HEIGHT / 2 + offsetY;
-    batch.drawQuad(x, y, 100 * scale, 20 * scale, 0, atlas.fullRegion, atlas, color);
+  drawCenteredText(textRenderer: TextRenderer, text: string, offsetX: number, offsetY: number, fontSize: number, color: Color): void {
+    if (!textRenderer.hasFont('fonsung')) {
+      console.log('Font not loaded, skipping text:', text);
+      return;
+    }
+    // 使用世界坐标（与相机看的位置一致）
+    const centerX = (GRID_COLS * CELL_SIZE) / 2;
+    const centerY = (GRID_ROWS * CELL_SIZE) / 2;
+    const x = centerX + offsetX;
+    const y = centerY + offsetY;
+    const font = textRenderer.getFont('fonsung');
+    const { width } = textRenderer.measureText(text, { font, fontSize });
+    textRenderer.drawText(text, x - width / 2, y, { font, fontSize, color });
+  }
+
+  drawText(textRenderer: TextRenderer, text: string, x: number, y: number, fontSize: number, color: Color): void {
+    if (!textRenderer.hasFont('fonsung')) return;
+    const font = textRenderer.getFont('fonsung');
+    // 转换为世界坐标（网格坐标系）
+    const worldX = x;
+    const worldY = y + fontSize; // 调整y坐标使文字在预期位置
+    textRenderer.drawText(text, worldX, worldY, { font, fontSize, color });
   }
 }
 
@@ -294,6 +320,7 @@ async function init(): Promise<void> {
 
   const gfx = await createGfxDevice(canvas);
   const batch = new SpriteBatch(gfx);
+  const textRenderer = new TextRenderer(gfx, batch);
   const camera = new Camera2D(canvas.width, canvas.height);
   // 相机看向网格中心
   camera.position = new Vec2((GRID_COLS * CELL_SIZE) / 2, (GRID_ROWS * CELL_SIZE) / 2);
@@ -301,6 +328,26 @@ async function init(): Promise<void> {
 
   // Create white texture for solid color rendering
   const whiteAtlas = await TextureAtlas.load(gfx, batch.getAtlasBindGroupLayout(), createWhitePixelDataUrl());
+
+  // Load Fonsung Chinese font (merged from 3000 + 500 parts)
+  let fontLoaded = false;
+  try {
+    // Try loading from relative path (works with Vite public directory)
+    await textRenderer.loadBitmapFontJsonMulti('fonsung', [
+      { atlasUrl: './fonts/Fonsung-16-3000.png', jsonUrl: './fonts/Fonsung-16-3000.json' },
+      { atlasUrl: './fonts/Fonsung-16-3500.png', jsonUrl: './fonts/Fonsung-16-3500.json' },
+    ]);
+    fontLoaded = true;
+    console.log('✓ Fonsung font loaded');
+  } catch (e) {
+    console.warn('✗ Failed to load Fonsung font:', e);
+  }
+  
+  // Update status to show font status
+  const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  statusEl.textContent = `WebGPU ✓ — Snake ${GRID_COLS}x${GRID_ROWS} — WASD/方向键/触屏` + 
+    (hasTouch ? ' (触屏支持)' : '') + 
+    (fontLoaded ? ' [中文字体✓]' : ' [中文字体✗]');
 
   const input = new InputManager(canvas);
   const gameplay = new ActionMap('Gameplay', {
@@ -318,9 +365,6 @@ async function init(): Promise<void> {
   const touchDPad = new TouchDPad('dpad');
   const game = new Game();
 
-  const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  statusEl.textContent = `WebGPU ✓ — Snake ${GRID_COLS}x${GRID_ROWS} — WASD/方向键/触屏` + (hasTouch ? ' (触屏支持)' : '');
-
   loop.onUpdate = (dt) => {
     input.update();
     const move = input.action('Move').vec2();
@@ -337,7 +381,7 @@ async function init(): Promise<void> {
   let time = 0;
   loop.onRender = () => {
     time += 0.016;
-    game.draw(batch, whiteAtlas, time, camera);
+    game.draw(batch, whiteAtlas, time, camera, textRenderer);
   };
 
   loop.start();

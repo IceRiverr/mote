@@ -143,10 +143,19 @@ export function layoutText(
 
     // Only emit a quad if the glyph has visible pixels
     if (glyph.width > 0 && glyph.height > 0) {
-      const qw = glyph.width * scale;
-      const qh = glyph.height * scale;
-      const qx = cursorX + glyph.offsetX * scale;
-      const qy = cursorY + glyph.offsetY * scale;
+      let qw = glyph.width * scale;
+      let qh = glyph.height * scale;
+      let qx = cursorX + glyph.offsetX * scale;
+      // BMFont yoffset: offset from baseline to glyph top
+      // For pixel-perfect rendering, round coordinates when scale is close to 1
+      let qy = cursorY + glyph.offsetY * scale;
+
+      // Round to nearest pixel for pixel-perfect rendering
+      // This ensures 1:1 texture-to-screen pixel mapping when fontSize matches exported size
+      qw = Math.round(qw);
+      qh = Math.round(qh);
+      qx = Math.round(qx);
+      qy = Math.round(qy);
 
       quads.push({
         unicode: glyph.unicode,
@@ -176,8 +185,8 @@ export function layoutText(
       const end = lineIdx + 1 < lineStarts.length ? lineStarts[lineIdx + 1] : quads.length;
       const lw = lineWidths[lineIdx];
       let shift = 0;
-      if (align === 'center') shift = (alignWidth - lw) * 0.5;
-      else if (align === 'right') shift = alignWidth - lw;
+      if (align === 'center') shift = Math.round((alignWidth - lw) * 0.5);
+      else if (align === 'right') shift = Math.round(alignWidth - lw);
       for (let qi = start; qi < end; qi++) {
         quads[qi].x += shift;
       }
@@ -185,9 +194,12 @@ export function layoutText(
   }
 
   // Offset all quads to world position
+  // Round final position for pixel-perfect rendering
+  const roundX = Math.round(x);
+  const roundY = Math.round(y);
   for (const q of quads) {
-    q.x += x;
-    q.y += y;
+    q.x += roundX;
+    q.y += roundY;
   }
 
   return {

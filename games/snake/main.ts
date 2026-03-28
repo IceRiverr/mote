@@ -265,17 +265,17 @@ class Game {
     if (this.state === 'menu') {
       // 使用中文标题 "贪吃蛇" - 调整坐标确保在屏幕内
       this.drawCenteredText(textRenderer, '贪吃蛇', 0, -80, 32, new Color(0.29, 0.87, 0.5, 1.0));
-      this.drawCenteredText(textRenderer, '按方向键开始游戏', 0, 0, 14, new Color(0.6, 0.6, 0.6, 1.0));
+      this.drawCenteredText(textRenderer, '按方向键开始游戏', 0, 0, 16, new Color(0.6, 0.6, 0.6, 1.0));
     } else if (this.state === 'playing') {
       // 显示当前得分
-      this.drawText(textRenderer, `得分: ${this.score}`, 10, 10, 14, new Color(1, 1, 1, 0.9));
+      this.drawText(textRenderer, `得分: ${this.score}`, 10, 10, 16, new Color(1, 1, 1, 0.9));
       if (this.highScore > 0) {
-        this.drawText(textRenderer, `最高分: ${this.highScore}`, 10, 28, 12, new Color(1, 1, 1, 0.6));
+        this.drawText(textRenderer, `最高分: ${this.highScore}`, 10, 28, 16, new Color(1, 1, 1, 0.6));
       }
     } else if (this.state === 'gameover') {
-      this.drawCenteredText(textRenderer, '游戏结束', 0, -60, 28, GAME_OVER_COLOR);
-      this.drawCenteredText(textRenderer, `得分: ${this.score}`, 0, -10, 18, new Color(1, 1, 1, 1));
-      this.drawCenteredText(textRenderer, '按方向键重新开始', 0, 40, 14, new Color(0.6, 0.6, 0.6, 1.0));
+      this.drawCenteredText(textRenderer, '游戏结束', 0, -60, 32, GAME_OVER_COLOR);
+      this.drawCenteredText(textRenderer, `得分: ${this.score}`, 0, -10, 16, new Color(1, 1, 1, 1));
+      this.drawCenteredText(textRenderer, '按方向键重新开始', 0, 40, 16, new Color(0.6, 0.6, 0.6, 1.0));
     }
 
     batch.end();

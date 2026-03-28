@@ -5,7 +5,7 @@
 // Supports: kerning, word wrap, multi-line, alignment, letter/line spacing.
 // ═══════════════════════════════════════════════════════════════════════════
 
-import type { FontData, GlyphData } from './FontData.js';
+import type { FontData } from './FontData.js';
 import type { Color } from '../Math.js';
 
 // ── Types ────────────────────────────────────────────────────────────────
@@ -18,9 +18,12 @@ export interface TextStyle {
   lineSpacing?: number;     // extra px between lines
   align?: 'left' | 'center' | 'right';
   maxWidth?: number;        // auto word-wrap width in px (0 = no wrap)
+  /** How to handle missing glyphs: 'skip' (default), 'tofu' (□ placeholder), or 'space' (advance only) */
+  missingGlyph?: 'skip' | 'tofu' | 'space';
 }
 
 export interface GlyphQuad {
+  unicode: number;          // character code for atlas lookup
   // Screen-space position (top-left corner)
   x: number;
   y: number;
@@ -36,11 +39,10 @@ export interface TextLayoutResult {
   quads: GlyphQuad[];
   width: number;            // bounding box width
   height: number;           // bounding box height
+  missingChars: string[];   // characters not found in font
 }
 
 // ── Layout ───────────────────────────────────────────────────────────────
-
-const DEFAULT_COLOR: Color = { r: 1, g: 1, b: 1, a: 1 } as Color;
 
 /**
  * Layout text into positioned glyph quads.
@@ -65,8 +67,15 @@ export function layoutText(
   const lineHeight = font.metrics.lineHeight * scale + (style.lineSpacing ?? 0);
   const letterSpacing = style.letterSpacing ?? 0;
   const maxWidth = style.maxWidth ?? 0;
+  const missingMode = style.missingGlyph ?? 'skip';
 
   const quads: GlyphQuad[] = [];
+  const missingChars: string[] = [];
+
+  // Get tofu glyph for missing characters (□ or fallback space)
+  const tofuGlyph = font.glyphs.get(0x25A1) // White Square □
+    ?? font.glyphs.get(0x2610) // Ballot Box ☐
+    ?? font.glyphs.get(32);    // Space fallback
 
   // Track lines for alignment
   const lineStarts: number[] = [0]; // quad index where each line starts
@@ -79,6 +88,7 @@ export function layoutText(
 
   for (let i = 0; i < text.length; i++) {
     const code = text.charCodeAt(i);
+    const char = text[i];
 
     // Handle newline
     if (code === 0x0A) {
@@ -94,14 +104,29 @@ export function layoutText(
     // Handle carriage return (ignore)
     if (code === 0x0D) continue;
 
-    const glyph = font.glyphs.get(code);
+    let glyph = font.glyphs.get(code);
+    let isMissing = false;
+
     if (!glyph) {
-      prevUnicode = -1;
-      continue;
+      missingChars.push(char);
+      isMissing = true;
+
+      if (missingMode === 'skip') {
+        prevUnicode = -1;
+        continue;
+      } else if (missingMode === 'tofu' && tofuGlyph) {
+        glyph = tofuGlyph;
+      } else {
+        // 'space' mode or no tofu available: just advance
+        const spaceAdvance = font.glyphs.get(32)?.advance ?? style.fontSize * 0.5;
+        cursorX += spaceAdvance * scale;
+        prevUnicode = -1;
+        continue;
+      }
     }
 
-    // Kerning
-    if (prevUnicode >= 0) {
+    // Kerning (skip for tofu placeholders to avoid weird spacing)
+    if (!isMissing && prevUnicode >= 0) {
       const kern = font.kerning.get(prevUnicode)?.get(code) ?? 0;
       cursorX += kern * scale;
     }
@@ -124,6 +149,7 @@ export function layoutText(
       const qy = cursorY + glyph.offsetY * scale;
 
       quads.push({
+        unicode: glyph.unicode,
         x: qx, y: qy,
         w: qw, h: qh,
         u0: glyph.u0, v0: glyph.v0,
@@ -142,8 +168,9 @@ export function layoutText(
 
   // Apply alignment
   const align = style.align ?? 'left';
-  if (align !== 'left' && maxWidth > 0) {
-    const alignWidth = maxWidth;
+  if (align !== 'left') {
+    // Use maxWidth if set, otherwise use the widest line for alignment
+    const alignWidth = maxWidth > 0 ? maxWidth : lineMaxX;
     for (let lineIdx = 0; lineIdx < lineStarts.length; lineIdx++) {
       const start = lineStarts[lineIdx];
       const end = lineIdx + 1 < lineStarts.length ? lineStarts[lineIdx + 1] : quads.length;
@@ -167,7 +194,43 @@ export function layoutText(
     quads,
     width: maxWidth > 0 ? maxWidth : lineMaxX,
     height: totalHeight,
+    missingChars,
   };
+}
+
+// ── Missing Character Detection ──────────────────────────────────────────
+
+/**
+ * Check which characters in the text are not available in the font.
+ * Useful for pre-flight checking or logging missing glyphs.
+ *
+ * @param text  The text to check
+ * @param font  The font data
+ * @returns     Array of unique missing characters
+ */
+export function findMissingChars(text: string, font: FontData): string[] {
+  const missing = new Set<string>();
+  for (const char of text) {
+    const code = char.charCodeAt(0);
+    // Skip control characters and whitespace
+    if (code < 32 || code === 0x0A || code === 0x0D) continue;
+    if (!font.glyphs.has(code)) {
+      missing.add(char);
+    }
+  }
+  return Array.from(missing);
+}
+
+/**
+ * Check if a font can render all characters in the given text.
+ */
+export function canRender(text: string, font: FontData): boolean {
+  for (const char of text) {
+    const code = char.charCodeAt(0);
+    if (code < 32 || code === 0x0A || code === 0x0D) continue;
+    if (!font.glyphs.has(code)) return false;
+  }
+  return true;
 }
 
 // ── Measure ──────────────────────────────────────────────────────────────

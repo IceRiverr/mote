@@ -21,19 +21,22 @@ import type { IGfxDevice, IGfxBindGroupLayout } from './IGfxDevice.js';
 import type { SpriteBatch, AtlasRegion } from './SpriteBatch.js';
 import { TextureAtlas } from './SpriteBatch.js';
 import type { Color } from '../Math.js';
-import { FontData, parseBMFont, parseMSDFJson } from './FontData.js';
-import type { MSDFAtlasJson } from './FontData.js';
-import { layoutText, measureText } from './FontLayout.js';
+import { FontData, parseBMFont, parseBMFontJson, parseMSDFJson, mergeFontData } from './FontData.js';
+import type { BMFontJson, MSDFAtlasJson } from './FontData.js';
+import { layoutText, measureText, findMissingChars, canRender } from './FontLayout.js';
 import type { TextStyle, TextLayoutResult } from './FontLayout.js';
 
 // Re-export for convenience
 export type { TextStyle, TextLayoutResult };
+export type { BMFontJson, MSDFAtlasJson };
+export { findMissingChars, canRender, mergeFontData };
 
 // ── Font Entry ───────────────────────────────────────────────────────────
 
 interface FontEntry {
   data: FontData;
   atlas: TextureAtlas;
+  atlases?: TextureAtlas[];  // Multi-atlas fonts (e.g., split into multiple PNGs)
 }
 
 // ── Temp region object (reused to avoid GC) ──────────────────────────────
@@ -82,6 +85,81 @@ export class TextRenderer {
 
     const data = parseBMFont(fntText);
     this.fonts.set(key, { data, atlas });
+  }
+
+  /**
+   * Load a BMFont JSON format (.json + atlas PNG).
+   * This is the format exported by tools like snowb.org.
+   *
+   * @param key       Unique font identifier
+   * @param atlasUrl  URL to the font atlas PNG
+   * @param jsonUrl   URL to the .json descriptor file
+   */
+  async loadBitmapFontJson(key: string, atlasUrl: string, jsonUrl: string): Promise<void> {
+    if (this.fonts.has(key)) return;
+
+    // Load JSON and atlas in parallel
+    const [jsonData, atlas] = await Promise.all([
+      fetch(jsonUrl).then(r => {
+        if (!r.ok) throw new Error(`Failed to load font descriptor: ${jsonUrl} (${r.status})`);
+        return r.json() as Promise<BMFontJson>;
+      }),
+      TextureAtlas.load(this.gfx, this.atlasLayout, atlasUrl),
+    ]);
+
+    const data = parseBMFontJson(jsonData);
+    this.fonts.set(key, { data, atlas });
+  }
+
+  /**
+   * Load a BMFont JSON split into multiple atlases (e.g., 3000 + 500 chars).
+   * All parts will be merged into a single font entry.
+   *
+   * Usage for Fonsung (1-3000 + 3001-3500):
+   *   await text.loadBitmapFontJsonMulti('fonsung', [
+   *     { atlasUrl: '/fonts/Fonsung-16-3000.png', jsonUrl: '/fonts/Fonsung-16-3000.json' },
+   *     { atlasUrl: '/fonts/Fonsung-16-3500.png', jsonUrl: '/fonts/Fonsung-16-3500.json' },
+   *   ]);
+   *
+   * @param key   Unique font identifier
+   * @param parts Array of atlas/json pairs, each will be assigned a page index
+   */
+  async loadBitmapFontJsonMulti(
+    key: string,
+    parts: Array<{ atlasUrl: string; jsonUrl: string }>,
+  ): Promise<void> {
+    if (this.fonts.has(key)) return;
+    if (parts.length === 0) throw new Error('[TextRenderer] No font parts provided');
+
+    // Load all atlases and JSONs in parallel, with page index
+    const results = await Promise.all(
+      parts.map(async ({ atlasUrl, jsonUrl }, pageIndex) => {
+        const [jsonData, atlas] = await Promise.all([
+          fetch(jsonUrl).then(r => {
+            if (!r.ok) throw new Error(`Failed to load font descriptor: ${jsonUrl} (${r.status})`);
+            return r.json() as Promise<BMFontJson>;
+          }),
+          TextureAtlas.load(this.gfx, this.atlasLayout, atlasUrl),
+        ]);
+        // Parse and assign page index to each glyph
+        const data = parseBMFontJson(jsonData);
+        // Override page for all glyphs to match the atlas index
+        for (const glyph of data.glyphs.values()) {
+          glyph.page = pageIndex;
+        }
+        return { data, atlas };
+      }),
+    );
+
+    // Merge font data
+    const mergedData = mergeFontData(results.map(r => r.data));
+    const atlases = results.map(r => r.atlas);
+
+    this.fonts.set(key, {
+      data: mergedData,
+      atlas: atlases[0],
+      atlases,
+    });
   }
 
   /**
@@ -163,6 +241,11 @@ export class TextRenderer {
       _tmpRegion.pixelWidth = q.w;
       _tmpRegion.pixelHeight = q.h;
 
+      // Select the correct atlas for this glyph (multi-atlas support)
+      const glyph = fontEntry.data.glyphs.get(q.unicode);
+      const page = glyph?.page ?? 0;
+      const atlas = fontEntry.atlases?.[page] ?? fontEntry.atlas;
+
       // drawQuad expects center position, but our quads have top-left origin
       this.spriteBatch.drawQuad(
         q.x + q.w * 0.5,
@@ -171,7 +254,7 @@ export class TextRenderer {
         q.h,
         0, // no rotation for text
         _tmpRegion,
-        fontEntry.atlas,
+        atlas,
         color,
       );
     }
@@ -184,6 +267,23 @@ export class TextRenderer {
    */
   measureText(text: string, style: TextStyle): { width: number; height: number } {
     return measureText(text, style);
+  }
+
+  /**
+   * Check which characters in the text are missing from the font.
+   * Returns unique missing characters for debugging or pre-flight checks.
+   */
+  findMissingChars(text: string, fontKey: string): string[] {
+    const font = this.getFont(fontKey);
+    return findMissingChars(text, font);
+  }
+
+  /**
+   * Check if the font can render all characters in the given text.
+   */
+  canRender(text: string, fontKey: string): boolean {
+    const font = this.getFont(fontKey);
+    return canRender(text, font);
   }
 
   // ── Lifecycle ──

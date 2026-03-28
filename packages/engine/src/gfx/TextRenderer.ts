@@ -20,10 +20,9 @@ import type { IGfxDevice, IGfxBindGroupLayout } from './IGfxDevice.js';
 import type { SpriteBatch, AtlasRegion } from './SpriteBatch.js';
 import { TextureAtlas } from './SpriteBatch.js';
 import type { Color } from '../Math.js';
-import { FontData, parseBMFont, parseBMFontJson, mergeFontData } from './FontData.js';
-import type { BMFontJson } from './FontData.js';
-import { layoutText, measureText, findMissingChars, canRender } from './FontLayout.js';
-import type { TextStyle, TextLayoutResult } from './FontLayout.js';
+import { FontData, parseBMFont, parseBMFontJson, mergeFontData, BMFontJson } from './Font.js';
+import { layoutText, measureText, findMissingChars, canRender } from './Font.js';
+import type { TextStyle, TextLayoutResult } from './Font.js';
 
 // Re-export for convenience
 export type { TextStyle, TextLayoutResult };

@@ -13,3 +13,6 @@ export type {
   BufferDesc, TextureDesc, PipelineDesc, BindGroupDesc, BindGroupEntry,
 } from './gfx/IGfxDevice.js';
 export type { AtlasRegion } from './gfx/SpriteBatch.js';
+
+// Font
+export * from './gfx/Font.js';

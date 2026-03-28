@@ -10,8 +10,11 @@ import { BufferUsage } from './IGfxDevice.js';
 export class WebGL2Buffer implements IGfxBuffer {
   readonly size: number;
   readonly glBuffer: WebGLBuffer;
-  readonly target: number;  // gl.ARRAY_BUFFER | gl.ELEMENT_ARRAY_BUFFER | gl.UNIFORM_BUFFER
+  readonly target: number;
+  private readonly gl: WebGL2RenderingContext;  // [Fix: 问题4] 持有 gl 引用
+
   constructor(gl: WebGL2RenderingContext, desc: BufferDesc) {
+    this.gl = gl;
     this.size = desc.size;
     const buf = gl.createBuffer();
     if (!buf) throw new Error('Failed to create WebGL buffer');
@@ -25,15 +28,21 @@ export class WebGL2Buffer implements IGfxBuffer {
     gl.bufferData(this.target, desc.size, gl.DYNAMIC_DRAW);
     gl.bindBuffer(this.target, null);
   }
-  destroy(): void { /* caller must pass gl to delete — handled by device */ }
+
+  // [Fix: 问题4] 正确释放 GL 资源
+  destroy(): void {
+    this.gl.deleteBuffer(this.glBuffer);
+  }
 }
 
 export class WebGL2Texture implements IGfxTexture {
   readonly width: number;
   readonly height: number;
   readonly glTexture: WebGLTexture;
+  private readonly gl: WebGL2RenderingContext;  // [Fix: 问题4] 持有 gl 引用
 
-  private constructor(width: number, height: number, glTexture: WebGLTexture) {
+  private constructor(gl: WebGL2RenderingContext, width: number, height: number, glTexture: WebGLTexture) {
+    this.gl = gl;
     this.width = width;
     this.height = height;
     this.glTexture = glTexture;
@@ -49,14 +58,17 @@ export class WebGL2Texture implements IGfxTexture {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.bindTexture(gl.TEXTURE_2D, null);
-    return new WebGL2Texture(desc.width, desc.height, tex);
+    return new WebGL2Texture(gl, desc.width, desc.height, tex);
   }
 
-  static fromLoaded(width: number, height: number, glTexture: WebGLTexture): WebGL2Texture {
-    return new WebGL2Texture(width, height, glTexture);
+  static fromLoaded(gl: WebGL2RenderingContext, width: number, height: number, glTexture: WebGLTexture): WebGL2Texture {
+    return new WebGL2Texture(gl, width, height, glTexture);
   }
 
-  destroy(): void {}
+  // [Fix: 问题4] 正确释放 GL 资源
+  destroy(): void {
+    this.gl.deleteTexture(this.glTexture);
+  }
 }
 
 // Stores uniform locations and texture unit assignments resolved at pipeline creation
@@ -64,7 +76,7 @@ interface UniformInfo {
   name: string;
   location: WebGLUniformLocation;
   type: 'mat4' | 'sampler2D';
-  textureUnit?: number;  // only for sampler2D
+  textureUnit?: number;
 }
 
 export class WebGL2Pipeline implements IGfxPipeline {
@@ -108,17 +120,26 @@ export class WebGL2BindGroup implements IGfxBindGroup {
 
 class WebGL2RenderPass implements IRenderPass {
   private gl: WebGL2RenderingContext;
+  private vao: WebGLVertexArrayObject;            // [Fix: 优化4] VAO
   private currentPipeline: WebGL2Pipeline | null = null;
   private boundGroups: Map<number, WebGL2BindGroup> = new Map();
+  private dirtyGroups = new Set<number>();         // [Fix: 问题1] dirty tracking
 
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
+    const vao = gl.createVertexArray();
+    if (!vao) throw new Error('Failed to create VAO');
+    this.vao = vao;
+    gl.bindVertexArray(this.vao);
   }
 
   setPipeline(p: IGfxPipeline): void {
     this.currentPipeline = p as WebGL2Pipeline;
     this.gl.useProgram(this.currentPipeline.program);
-    this.boundGroups.clear();
+    // Mark all currently bound groups as dirty (new pipeline = re-apply all)
+    for (const groupIdx of this.boundGroups.keys()) {
+      this.dirtyGroups.add(groupIdx);
+    }
   }
 
   setVertexBuffer(slot: number, buf: IGfxBuffer): void {
@@ -126,7 +147,7 @@ class WebGL2RenderPass implements IRenderPass {
     const b = buf as WebGL2Buffer;
     gl.bindBuffer(gl.ARRAY_BUFFER, b.glBuffer);
     void slot;
-    // Apply attrib pointers now that the buffer is bound
+    // [Fix: 优化4] VAO 已绑定，attrib 设置会记录到 VAO 中
     if (this.currentPipeline) {
       for (const attr of this.currentPipeline.vertexAttributes) {
         gl.enableVertexAttribArray(attr.shaderLocation);
@@ -142,21 +163,23 @@ class WebGL2RenderPass implements IRenderPass {
 
   setBindGroup(index: number, group: IGfxBindGroup): void {
     this.boundGroups.set(index, group as WebGL2BindGroup);
+    this.dirtyGroups.add(index);  // [Fix: 问题1] 仅标脏
   }
 
   drawIndexed(indexCount: number, _instanceCount = 1, firstIndex = 0): void {
     const gl = this.gl;
     const pipeline = this.currentPipeline!;
 
-    // Apply all bound groups
-    for (const [groupIdx, group] of this.boundGroups) {
+    // [Fix: 问题1] 只应用脏 bind group，减少冗余 uniform 调用
+    for (const groupIdx of this.dirtyGroups) {
+      const group = this.boundGroups.get(groupIdx);
+      if (!group) continue;
       const groupBindings = pipeline.bindingMap.get(groupIdx);
       if (!groupBindings) continue;
       for (const entry of group.entries) {
         const info = groupBindings.get(entry.binding);
         if (!info) continue;
         if (info.type === 'mat4' && entry.buffer) {
-          // Read mat4 from buffer's CPU shadow — we store it in the buffer's userData
           const buf = entry.buffer as WebGL2Buffer & { cpuData?: Float32Array };
           if (buf.cpuData) gl.uniformMatrix4fv(info.location, false, buf.cpuData);
         } else if (info.type === 'sampler2D' && entry.texture) {
@@ -167,20 +190,23 @@ class WebGL2RenderPass implements IRenderPass {
         }
       }
     }
+    this.dirtyGroups.clear();
 
     gl.drawElements(gl.TRIANGLES, indexCount, gl.UNSIGNED_SHORT, firstIndex * 2);
   }
 
-  end(): void {}
+  end(): void {
+    // [Fix: 优化4] 解绑 VAO
+    this.gl.bindVertexArray(null);
+    this.gl.deleteVertexArray(this.vao);
+  }
 }
 
 class WebGL2FrameEncoder implements IFrameEncoder {
   private gl: WebGL2RenderingContext;
-  private clearColor: [number, number, number, number];
 
-  constructor(gl: WebGL2RenderingContext, clearColor: [number, number, number, number]) {
+  constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
-    this.clearColor = clearColor;
   }
 
   beginRenderPass(clearColor: [number, number, number, number]): IRenderPass {
@@ -188,11 +214,10 @@ class WebGL2FrameEncoder implements IFrameEncoder {
     const [r, g, b, a] = clearColor;
     gl.clearColor(r, g, b, a);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    void this.clearColor;
     return new WebGL2RenderPass(gl);
   }
 
-  submit(): void {}
+  submit(): void { /* WebGL 2 is immediate mode — nothing to submit */ }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -224,7 +249,6 @@ function linkProgram(gl: WebGL2RenderingContext, vert: string, frag: string): We
 
 // ── Device ────────────────────────────────────────────────────────────────────
 
-// Extended buffer type with CPU shadow for uniform data
 type WebGL2BufferWithShadow = WebGL2Buffer & { cpuData?: Float32Array };
 
 export class WebGL2Device implements IGfxDevice {
@@ -256,14 +280,12 @@ export class WebGL2Device implements IGfxDevice {
     const program = linkProgram(this.gl, desc.vertGlsl, desc.fragGlsl);
     this.gl.useProgram(program);
 
-    // Build vertex attribute layout for the pipeline (applied at draw time)
     const vertexAttrs = desc.vertexAttributes.map(a => ({
       shaderLocation: a.shaderLocation,
       offset: a.offset,
       size: a.format === 'float32x2' ? 2 : 4,
     }));
 
-    // Resolve uniform locations from bindGroupLayouts
     const uniforms: UniformInfo[] = [];
     const bindingMap = new Map<number, Map<number, UniformInfo>>();
     let textureUnit = 0;
@@ -309,36 +331,38 @@ export class WebGL2Device implements IGfxDevice {
       gl.bufferSubData(b.target, byteOffset, data);
     } else {
       gl.bufferSubData(b.target, byteOffset, data);
-      // Keep CPU shadow for uniform buffers (mat4 data)
-      if (b.target === gl.UNIFORM_BUFFER || b.target === gl.ARRAY_BUFFER) {
-        if (data instanceof Float32Array) {
-          b.cpuData = data;
-        }
-      }
+    }
+    // [Fix: Bug2] 复制 Float32Array 而非直接引用，防止外部修改时 cpuData 被污染
+    if (data instanceof Float32Array) {
+      b.cpuData = new Float32Array(data);
     }
     gl.bindBuffer(b.target, null);
   }
 
+  // [Fix: 优化3] 统一使用 createImageBitmap
   async loadTexture(url: string): Promise<IGfxTexture> {
     const gl = this.gl;
-    const img = new Image();
-    img.src = url;
-    await img.decode();
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const bitmap = await createImageBitmap(blob);
+
     const tex = gl.createTexture();
     if (!tex) throw new Error('Failed to create texture');
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bitmap);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.bindTexture(gl.TEXTURE_2D, null);
-    return WebGL2Texture.fromLoaded(img.naturalWidth, img.naturalHeight, tex);
+
+    bitmap.close();
+    return WebGL2Texture.fromLoaded(gl, bitmap.width, bitmap.height, tex);
   }
 
   beginFrame(): IFrameEncoder {
-    return new WebGL2FrameEncoder(this.gl, [0, 0, 0, 1]);
+    return new WebGL2FrameEncoder(this.gl);
   }
 
   destroy(): void {

@@ -27,9 +27,14 @@ export class TextureAtlas {
     this.bindGroup = bindGroup;
   }
 
-  static async load(gfx: IGfxDevice, imageUrl: string, jsonUrl?: string): Promise<TextureAtlas> {
+  // [Fix: 问题3] layout 改为显式参数，消除对 SpriteBatch 静态变量的隐式依赖
+  static async load(
+    gfx: IGfxDevice,
+    layout: IGfxBindGroupLayout,
+    imageUrl: string,
+    jsonUrl?: string,
+  ): Promise<TextureAtlas> {
     const texture = await gfx.loadTexture(imageUrl);
-    const layout = SpriteBatch.getAtlasBindGroupLayout(gfx);
     const bindGroup = gfx.createBindGroup({
       layout,
       entries: [
@@ -75,6 +80,8 @@ interface BatchEntry {
 
 // ── SpriteBatch ───────────────────────────────────────────────────────────────
 
+const DEFAULT_COLOR: Color = { r: 1, g: 1, b: 1, a: 1 } as Color;
+
 export class SpriteBatch {
   private static readonly MAX_QUADS = 10_000;
   private static readonly FLOATS_PER_VERTEX = 8;   // pos(2) + uv(2) + color(4)
@@ -82,10 +89,9 @@ export class SpriteBatch {
   private static readonly INDICES_PER_QUAD  = 6;
   private static readonly VERTEX_STRIDE     = 32;  // 8 floats × 4 bytes
 
-  private static _atlasLayout: IGfxBindGroupLayout | null = null;
-
   private readonly gfx: IGfxDevice;
   private readonly pipeline: IGfxPipeline;
+  private readonly atlasLayout: IGfxBindGroupLayout;  // [Fix: 问题3] 实例上暴露
   private readonly vertexBuffer: IGfxBuffer;
   private readonly indexBuffer: IGfxBuffer;
   private readonly cameraUniformBuffer: IGfxBuffer;
@@ -95,6 +101,10 @@ export class SpriteBatch {
   private quadCount = 0;
   private currentAtlas: TextureAtlas | null = null;
   private batches: BatchEntry[] = [];
+
+  // [Fix: Bug1] 帧级状态：由 begin() 创建，end() 提交
+  private frameEncoder: import('./IGfxDevice.js').IFrameEncoder | null = null;
+  private renderPass: import('./IGfxDevice.js').IRenderPass | null = null;
 
   constructor(gfx: IGfxDevice) {
     this.gfx = gfx;
@@ -145,20 +155,31 @@ export class SpriteBatch {
       entries: [{ binding: 0, buffer: this.cameraUniformBuffer }],
     });
 
-    // Cache atlas layout for TextureAtlas.load()
-    SpriteBatch._atlasLayout = gfx.getBindGroupLayout(this.pipeline, 1);
+    // [Fix: 问题3] atlas layout 缓存在实例上，通过 getter 暴露
+    this.atlasLayout = gfx.getBindGroupLayout(this.pipeline, 1);
   }
 
-  static getAtlasBindGroupLayout(_gfx: IGfxDevice): IGfxBindGroupLayout {
-    if (!SpriteBatch._atlasLayout) throw new Error('SpriteBatch not yet constructed');
-    return SpriteBatch._atlasLayout;
+  /** Get the bind group layout for atlas texture bind groups */
+  getAtlasBindGroupLayout(): IGfxBindGroupLayout {
+    return this.atlasLayout;
   }
 
+  // [Fix: Bug1] begin() 创建 frame encoder 和 render pass，整个帧只 clear 一次
   begin(camera: Camera2D): void {
     this.quadCount = 0;
     this.batches.length = 0;
     this.currentAtlas = null;
     this.gfx.writeBuffer(this.cameraUniformBuffer, camera.getViewProjectionMatrix().data);
+
+    // 创建帧 encoder + render pass（包含 clear），整个 begin/end 周期只做一次
+    this.frameEncoder = this.gfx.beginFrame();
+    this.renderPass = this.frameEncoder.beginRenderPass([0.04, 0.04, 0.08, 1.0]);
+
+    // 设置共享的 pipeline 和 buffer 状态
+    this.renderPass.setPipeline(this.pipeline);
+    this.renderPass.setVertexBuffer(0, this.vertexBuffer);
+    this.renderPass.setIndexBuffer(this.indexBuffer, 'uint16');
+    this.renderPass.setBindGroup(0, this.cameraBindGroup);
   }
 
   drawQuad(
@@ -167,52 +188,91 @@ export class SpriteBatch {
     rotation: number,
     region: AtlasRegion,
     atlas: TextureAtlas,
-    color: Color = { r: 1, g: 1, b: 1, a: 1 } as Color,
+    color: Color = DEFAULT_COLOR,
   ): void {
     if (this.quadCount >= SpriteBatch.MAX_QUADS) this._flush();
     if (atlas !== this.currentAtlas) this._breakBatch(atlas);
 
-    const hw = w * 0.5, hh = h * 0.5;
-    const cos = Math.cos(rotation), sin = Math.sin(rotation);
-
-    const lx = [-hw,  hw,  hw, -hw];
-    const ly = [-hh, -hh,  hh,  hh];
-    const uvs: [number, number][] = [
-      [region.u0, region.v1],
-      [region.u1, region.v1],
-      [region.u1, region.v0],
-      [region.u0, region.v0],
-    ];
-
     const base = this.quadCount * SpriteBatch.VERTICES_PER_QUAD * SpriteBatch.FLOATS_PER_VERTEX;
-    for (let i = 0; i < 4; i++) {
-      const o = base + i * SpriteBatch.FLOATS_PER_VERTEX;
-      this.cpuBuffer[o + 0] = x + lx[i] * cos - ly[i] * sin;
-      this.cpuBuffer[o + 1] = y + lx[i] * sin + ly[i] * cos;
-      this.cpuBuffer[o + 2] = uvs[i][0];
-      this.cpuBuffer[o + 3] = uvs[i][1];
-      this.cpuBuffer[o + 4] = color.r;
-      this.cpuBuffer[o + 5] = color.g;
-      this.cpuBuffer[o + 6] = color.b;
-      this.cpuBuffer[o + 7] = color.a;
+
+    // [Fix: 优化2] rotation === 0 fast path，跳过 sin/cos
+    if (rotation === 0) {
+      const hw = w * 0.5, hh = h * 0.5;
+      const x0 = x - hw, x1 = x + hw;
+      const y0 = y - hh, y1 = y + hh;
+
+      // vertex 0: bottom-left
+      this.cpuBuffer[base]      = x0; this.cpuBuffer[base + 1]  = y0;
+      this.cpuBuffer[base + 2]  = region.u0; this.cpuBuffer[base + 3]  = region.v1;
+      this.cpuBuffer[base + 4]  = color.r; this.cpuBuffer[base + 5]  = color.g;
+      this.cpuBuffer[base + 6]  = color.b; this.cpuBuffer[base + 7]  = color.a;
+      // vertex 1: bottom-right
+      this.cpuBuffer[base + 8]  = x1; this.cpuBuffer[base + 9]  = y0;
+      this.cpuBuffer[base + 10] = region.u1; this.cpuBuffer[base + 11] = region.v1;
+      this.cpuBuffer[base + 12] = color.r; this.cpuBuffer[base + 13] = color.g;
+      this.cpuBuffer[base + 14] = color.b; this.cpuBuffer[base + 15] = color.a;
+      // vertex 2: top-right
+      this.cpuBuffer[base + 16] = x1; this.cpuBuffer[base + 17] = y1;
+      this.cpuBuffer[base + 18] = region.u1; this.cpuBuffer[base + 19] = region.v0;
+      this.cpuBuffer[base + 20] = color.r; this.cpuBuffer[base + 21] = color.g;
+      this.cpuBuffer[base + 22] = color.b; this.cpuBuffer[base + 23] = color.a;
+      // vertex 3: top-left
+      this.cpuBuffer[base + 24] = x0; this.cpuBuffer[base + 25] = y1;
+      this.cpuBuffer[base + 26] = region.u0; this.cpuBuffer[base + 27] = region.v0;
+      this.cpuBuffer[base + 28] = color.r; this.cpuBuffer[base + 29] = color.g;
+      this.cpuBuffer[base + 30] = color.b; this.cpuBuffer[base + 31] = color.a;
+    } else {
+      const hw = w * 0.5, hh = h * 0.5;
+      const cos = Math.cos(rotation), sin = Math.sin(rotation);
+
+      const lx0 = -hw, lx1 = hw;
+      const ly0 = -hh, ly1 = hh;
+
+      // Unrolled 4 vertices with rotation transform
+      // vertex 0: bottom-left
+      this.cpuBuffer[base]      = x + lx0 * cos - ly0 * sin;
+      this.cpuBuffer[base + 1]  = y + lx0 * sin + ly0 * cos;
+      this.cpuBuffer[base + 2]  = region.u0; this.cpuBuffer[base + 3]  = region.v1;
+      this.cpuBuffer[base + 4]  = color.r; this.cpuBuffer[base + 5]  = color.g;
+      this.cpuBuffer[base + 6]  = color.b; this.cpuBuffer[base + 7]  = color.a;
+      // vertex 1: bottom-right
+      this.cpuBuffer[base + 8]  = x + lx1 * cos - ly0 * sin;
+      this.cpuBuffer[base + 9]  = y + lx1 * sin + ly0 * cos;
+      this.cpuBuffer[base + 10] = region.u1; this.cpuBuffer[base + 11] = region.v1;
+      this.cpuBuffer[base + 12] = color.r; this.cpuBuffer[base + 13] = color.g;
+      this.cpuBuffer[base + 14] = color.b; this.cpuBuffer[base + 15] = color.a;
+      // vertex 2: top-right
+      this.cpuBuffer[base + 16] = x + lx1 * cos - ly1 * sin;
+      this.cpuBuffer[base + 17] = y + lx1 * sin + ly1 * cos;
+      this.cpuBuffer[base + 18] = region.u1; this.cpuBuffer[base + 19] = region.v0;
+      this.cpuBuffer[base + 20] = color.r; this.cpuBuffer[base + 21] = color.g;
+      this.cpuBuffer[base + 22] = color.b; this.cpuBuffer[base + 23] = color.a;
+      // vertex 3: top-left
+      this.cpuBuffer[base + 24] = x + lx0 * cos - ly1 * sin;
+      this.cpuBuffer[base + 25] = y + lx0 * sin + ly1 * cos;
+      this.cpuBuffer[base + 26] = region.u0; this.cpuBuffer[base + 27] = region.v0;
+      this.cpuBuffer[base + 28] = color.r; this.cpuBuffer[base + 29] = color.g;
+      this.cpuBuffer[base + 30] = color.b; this.cpuBuffer[base + 31] = color.a;
     }
+
     this.quadCount++;
     this.batches[this.batches.length - 1].quadCount++;
   }
 
   end(): void {
-    if (this.quadCount === 0) return;
+    if (this.quadCount === 0) {
+      // 即使没画任何东西也要正确关闭 render pass
+      if (this.renderPass) { this.renderPass.end(); this.renderPass = null; }
+      if (this.frameEncoder) { this.frameEncoder.submit(); this.frameEncoder = null; }
+      return;
+    }
 
+    // Upload vertex data
     const byteSize = this.quadCount * SpriteBatch.VERTICES_PER_QUAD * SpriteBatch.VERTEX_STRIDE;
     this.gfx.writeBuffer(this.vertexBuffer, this.cpuBuffer.subarray(0, byteSize / 4));
 
-    const frame = this.gfx.beginFrame();
-    const pass = frame.beginRenderPass([0.04, 0.04, 0.08, 1.0]);
-
-    pass.setPipeline(this.pipeline);
-    pass.setVertexBuffer(0, this.vertexBuffer);
-    pass.setIndexBuffer(this.indexBuffer, 'uint16');
-    pass.setBindGroup(0, this.cameraBindGroup);
+    // [Fix: Bug1] 使用 begin() 中创建的 render pass 发出 draw calls
+    const pass = this.renderPass!;
 
     for (const batch of this.batches) {
       pass.setBindGroup(1, batch.atlas.bindGroup);
@@ -224,11 +284,14 @@ export class SpriteBatch {
     }
 
     pass.end();
-    frame.submit();
+    this.frameEncoder!.submit();
+
+    // Reset frame state
+    this.renderPass = null;
+    this.frameEncoder = null;
     this.quadCount = 0;
     this.batches.length = 0;
     this.currentAtlas = null;
-
   }
 
   private _breakBatch(atlas: TextureAtlas): void {
@@ -236,8 +299,26 @@ export class SpriteBatch {
     this.currentAtlas = atlas;
   }
 
+  // [Fix: Bug1] flush 只提交当前已有的 draw calls，然后 reset quad data
+  // 不会重新 clear，因为 render pass 仍然是 begin() 中打开的那个
   private _flush(): void {
-    this.end();
+    if (this.quadCount === 0) return;
+
+    // Upload + draw current batch within the existing render pass
+    const byteSize = this.quadCount * SpriteBatch.VERTICES_PER_QUAD * SpriteBatch.VERTEX_STRIDE;
+    this.gfx.writeBuffer(this.vertexBuffer, this.cpuBuffer.subarray(0, byteSize / 4));
+
+    const pass = this.renderPass!;
+    for (const batch of this.batches) {
+      pass.setBindGroup(1, batch.atlas.bindGroup);
+      pass.drawIndexed(
+        batch.quadCount * SpriteBatch.INDICES_PER_QUAD,
+        1,
+        batch.startQuad * SpriteBatch.INDICES_PER_QUAD,
+      );
+    }
+
+    // Reset quad data but keep the render pass open
     this.quadCount = 0;
     this.batches.length = 0;
     this.currentAtlas = null;

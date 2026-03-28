@@ -12,7 +12,7 @@ export const BufferUsage = {
 export interface BufferDesc {
   label?: string;
   size: number;
-  usage: number;  // GPUBufferUsageFlags 或 WebGL 用途标志
+  usage: number;
   mappedAtCreation?: boolean;
 }
 
@@ -31,7 +31,7 @@ export interface VertexAttribute {
 export interface BindGroupLayoutEntry {
   binding: number;
   type: 'uniform' | 'texture' | 'sampler';
-  name?: string;  // WebGL 2 需要 uniform 名称
+  name?: string;
 }
 
 export interface PipelineDesc {
@@ -42,14 +42,14 @@ export interface PipelineDesc {
   vertexStride: number;
   vertexAttributes: VertexAttribute[];
   blendMode?: 'alpha' | 'additive' | 'none';
-  bindGroupLayouts: BindGroupLayoutEntry[][];  // [group0entries, group1entries, ...]
+  bindGroupLayouts: BindGroupLayoutEntry[][];
 }
 
 export interface BindGroupEntry {
   binding: number;
   buffer?: IGfxBuffer;
   texture?: IGfxTexture;
-  sampler?: boolean;  // WebGL 2 sampler 由 pipeline 内部管理
+  sampler?: boolean;
 }
 
 export interface BindGroupDesc {

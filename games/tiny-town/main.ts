@@ -74,7 +74,7 @@ async function init(): Promise<void> {
   gameplay.enable();
   input.addMap(gameplay);
 
-  const tileAtlas = await TextureAtlas.load(gfx, '/games/tiny-town/assets/kenney_tiny-town/Tilemap/tilemap_packed.png');
+  const tileAtlas = await TextureAtlas.load(gfx, batch.getAtlasBindGroupLayout(), '/games/tiny-town/assets/kenney_tiny-town/Tilemap/tilemap_packed.png');
   const regions   = Array.from({ length: TILE_COLS * 11 }, (_, i) => tileRegion(i));
 
   camera.position = new Vec2((MAP_COLS * TILE_SIZE) / 2, (MAP_ROWS * TILE_SIZE) / 2);

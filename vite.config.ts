@@ -14,6 +14,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main:       resolve(__dirname, 'index.html'),
+        snake:      resolve(__dirname, 'games/snake/index.html'),
         tinyTown:   resolve(__dirname, 'games/tiny-town/index.html'),
         dungeon:    resolve(__dirname, 'games/dungeon/index.html'),
         mapEditor:  resolve(__dirname, 'packages/map-editor/index.html'),

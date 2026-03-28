@@ -241,16 +241,19 @@ async function init(): Promise<void> {
   // Touch D-pad for mobile
   const touchDPad = new TouchDPad('dpad');
 
+  // Get atlas layout from batch for texture loading
+  const atlasLayout = batch.getAtlasBindGroupLayout();
+
   // Load tile sprites
   const uniqueFiles = [...new Set(Object.values(SPRITE_FILES).filter(Boolean))] as string[];
   const atlasMap = new Map<string, TextureAtlas>();
   await Promise.all(uniqueFiles.map(async (file) => {
-    const atlas = await TextureAtlas.load(gfx, `${ASSETS}/${file}`);
+    const atlas = await TextureAtlas.load(gfx, atlasLayout, `${ASSETS}/${file}`);
     atlasMap.set(file, atlas);
   }));
 
   // Load hero sprite
-  const heroAtlas = await TextureAtlas.load(gfx, `${CHAR_ASSETS}/green_character.png`);
+  const heroAtlas = await TextureAtlas.load(gfx, atlasLayout, `${CHAR_ASSETS}/green_character.png`);
 
   // 初始化音频系统
   const audio = new AudioManager();

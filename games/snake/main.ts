@@ -300,7 +300,7 @@ async function init(): Promise<void> {
   const loop = new GameLoop(60);
 
   // Create white texture for solid color rendering
-  const whiteAtlas = await TextureAtlas.load(gfx, createWhitePixelDataUrl());
+  const whiteAtlas = await TextureAtlas.load(gfx, batch.getAtlasBindGroupLayout(), createWhitePixelDataUrl());
 
   const input = new InputManager(canvas);
   const gameplay = new ActionMap('Gameplay', {

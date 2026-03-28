@@ -230,7 +230,20 @@ export class TextRenderer {
     if (!fontEntry) throw new Error('[TextRenderer] Font in style not registered');
 
     const color = style.color ?? WHITE;
-    const result = layoutText(text, x, y, style);
+
+    // When align is center/right without a maxWidth container, treat x as the anchor point:
+    //   center → x is the horizontal midpoint
+    //   right  → x is the right edge
+    // This matches the intuitive expectation of drawText(text, centerX, y, { align: 'center' }).
+    let layoutX = x;
+    const align = style.align;
+    if (align && align !== 'left' && !(style.maxWidth ?? 0)) {
+      const { width } = measureText(text, style);
+      if (align === 'center') layoutX = Math.round(x - width * 0.5);
+      else if (align === 'right') layoutX = Math.round(x - width);
+    }
+
+    const result = layoutText(text, layoutX, y, style);
 
     for (const q of result.quads) {
       // Set up the temp region to avoid allocating per-glyph

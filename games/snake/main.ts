@@ -82,6 +82,11 @@ const SNAKE_HEAD_COLOR = new Color(0.3, 0.9, 0.5, 1.0);
 const SNAKE_BODY_COLOR = new Color(0.15, 0.8, 0.4, 1.0);
 const FOOD_COLOR = new Color(1.0, 0.4, 0.7, 1.0);
 const GAME_OVER_COLOR = new Color(0.95, 0.25, 0.25, 1.0);
+const TEXT_TITLE_COLOR = new Color(0.29, 0.87, 0.5, 1.0);
+const TEXT_DIM_COLOR = new Color(0.6, 0.6, 0.6, 1.0);
+const TEXT_WHITE = new Color(1, 1, 1, 1.0);
+const TEXT_WHITE_90 = new Color(1, 1, 1, 0.9);
+const TEXT_WHITE_60 = new Color(1, 1, 1, 0.6);
 
 // ── Snake Class ──────────────────────────────────────────────────────────────
 class Snake {
@@ -185,12 +190,19 @@ class Game {
   tickAccumulator = 0;
   tickRate = 0.15;
   movePending = false;
+  private font: ReturnType<TextRenderer['getFont']> | null = null;
+  private textRenderer: TextRenderer | null = null;
 
   constructor() {
     this.snake = new Snake(5, 7);
     this.food = new Food();
     this.food.spawn(this.snake);
     this.loadHighScore();
+  }
+
+  setFont(font: ReturnType<TextRenderer['getFont']>, textRenderer: TextRenderer): void {
+    this.font = font;
+    this.textRenderer = textRenderer;
   }
 
   loadHighScore(): void {
@@ -253,53 +265,35 @@ class Game {
     }
   }
 
-  draw(batch: SpriteBatch, atlas: TextureAtlas, time: number, camera: Camera2D, textRenderer: TextRenderer): void {
+  draw(batch: SpriteBatch, atlas: TextureAtlas, time: number, camera: Camera2D): void {
     batch.begin(camera);
 
-    // 绘制背景 - 使用一个大的纯色矩形代替多个格子
     batch.drawQuad(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH, CANVAS_HEIGHT, 0, atlas.fullRegion, atlas, BG_COLOR);
 
     this.snake.draw(batch, atlas);
     this.food.draw(batch, atlas, time);
 
-    if (this.state === 'menu') {
-      // 使用中文标题 "贪吃蛇" - 调整坐标确保在屏幕内
-      this.drawCenteredText(textRenderer, '贪吃蛇', 0, -80, 32, new Color(0.29, 0.87, 0.5, 1.0));
-      this.drawCenteredText(textRenderer, '按方向键开始游戏', 0, 0, 16, new Color(0.6, 0.6, 0.6, 1.0));
-    } else if (this.state === 'playing') {
-      // 显示当前得分
-      this.drawText(textRenderer, `得分: ${this.score}`, 10, 10, 16, new Color(1, 1, 1, 0.9));
-      if (this.highScore > 0) {
-        this.drawText(textRenderer, `最高分: ${this.highScore}`, 10, 28, 16, new Color(1, 1, 1, 0.6));
+    if (this.font && this.textRenderer) {
+      const tr = this.textRenderer;
+      const centerX = (GRID_COLS * CELL_SIZE) / 2;
+      const centerY = (GRID_ROWS * CELL_SIZE) / 2;
+
+      if (this.state === 'menu') {
+        tr.drawText('贪吃蛇', centerX, centerY - 80, { font: this.font, fontSize: 32, color: TEXT_TITLE_COLOR, align: 'center' });
+        tr.drawText('按方向键开始游戏', centerX, centerY, { font: this.font, fontSize: 16, color: TEXT_DIM_COLOR, align: 'center' });
+      } else if (this.state === 'playing') {
+        tr.drawText(`得分: ${this.score}`, 10, 10, { font: this.font, fontSize: 16, color: TEXT_WHITE_90 });
+        if (this.highScore > 0) {
+          tr.drawText(`最高分: ${this.highScore}`, 10, 28, { font: this.font, fontSize: 16, color: TEXT_WHITE_60 });
+        }
+      } else if (this.state === 'gameover') {
+        tr.drawText('游戏结束', centerX, centerY - 60, { font: this.font, fontSize: 32, color: GAME_OVER_COLOR, align: 'center' });
+        tr.drawText(`得分: ${this.score}`, centerX, centerY - 10, { font: this.font, fontSize: 16, color: TEXT_WHITE, align: 'center' });
+        tr.drawText('按方向键重新开始', centerX, centerY + 40, { font: this.font, fontSize: 16, color: TEXT_DIM_COLOR, align: 'center' });
       }
-    } else if (this.state === 'gameover') {
-      this.drawCenteredText(textRenderer, '游戏结束', 0, -60, 32, GAME_OVER_COLOR);
-      this.drawCenteredText(textRenderer, `得分: ${this.score}`, 0, -10, 16, new Color(1, 1, 1, 1));
-      this.drawCenteredText(textRenderer, '按方向键重新开始', 0, 40, 16, new Color(0.6, 0.6, 0.6, 1.0));
     }
 
     batch.end();
-  }
-
-  drawCenteredText(textRenderer: TextRenderer, text: string, offsetX: number, offsetY: number, fontSize: number, color: Color): void {
-    if (!textRenderer.hasFont('fonsung')) {
-      console.log('Font not loaded, skipping text:', text);
-      return;
-    }
-    // 使用世界坐标（与相机看的位置一致）
-    const centerX = (GRID_COLS * CELL_SIZE) / 2;
-    const centerY = (GRID_ROWS * CELL_SIZE) / 2;
-    const x = centerX + offsetX;
-    const y = centerY + offsetY;
-    const font = textRenderer.getFont('fonsung');
-    const { width } = textRenderer.measureText(text, { font, fontSize });
-    textRenderer.drawText(text, x - width / 2, y, { font, fontSize, color });
-  }
-
-  drawText(textRenderer: TextRenderer, text: string, x: number, y: number, fontSize: number, color: Color): void {
-    if (!textRenderer.hasFont('fonsung')) return;
-    const font = textRenderer.getFont('fonsung');
-    textRenderer.drawText(text, x, y, { font, fontSize, color });
   }
 }
 
@@ -345,11 +339,11 @@ async function init(): Promise<void> {
   } catch (e) {
     console.warn('✗ Failed to load Fonsung font:', e);
   }
-  
+
   // Update status to show font status
   const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  statusEl.textContent = `WebGPU ✓ — Snake ${GRID_COLS}x${GRID_ROWS} — WASD/方向键/触屏` + 
-    (hasTouch ? ' (触屏支持)' : '') + 
+  statusEl.textContent = `WebGPU ✓ — Snake ${GRID_COLS}x${GRID_ROWS} — WASD/方向键/触屏` +
+    (hasTouch ? ' (触屏支持)' : '') +
     (fontLoaded ? ' [中文字体✓]' : ' [中文字体✗]');
 
   const input = new InputManager(canvas);
@@ -367,6 +361,7 @@ async function init(): Promise<void> {
 
   const touchDPad = new TouchDPad('dpad');
   const game = new Game();
+  if (fontLoaded) game.setFont(textRenderer.getFont('fonsung'), textRenderer);
 
   loop.onUpdate = (dt) => {
     input.update();
@@ -384,7 +379,7 @@ async function init(): Promise<void> {
   let time = 0;
   loop.onRender = () => {
     time += 0.016;
-    game.draw(batch, whiteAtlas, time, camera, textRenderer);
+    game.draw(batch, whiteAtlas, time, camera);
   };
 
   loop.start();

@@ -1,6 +1,7 @@
 import {
   createGfxDevice, SpriteBatch, TextureAtlas, Camera2D,
   GameLoop, InputManager, ActionMap, ActionType, Vec2, Color,
+  AudioManager,
 } from '@mote/engine';
 import { Rect } from '@mote/engine';
 
@@ -156,12 +157,14 @@ class Hero {
   y: number;
   private moveCooldown = 0;
   private readonly MOVE_DELAY = 0.15;
+  private audio: AudioManager | null = null;
 
-  constructor(col: number, row: number) {
+  constructor(col: number, row: number, audio?: AudioManager) {
     this.col = col;
     this.row = row;
     this.x = col * TILE + TILE / 2;
     this.y = row * TILE + TILE / 2;
+    this.audio = audio ?? null;
   }
 
   update(dt: number, move: { x: number; y: number }): void {
@@ -178,6 +181,8 @@ class Hero {
           this.col = nc;
           this.row = nr;
           this.moveCooldown = this.MOVE_DELAY;
+          // 播放移动音效
+          this.audio?.play('step');
           return true;
         }
         return false;
@@ -247,8 +252,12 @@ async function init(): Promise<void> {
   // Load hero sprite
   const heroAtlas = await TextureAtlas.load(gfx, `${CHAR_ASSETS}/green_character.png`);
 
+  // 初始化音频系统
+  const audio = new AudioManager();
+  await audio.load('step', '/games/dungeon/assets/Blip_select 16.wav');
+
   // 使用地图中的出生点
-  const hero = new Hero(SPAWN_COL, SPAWN_ROW);
+  const hero = new Hero(SPAWN_COL, SPAWN_ROW, audio);
 
   // 创建自定义摄像机控制器
   const cameraCtrl = new DungeonCameraController(

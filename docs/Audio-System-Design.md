@@ -1,44 +1,76 @@
-1. Architecture Overview
-1.1 Design Goals
-Goal
-Description
-Zero-dependency
-Pure Web Audio API, no Howler.js/Tone.js
-Autoplay-safe
-Gracefully handle browser autoplay policies (Chrome, Safari, iOS)
-Lightweight
-Match Mote's philosophy — small API surface, big capability
-Instance pooling
-Prevent audio spam (e.g. 100 bullets = 100 overlapping sounds)
-Bus routing
-Master / Music / SFX gain nodes for independent volume control
-2D spatial
-Optional stereo panning based on world-space position
-BGM crossfade
-Smooth music transitions without pop/click artifacts
-Asset-friendly
-AudioBuffer cache with async preload + on-demand decode
-1.2 Signal Flow
-暂时无法在飞书文档外展示此内容
-1.3 Core Classes
-Class
-Responsibility
-AudioManager
-Singleton, owns AudioContext + bus graph + cache
-SoundBuffer
-Wrapper around decoded AudioBuffer
-SoundInstance
-One playing voice (source + gain + panner)
-SoundPool
-Per-asset instance limit + FIFO recycling
-MusicPlayer
-Dedicated BGM track with crossfade
+# Audio System Design
+
+Mote 引擎的音频系统 —— 纯 Web Audio API 实现，零依赖。
 
 ---
-2. Autoplay Policy Handling
-2.1 The Problem
-All major browsers (Chrome 66+, Safari 11+, Firefox 66+, iOS全系) require a user gesture before AudioContext can produce sound. A freshly created context starts in "suspended" state.
-2.2 Strategy: Lazy Resume
+
+## Table of Contents
+
+1. [Architecture Overview](#1-architecture-overview)
+2. [Autoplay Policy Handling](#2-autoplay-policy-handling)
+3. [Asset Loading & Cache](#3-asset-loading--cache)
+4. [Sound Instance & Pooling](#4-sound-instance--pooling)
+5. [Bus Routing & Volume Control](#5-bus-routing--volume-control)
+6. [Music Player with Crossfade](#6-music-player-with-crossfade)
+7. [2D Spatial Audio](#7-2d-spatial-audio)
+8. [Complete Public API](#8-complete-public-api)
+9. [Complete Implementation](#9-complete-implementation)
+10. [Engine Integration](#10-engine-integration)
+11. [Comparison](#11-comparison-mote-vs-reference-engines)
+12. [Recommended Audio Formats](#12-recommended-audio-formats)
+
+---
+
+## 1. Architecture Overview
+
+### 1.1 Design Goals
+
+| Goal | Description |
+|------|-------------|
+| **Zero-dependency** | Pure Web Audio API, no Howler.js/Tone.js |
+| **Autoplay-safe** | Gracefully handle browser autoplay policies (Chrome, Safari, iOS) |
+| **Lightweight** | Match Mote's philosophy — small API surface, big capability |
+| **Instance pooling** | Prevent audio spam (e.g. 100 bullets = 100 overlapping sounds) |
+| **Bus routing** | Master / Music / SFX gain nodes for independent volume control |
+| **2D spatial** | Optional stereo panning based on world-space position |
+| **BGM crossfade** | Smooth music transitions without pop/click artifacts |
+| **Asset-friendly** | AudioBuffer cache with async preload + on-demand decode |
+
+### 1.2 Signal Flow
+
+```
+┌─────────────┐    ┌──────────┐    ┌─────────────┐
+│  SoundPool  │───→│ SFX Bus  │───→│             │
+│  (per-key)  │    │  (Gain)  │    │             │
+└─────────────┘    └──────────┘    │   Master    │───→ Destination
+                                   │    Gain     │
+┌─────────────┐    ┌──────────┐    │             │
+│MusicPlayer  │───→│Music Bus │───→│             │
+│ (crossfade) │    │  (Gain)  │    │             │
+└─────────────┘    └──────────┘    └─────────────┘
+```
+
+### 1.3 Core Classes
+
+| Class | Responsibility |
+|-------|----------------|
+| `AudioManager` | Singleton, owns AudioContext + bus graph + cache |
+| `SoundBuffer` | Wrapper around decoded AudioBuffer |
+| `SoundInstance` | One playing voice (source + gain + panner) |
+| `SoundPool` | Per-asset instance limit + FIFO recycling |
+| `MusicPlayer` | Dedicated BGM track with crossfade |
+
+---
+
+## 2. Autoplay Policy Handling
+
+### 2.1 The Problem
+
+All major browsers (Chrome 66+, Safari 11+, Firefox 66+, iOS全系) require a user gesture before AudioContext can produce sound. A freshly created context starts in `"suspended"` state.
+
+### 2.2 Strategy: Lazy Resume
+
+```typescript
 private _setupAutoResume(): void {
   if (this.ctx.state === 'running') { this._unlocked = true; return; }
 
@@ -62,18 +94,29 @@ private _setupAutoResume(): void {
 }
 
 const UNLOCK_EVENTS = ['click', 'touchstart', 'touchend', 'keydown'];
-Key points:
+```
+
+**Key points:**
+
 - Create AudioContext immediately (constructor), but don't worry about suspended state
 - Register listeners on click / touchstart / touchend / keydown
-- Call ctx.resume() on first gesture — returns a Promise
+- Call `ctx.resume()` on first gesture — returns a Promise
 - Remove listeners once resumed
-- iOS Safari additionally requires the first AudioBufferSourceNode.start() inside a user gesture callback — solved by playing a silent 1-sample buffer
+- iOS Safari additionally requires the first `AudioBufferSourceNode.start()` inside a user gesture callback — solved by playing a silent 1-sample buffer
 
 ---
-3. Asset Loading & Cache
-3.1 Load Pipeline
+
+## 3. Asset Loading & Cache
+
+### 3.1 Load Pipeline
+
+```
 fetch(url) → ArrayBuffer → ctx.decodeAudioData() → AudioBuffer → Map cache
-3.2 SoundBuffer
+```
+
+### 3.2 SoundBuffer
+
+```typescript
 export class SoundBuffer {
   constructor(
     readonly key: string,          // unique asset key
@@ -81,9 +124,13 @@ export class SoundBuffer {
     readonly duration: number,     // seconds
   ) {}
 }
-3.3 Format Detection & Fallback
-浏览器格式支持检测（基于 HTMLAudioElement.canPlayType）：
+```
 
+### 3.3 Format Detection & Fallback
+
+浏览器格式支持检测（基于 `HTMLAudioElement.canPlayType`）：
+
+```typescript
 export type AudioFormat = 'wav' | 'ogg' | 'mp3';
 
 interface FormatSupport {
@@ -104,14 +151,19 @@ function detectFormats(): FormatSupport {
 
 /** Pick first supported URL from candidates */
 export function pickSupportedUrl(urls: string[]): string | null;
+```
 
-设计原则：
+**设计原则：**
+
 - 运行时检测而非 UA 嗅探
 - 结果缓存，只检测一次
 - BGM 提供 OGG + MP3 fallback，自动选择浏览器支持的格式
-3.4 SoundAsset 接口
+
+### 3.4 SoundAsset 接口
+
 支持单格式或多格式回退：
 
+```typescript
 export interface SoundAsset {
   key:   string;
   url?:  string;      // single URL (WAV/OGG/MP3)
@@ -121,7 +173,11 @@ export interface SoundAsset {
 // 使用示例
 { key: 'jump', url: '/sfx/jump.wav' }                    // 单格式
 { key: 'bgm',  urls: ['/music/bgm.ogg', '/music/bgm.mp3'] }  // 多格式回退
-3.5 Cache Design
+```
+
+### 3.5 Cache Design
+
+```typescript
 private _cache = new Map<string, SoundBuffer>();
 
 // 基础加载（已知 URL 可直接播放）
@@ -157,17 +213,25 @@ resolveAssetUrl(asset: SoundAsset): string | null {
 
 // 检查特定格式是否受支持
 supportsFormat(fmt: AudioFormat): boolean;
-Design decisions:
-- decodeAudioData 是异步的，但解码后的 AudioBuffer 是纯内存 PCM，播放时零延迟
+```
+
+**Design decisions:**
+
+- `decodeAudioData` 是异步的，但解码后的 `AudioBuffer` 是纯内存 PCM，播放时零延迟
 - Key-based cache 避免重复加载
-- loadBatch 用于场景预加载（loading screen 期间并行 decode）
+- `loadBatch` 用于场景预加载（loading screen 期间并行 decode）
 - 多格式回退机制：BGM 提供 OGG + MP3，优先 OGG（压缩率更好），Safari <17 自动回退到 MP3
 - 无需 HTML5 Audio fallback — Mote 目标浏览器全部支持 Web Audio API
 
 ---
-4. Sound Instance & Pooling
-4.1 SoundInstance
-每次 play() 调用创建一个 SoundInstance，代表一个正在播放的声音：
+
+## 4. Sound Instance & Pooling
+
+### 4.1 SoundInstance
+
+每次 `play()` 调用创建一个 `SoundInstance`，代表一个正在播放的声音：
+
+```typescript
 export class SoundInstance {
   readonly source: AudioBufferSourceNode;
   readonly gainNode: GainNode;
@@ -215,7 +279,11 @@ export class SoundInstance {
   set pan(v: number)    { if (this.pannerNode) this.pannerNode.pan.value = clamp(v, -1, 1); }
   set pitch(v: number)  { this.source.playbackRate.value = Math.max(0.01, v); }
 }
-4.2 SoundPool — 防止音效轰炸
+```
+
+### 4.2 SoundPool — 防止音效轰炸
+
+```typescript
 class SoundPool {
   private _instances: SoundInstance[] = [];
   constructor(readonly maxInstances: number = 8) {}
@@ -239,15 +307,22 @@ class SoundPool {
     return this._instances.length;
   }
 }
-Pooling strategy:
-- 每个 key（音效资源）一个 SoundPool
+```
+
+**Pooling strategy:**
+
+- 每个 key（音效资源）一个 `SoundPool`
 - 默认上限 8 个同时实例（可配置）
 - 超限时停掉最老的实例（FIFO eviction），带 50ms micro-fade 避免 click
 - 每次 add 时顺便清理已结束的实例（lazy GC）
 
 ---
-5. Bus Routing & Volume Control
-5.1 三级 Gain Bus
+
+## 5. Bus Routing & Volume Control
+
+### 5.1 三级 Gain Bus
+
+```typescript
 this.masterGain = ctx.createGain();
 this.sfxGain    = ctx.createGain();
 this.musicGain  = ctx.createGain();
@@ -255,31 +330,34 @@ this.musicGain  = ctx.createGain();
 this.sfxGain.connect(this.masterGain);
 this.musicGain.connect(this.masterGain);
 this.masterGain.connect(ctx.destination);
-5.2 Volume API
+```
+
+### 5.2 Volume API
+
+```typescript
 get/set masterVolume: number;  // 0..1
 get/set sfxVolume: number;     // 0..1
 get/set musicVolume: number;   // 0..1
+```
+
 Volume 独立控制：玩家设置 SFX=0.3 不影响 Music=0.8，Master 统一调节总输出。
 
 ---
-6. Music Player with Crossfade
-6.1 BGM vs SFX 差异
-Feature
-SFX
-BGM
-Concurrent instances
-Multiple (pooled)
-1-2 (crossfade)
-Looping
-Rare
-Almost always
-Volume channel
-SFX bus
-Music bus
-Transitions
-Instant
-Crossfade
-6.2 MusicPlayer
+
+## 6. Music Player with Crossfade
+
+### 6.1 BGM vs SFX 差异
+
+| Feature | SFX | BGM |
+|---------|-----|-----|
+| Concurrent instances | Multiple (pooled) | 1-2 (crossfade) |
+| Looping | Rare | Almost always |
+| Volume channel | SFX bus | Music bus |
+| Transitions | Instant | Crossfade |
+
+### 6.2 MusicPlayer
+
+```typescript
 export class MusicPlayer {
   private _current: SoundInstance | null = null;
   private _currentKey: string | null = null;
@@ -307,25 +385,43 @@ export class MusicPlayer {
     this._currentKey = null;
   }
 }
-6.3 Crossfade 时序
+```
+
+### 6.3 Crossfade 时序
+
+```
 Old BGM:  ████████████▓▓▓▓░░░░  (fade out over 0.5s)
 New BGM:  ░░░░▓▓▓▓████████████  (fade in over 0.5s)
                    ↑
              crossfade overlap
-linearRampToValueAtTime 由 Web Audio API 调度线程执行，不阻塞主线程。
+```
+
+`linearRampToValueAtTime` 由 Web Audio API 调度线程执行，不阻塞主线程。
 
 ---
-7. Optional: 2D Spatial Audio
-7.1 Stereo Panning Model
-对于 2D 游戏，完整的 3D PannerNode 过于复杂。使用 StereoPannerNode：
+
+## 7. 2D Spatial Audio
+
+### 7.1 Stereo Panning Model
+
+对于 2D 游戏，完整的 3D PannerNode 过于复杂。使用 `StereoPannerNode`：
+
+```typescript
 export function worldToPan(
   soundX: number, listenerX: number,
   halfScreenWidth: number, maxPan = 1.0,
 ): number {
   return clamp((soundX - listenerX) / halfScreenWidth * maxPan, -1, 1);
 }
-- pan = -1 → 全左声道 | pan = 0 → 居中 | pan = +1 → 全右声道
-7.2 Distance Attenuation
+```
+
+- `pan = -1` → 全左声道
+- `pan = 0` → 居中
+- `pan = +1` → 全右声道
+
+### 7.2 Distance Attenuation
+
+```typescript
 export function distanceVolume(
   sx: number, sy: number, lx: number, ly: number,
   maxDist: number, rolloff = 1.0,
@@ -335,14 +431,23 @@ export function distanceVolume(
   if (dist >= maxDist) return 0;
   return Math.pow(1 - dist / maxDist, rolloff);
 }
-7.3 Usage
+```
+
+### 7.3 Usage
+
+```typescript
 const vol = distanceVolume(enemy.x, enemy.y, camera.x, camera.y, 500);
 const pan = worldToPan(enemy.x, camera.x, canvas.width / 2);
 audio.play('explosion', { volume: vol, pan });
+```
 
 ---
-8. Complete Public API
-8.1 Types
+
+## 8. Complete Public API
+
+### 8.1 Types
+
+```typescript
 export type AudioFormat = 'wav' | 'ogg' | 'mp3';
 
 export interface PlayOptions {
@@ -360,85 +465,42 @@ export interface SoundAsset {
   url?:  string;      // single URL
   urls?: string[];    // ordered fallback list
 }
-8.2 AudioManager API Summary
-Category
-Method
-Description
-Lifecycle
-constructor()
-Create AudioContext + bus graph + detect formats
+```
 
-destroy()
-Stop all, close context
-Loading
-load(key, url)
-Load single URL (wav/ogg/mp3)
+### 8.2 AudioManager API Summary
 
-loadAsset(asset)
-Load with automatic format fallback
-
-loadBatch(assets)
-Parallel preload multiple assets
-
-unload(key)
-Remove from cache
-
-has(key)
-Check if loaded
-Format
-formatSupport
-Readonly format support detection
-
-supportsFormat(fmt)
-Check specific format support
-
-resolveAssetUrl(asset)
-Resolve SoundAsset to concrete URL
-
-pickSupportedUrl(urls)
-Pick first supported URL from list
-Playback
-play(key, opts?)
-Play SFX, returns SoundInstance
-
-createInstance(key, opts)
-Low-level instance creation
-
-stopAll(fadeOut?)
-Stop everything
-Volume
-masterVolume
-0..1 getter/setter
-
-sfxVolume
-0..1 getter/setter
-
-musicVolume
-0..1 getter/setter
-Music
-music.play(key, fade?)
-Play BGM with crossfade
-
-music.stop(fade?)
-Stop BGM
-
-music.volume
-Current BGM instance volume
-State
-state
-AudioContext state
-
-activeSounds
-Active SFX instance count
-Utilities
-worldToPan()
-Convert world X to stereo pan
-
-distanceVolume()
-Calculate distance attenuation
+| Category | Method | Description |
+|----------|--------|-------------|
+| **Lifecycle** | `constructor()` | Create AudioContext + bus graph + detect formats |
+| | `destroy()` | Stop all, close context |
+| **Loading** | `load(key, url)` | Load single URL (wav/ogg/mp3) |
+| | `loadAsset(asset)` | Load with automatic format fallback |
+| | `loadBatch(assets)` | Parallel preload multiple assets |
+| | `unload(key)` | Remove from cache |
+| | `has(key)` | Check if loaded |
+| **Format** | `formatSupport` | Readonly format support detection |
+| | `supportsFormat(fmt)` | Check specific format support |
+| | `resolveAssetUrl(asset)` | Resolve SoundAsset to concrete URL |
+| | `pickSupportedUrl(urls)` | Pick first supported URL from list |
+| **Playback** | `play(key, opts?)` | Play SFX, returns SoundInstance |
+| | `createInstance(key, opts)` | Low-level instance creation |
+| | `stopAll(fadeOut?)` | Stop everything |
+| **Volume** | `masterVolume` | 0..1 getter/setter |
+| | `sfxVolume` | 0..1 getter/setter |
+| | `musicVolume` | 0..1 getter/setter |
+| **Music** | `music.play(key, fade?)` | Play BGM with crossfade |
+| | `music.stop(fade?)` | Stop BGM |
+| | `music.volume` | Current BGM instance volume |
+| **State** | `state` | AudioContext state |
+| | `activeSounds` | Active SFX instance count |
+| **Utilities** | `worldToPan()` | Convert world X to stereo pan |
+| | `distanceVolume()` | Calculate distance attenuation |
 
 ---
-9. Complete Implementation Code
+
+## 9. Complete Implementation
+
+```typescript
 // ═══════════════════════════════════════════════════════════════════════════
 // Audio System — Unified Module
 // Contains: AudioManager, SoundBuffer, SoundInstance, SoundPool, MusicPlayer
@@ -592,6 +654,7 @@ export class SoundInstance {
 
 class SoundPool {
   private _instances: SoundInstance[] = [];
+
   constructor(readonly maxInstances: number = 8) {}
 
   add(inst: SoundInstance): void {
@@ -887,10 +950,15 @@ export function distanceVolume(
   if (dist >= maxDist) return 0;
   return Math.pow(1 - dist / maxDist, rolloff);
 }
+```
 
 ---
-10. Engine Integration
-10.1 Game 生命周期
+
+## 10. Engine Integration
+
+### 10.1 Game 生命周期
+
+```typescript
 class Game {
   private audio!: AudioManager;
   private input!: InputManager;
@@ -921,13 +989,21 @@ class Game {
     this.audio.destroy();
   }
 }
-10.2 Scene Transition
+```
+
+### 10.2 Scene Transition
+
+```typescript
 async loadDungeon() {
   this.audio.music.play('bgm_dungeon', 1.5);  // 1.5s crossfade
   this.audio.unload('bird_chirp');
   await this.audio.load('drip', '/sfx/drip.wav');
 }
-10.3 Format Fallback Strategy
+```
+
+### 10.3 Format Fallback Strategy
+
+```typescript
 // 检查浏览器格式支持（调试用）
 console.log(audio.formatSupport);  // { wav: true, ogg: true, mp3: true }
 
@@ -936,105 +1012,53 @@ const url = audio.resolveAssetUrl({
   key: 'bgm',
   urls: ['/music/bgm.ogg', '/music/bgm.mp3']
 });  // 返回浏览器支持的第一个格式
-10.4 Pitch Randomization (Juice)
+```
+
+### 10.4 Pitch Randomization (Juice)
+
+```typescript
 // 让重复音效不单调 — 随机 ±10% pitch
 audio.play('coin', { pitch: 0.9 + Math.random() * 0.2 });
 audio.play('footstep', {
   pitch: 0.95 + Math.random() * 0.1,
   volume: 0.4 + Math.random() * 0.1,
 });
-10.3 Pitch Randomization (Juice)
-// 让重复音效不单调 — 随机 ±10% pitch
-audio.play('coin', { pitch: 0.9 + Math.random() * 0.2 });
-audio.play('footstep', {
-  pitch: 0.95 + Math.random() * 0.1,
-  volume: 0.4 + Math.random() * 0.1,
-});
+```
 
 ---
-11. Comparison: Mote vs Reference Engines
-Feature
-LittleJS
-Howler.js
-Phaser 3
-Mote
-Dependency
-None
-None
-Framework
-None
-Backend
-Web Audio
-Web Audio + HTML5 fallback
-Web Audio + HTML5
-Web Audio only
-Bus routing
-Single volume
-No bus
-✓ (tied to scenes)
-✓ Master/SFX/Music
-Instance pooling
-Manual
-✗
-✓
-✓ Per-key FIFO
-Crossfade BGM
-✗
-Manual
-✗
-✓ Built-in
-Spatial audio
-✗
-3D (Web Audio)
-✗
-2D StereoPanner
-Autoplay handling
-Silent play
-Suspend/resume
-Unlock gesture
-Resume + iOS unlock
-API simplicity
-★★★★★
-★★★★
-★★★
-★★★★★
-Code size
-~100 LOC
-~2500 LOC
-~3000 LOC
-~300 LOC
+
+## 11. Comparison: Mote vs Reference Engines
+
+| Feature | LittleJS | Howler.js | Phaser 3 | **Mote** |
+|---------|----------|-----------|----------|----------|
+| **Dependency** | None | None | Framework | None |
+| **Backend** | Web Audio | Web Audio + HTML5 fallback | Web Audio + HTML5 | Web Audio only |
+| **Bus routing** | Single volume | No bus | ✓ (tied to scenes) | ✓ Master/SFX/Music |
+| **Instance pooling** | Manual | ✗ | ✓ | ✓ Per-key FIFO |
+| **Crossfade BGM** | ✗ | Manual | ✗ | ✓ Built-in |
+| **Spatial audio** | ✗ | 3D (Web Audio) | ✗ | 2D StereoPanner |
+| **Autoplay handling** | Silent play | Suspend/resume | Unlock gesture | Resume + iOS unlock |
+| **API simplicity** | ★★★★★ | ★★★★ | ★★★ | ★★★★★ |
+| **Code size** | ~100 LOC | ~2500 LOC | ~3000 LOC | ~300 LOC |
 
 ---
-12. Recommended Audio Formats
-12.1 Format Support Matrix
-Format
-Extension
-Compression
-Browser Support
-Use Case
-OGG Vorbis
-.ogg
-Lossy, good
-Chrome/Firefox/Edge ✓, Safari 17+ ✓
-BGM (primary)
-WAV
-.wav
-None
-Universal
-SFX (small files)
-MP3
-.mp3
-Lossy, universal
-Universal
-BGM fallback
-WebM Opus
-.webm
-Lossy, best quality/size
-Chrome/Firefox/Edge ✓, Safari 16.4+ ✓
-Future-proof
-12.2 Automatic Format Fallback
+
+## 12. Recommended Audio Formats
+
+### 12.1 Format Support Matrix
+
+| Format | Extension | Compression | Browser Support | Use Case |
+|--------|-----------|-------------|-----------------|----------|
+| **OGG Vorbis** | `.ogg` | Lossy, good | Chrome/Firefox/Edge ✓, Safari 17+ ✓ | BGM (primary) |
+| **WAV** | `.wav` | None | Universal | SFX (small files) |
+| **MP3** | `.mp3` | Lossy, universal | Universal | BGM fallback |
+| **WebM Opus** | `.webm` | Lossy, best quality/size | Chrome/Firefox/Edge ✓, Safari 16.4+ ✓ | Future-proof |
+
+### 12.2 Automatic Format Fallback
+
 Mote 的音频系统内置运行时格式检测，支持声明式多格式回退：
 
+```typescript
 // 提供多个格式，自动选择浏览器支持的第一个
 await audio.loadBatch([
   // SFX：单格式即可（WAV 全平台支持）
@@ -1051,8 +1075,11 @@ console.log(audio.formatSupport);  // { wav: true, ogg: true, mp3: true }
 if (audio.supportsFormat('ogg')) {
   // 加载 OGG 版本...
 }
-12.3 Recommendations
-- SFX → .wav (tiny files, zero decode overhead, sample-accurate, universal support)
-- BGM → .ogg (good compression) + .mp3 fallback (covers Safari <17, ~5% users)
-- 使用 loadBatch() 的 urls 数组自动处理回退，无需运行时 if 判断
+```
+
+### 12.3 Recommendations
+
+- **SFX** → `.wav` (tiny files, zero decode overhead, sample-accurate, universal support)
+- **BGM** → `.ogg` (good compression) + `.mp3` fallback (covers Safari <17, ~5% users)
+- 使用 `loadBatch()` 的 `urls` 数组自动处理回退，无需运行时 if 判断
 - 无需为 SFX 提供多格式，WAV 在所有目标浏览器都支持

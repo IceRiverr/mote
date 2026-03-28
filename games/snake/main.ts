@@ -345,13 +345,19 @@ async function init(): Promise<void> {
   // Load Fonsung Chinese font (merged from 3000 + 500 parts)
   let fontLoaded = false;
   try {
-    // Try loading from relative path (works with Vite public directory)
+    // 直接从引擎数据目录加载字体文件
     await textRenderer.loadBitmapFontJsonMulti('fonsung', [
-      { atlasUrl: './fonts/Fonsung-16-3000.png', jsonUrl: './fonts/Fonsung-16-3000.json' },
-      { atlasUrl: './fonts/Fonsung-16-3500.png', jsonUrl: './fonts/Fonsung-16-3500.json' },
+      { 
+        atlasUrl: '/packages/engine/data/BMFont/Fonsung/Fonsung-16-3000.png', 
+        jsonUrl: '/packages/engine/data/BMFont/Fonsung/Fonsung-16-3000.json' 
+      },
+      { 
+        atlasUrl: '/packages/engine/data/BMFont/Fonsung/Fonsung-16-3500.png', 
+        jsonUrl: '/packages/engine/data/BMFont/Fonsung/Fonsung-16-3500.json' 
+      },
     ]);
     fontLoaded = true;
-    console.log('✓ Fonsung font loaded');
+    console.log('✓ Fonsung font loaded from engine data');
   } catch (e) {
     console.warn('✗ Failed to load Fonsung font:', e);
   }

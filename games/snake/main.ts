@@ -259,6 +259,22 @@ class Game {
     // 绘制背景 - 使用一个大的纯色矩形代替多个格子
     batch.drawQuad(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, CANVAS_WIDTH, CANVAS_HEIGHT, 0, atlas.fullRegion, atlas, BG_COLOR);
 
+    // 测试：始终在屏幕中央显示测试文字
+    if (textRenderer.hasFont('fonsung')) {
+      const testText = '我喜欢贪吃蛇';
+      const fontSize = 24;
+      const font = textRenderer.getFont('fonsung');
+      const { width } = textRenderer.measureText(testText, { font, fontSize });
+      const centerX = (GRID_COLS * CELL_SIZE) / 2;
+      const centerY = (GRID_ROWS * CELL_SIZE) / 2;
+      // 使用醒目的红色，确保可见
+      textRenderer.drawText(testText, centerX - width / 2, centerY - fontSize / 2, { 
+        font, 
+        fontSize, 
+        color: new Color(1, 0, 0, 1)  // 纯红色，最醒目
+      });
+    }
+
     this.snake.draw(batch, atlas);
     this.food.draw(batch, atlas, time);
 

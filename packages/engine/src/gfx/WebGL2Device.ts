@@ -11,7 +11,7 @@ export class WebGL2Buffer implements IGfxBuffer {
   readonly size: number;
   readonly glBuffer: WebGLBuffer;
   readonly target: number;
-  private readonly gl: WebGL2RenderingContext;  // [Fix: 问题4] 持有 gl 引用
+  private readonly gl: WebGL2RenderingContext;
 
   constructor(gl: WebGL2RenderingContext, desc: BufferDesc) {
     this.gl = gl;
@@ -29,7 +29,6 @@ export class WebGL2Buffer implements IGfxBuffer {
     gl.bindBuffer(this.target, null);
   }
 
-  // [Fix: 问题4] 正确释放 GL 资源
   destroy(): void {
     this.gl.deleteBuffer(this.glBuffer);
   }
@@ -39,7 +38,7 @@ export class WebGL2Texture implements IGfxTexture {
   readonly width: number;
   readonly height: number;
   readonly glTexture: WebGLTexture;
-  private readonly gl: WebGL2RenderingContext;  // [Fix: 问题4] 持有 gl 引用
+  private readonly gl: WebGL2RenderingContext;
 
   private constructor(gl: WebGL2RenderingContext, width: number, height: number, glTexture: WebGLTexture) {
     this.gl = gl;
@@ -65,7 +64,6 @@ export class WebGL2Texture implements IGfxTexture {
     return new WebGL2Texture(gl, width, height, glTexture);
   }
 
-  // [Fix: 问题4] 正确释放 GL 资源
   destroy(): void {
     this.gl.deleteTexture(this.glTexture);
   }
@@ -120,10 +118,10 @@ export class WebGL2BindGroup implements IGfxBindGroup {
 
 class WebGL2RenderPass implements IRenderPass {
   private gl: WebGL2RenderingContext;
-  private vao: WebGLVertexArrayObject;            // [Fix: 优化4] VAO
+  private vao: WebGLVertexArrayObject;
   private currentPipeline: WebGL2Pipeline | null = null;
   private boundGroups: Map<number, WebGL2BindGroup> = new Map();
-  private dirtyGroups = new Set<number>();         // [Fix: 问题1] dirty tracking
+  private dirtyGroups = new Set<number>();
 
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -147,7 +145,6 @@ class WebGL2RenderPass implements IRenderPass {
     const b = buf as WebGL2Buffer;
     gl.bindBuffer(gl.ARRAY_BUFFER, b.glBuffer);
     void slot;
-    // [Fix: 优化4] VAO 已绑定，attrib 设置会记录到 VAO 中
     if (this.currentPipeline) {
       for (const attr of this.currentPipeline.vertexAttributes) {
         gl.enableVertexAttribArray(attr.shaderLocation);
@@ -163,14 +160,13 @@ class WebGL2RenderPass implements IRenderPass {
 
   setBindGroup(index: number, group: IGfxBindGroup): void {
     this.boundGroups.set(index, group as WebGL2BindGroup);
-    this.dirtyGroups.add(index);  // [Fix: 问题1] 仅标脏
+    this.dirtyGroups.add(index);
   }
 
   drawIndexed(indexCount: number, _instanceCount = 1, firstIndex = 0): void {
     const gl = this.gl;
     const pipeline = this.currentPipeline!;
 
-    // [Fix: 问题1] 只应用脏 bind group，减少冗余 uniform 调用
     for (const groupIdx of this.dirtyGroups) {
       const group = this.boundGroups.get(groupIdx);
       if (!group) continue;
@@ -196,7 +192,6 @@ class WebGL2RenderPass implements IRenderPass {
   }
 
   end(): void {
-    // [Fix: 优化4] 解绑 VAO
     this.gl.bindVertexArray(null);
     this.gl.deleteVertexArray(this.vao);
   }
@@ -332,14 +327,12 @@ export class WebGL2Device implements IGfxDevice {
     } else {
       gl.bufferSubData(b.target, byteOffset, data);
     }
-    // [Fix: Bug2] 复制 Float32Array 而非直接引用，防止外部修改时 cpuData 被污染
     if (data instanceof Float32Array) {
       b.cpuData = new Float32Array(data);
     }
     gl.bindBuffer(b.target, null);
   }
 
-  // [Fix: 优化3] 统一使用 createImageBitmap
   async loadTexture(url: string): Promise<IGfxTexture> {
     const gl = this.gl;
     const resp = await fetch(url);

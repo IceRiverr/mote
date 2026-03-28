@@ -113,7 +113,6 @@ export class WebGPUDevice implements IGfxDevice {
   readonly context: GPUCanvasContext;
   readonly format: GPUTextureFormat;
 
-  // [Fix: 问题2] 缓存 sampler，避免每次 createBindGroup 都新建
   private _nearestSampler: GPUSampler | null = null;
 
   private constructor(device: GPUDevice, context: GPUCanvasContext, format: GPUTextureFormat) {
@@ -133,7 +132,6 @@ export class WebGPUDevice implements IGfxDevice {
     return new WebGPUDevice(device, context, format);
   }
 
-  // [Fix: 问题2] 复用 sampler
   private _getNearestSampler(): GPUSampler {
     if (!this._nearestSampler) {
       this._nearestSampler = this.device.createSampler({
@@ -207,7 +205,6 @@ export class WebGPUDevice implements IGfxDevice {
         return { binding: e.binding, resource: (e.texture as WebGPUTexture).gpuTexture.createView() };
       }
       if (e.sampler) {
-        // [Fix: 问题2] 使用缓存的 sampler 而非每次新建
         return { binding: e.binding, resource: this._getNearestSampler() };
       }
       throw new Error('BindGroupEntry must have buffer, texture, or sampler');
@@ -219,7 +216,6 @@ export class WebGPUDevice implements IGfxDevice {
     this.device.queue.writeBuffer((buf as WebGPUBuffer).gpuBuffer, byteOffset, data);
   }
 
-  // [Fix: 优化3] 统一使用 fetch + createImageBitmap，去掉多余的 Image 中间步骤
   async loadTexture(url: string): Promise<IGfxTexture> {
     const resp = await fetch(url);
     const blob = await resp.blob();

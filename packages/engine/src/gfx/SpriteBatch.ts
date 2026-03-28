@@ -27,7 +27,6 @@ export class TextureAtlas {
     this.bindGroup = bindGroup;
   }
 
-  // [Fix: 问题3] layout 改为显式参数，消除对 SpriteBatch 静态变量的隐式依赖
   static async load(
     gfx: IGfxDevice,
     layout: IGfxBindGroupLayout,
@@ -91,7 +90,7 @@ export class SpriteBatch {
 
   private readonly gfx: IGfxDevice;
   private readonly pipeline: IGfxPipeline;
-  private readonly atlasLayout: IGfxBindGroupLayout;  // [Fix: 问题3] 实例上暴露
+  private readonly atlasLayout: IGfxBindGroupLayout;
   private readonly vertexBuffer: IGfxBuffer;
   private readonly indexBuffer: IGfxBuffer;
   private readonly cameraUniformBuffer: IGfxBuffer;
@@ -102,7 +101,6 @@ export class SpriteBatch {
   private currentAtlas: TextureAtlas | null = null;
   private batches: BatchEntry[] = [];
 
-  // [Fix: Bug1] 帧级状态：由 begin() 创建，end() 提交
   private frameEncoder: import('./IGfxDevice.js').IFrameEncoder | null = null;
   private renderPass: import('./IGfxDevice.js').IRenderPass | null = null;
 
@@ -155,7 +153,6 @@ export class SpriteBatch {
       entries: [{ binding: 0, buffer: this.cameraUniformBuffer }],
     });
 
-    // [Fix: 问题3] atlas layout 缓存在实例上，通过 getter 暴露
     this.atlasLayout = gfx.getBindGroupLayout(this.pipeline, 1);
   }
 
@@ -164,18 +161,14 @@ export class SpriteBatch {
     return this.atlasLayout;
   }
 
-  // [Fix: Bug1] begin() 创建 frame encoder 和 render pass，整个帧只 clear 一次
   begin(camera: Camera2D): void {
     this.quadCount = 0;
     this.batches.length = 0;
     this.currentAtlas = null;
     this.gfx.writeBuffer(this.cameraUniformBuffer, camera.getViewProjectionMatrix().data);
 
-    // 创建帧 encoder + render pass（包含 clear），整个 begin/end 周期只做一次
     this.frameEncoder = this.gfx.beginFrame();
     this.renderPass = this.frameEncoder.beginRenderPass([0.04, 0.04, 0.08, 1.0]);
-
-    // 设置共享的 pipeline 和 buffer 状态
     this.renderPass.setPipeline(this.pipeline);
     this.renderPass.setVertexBuffer(0, this.vertexBuffer);
     this.renderPass.setIndexBuffer(this.indexBuffer, 'uint16');
@@ -195,7 +188,6 @@ export class SpriteBatch {
 
     const base = this.quadCount * SpriteBatch.VERTICES_PER_QUAD * SpriteBatch.FLOATS_PER_VERTEX;
 
-    // [Fix: 优化2] rotation === 0 fast path，跳过 sin/cos
     if (rotation === 0) {
       const hw = w * 0.5, hh = h * 0.5;
       const x0 = x - hw, x1 = x + hw;
@@ -267,11 +259,9 @@ export class SpriteBatch {
       return;
     }
 
-    // Upload vertex data
     const byteSize = this.quadCount * SpriteBatch.VERTICES_PER_QUAD * SpriteBatch.VERTEX_STRIDE;
     this.gfx.writeBuffer(this.vertexBuffer, this.cpuBuffer.subarray(0, byteSize / 4));
 
-    // [Fix: Bug1] 使用 begin() 中创建的 render pass 发出 draw calls
     const pass = this.renderPass!;
 
     for (const batch of this.batches) {
@@ -285,8 +275,6 @@ export class SpriteBatch {
 
     pass.end();
     this.frameEncoder!.submit();
-
-    // Reset frame state
     this.renderPass = null;
     this.frameEncoder = null;
     this.quadCount = 0;
@@ -299,12 +287,8 @@ export class SpriteBatch {
     this.currentAtlas = atlas;
   }
 
-  // [Fix: Bug1] flush 只提交当前已有的 draw calls，然后 reset quad data
-  // 不会重新 clear，因为 render pass 仍然是 begin() 中打开的那个
   private _flush(): void {
     if (this.quadCount === 0) return;
-
-    // Upload + draw current batch within the existing render pass
     const byteSize = this.quadCount * SpriteBatch.VERTICES_PER_QUAD * SpriteBatch.VERTEX_STRIDE;
     this.gfx.writeBuffer(this.vertexBuffer, this.cpuBuffer.subarray(0, byteSize / 4));
 
@@ -318,7 +302,6 @@ export class SpriteBatch {
       );
     }
 
-    // Reset quad data but keep the render pass open
     this.quadCount = 0;
     this.batches.length = 0;
     this.currentAtlas = null;

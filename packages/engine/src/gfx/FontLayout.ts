@@ -47,9 +47,6 @@ export interface TextLayoutResult {
 /**
  * Layout text into positioned glyph quads.
  *
- * For BMFont: scale = fontSize / font.metrics.fontSize
- * For MSDF:  scale = fontSize / font.metrics.fontSize (emSize mapped to atlas size)
- *
  * @param text    The string to layout (supports \n for newlines)
  * @param x       Origin X in screen/world pixels
  * @param y       Origin Y in screen/world pixels (top of first line)

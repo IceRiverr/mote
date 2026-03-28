@@ -1,8 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // TextRenderer — High-level text rendering API
 //
-// Phase 1: BMFont rendering via SpriteBatch (zero extra shaders)
-// Phase 2: MSDF rendering via dedicated TextBatch (separate pipeline)
+// BMFont rendering via SpriteBatch (zero extra shaders)
 //
 // Usage:
 //   const text = new TextRenderer(gfx, spriteBatch);
@@ -21,14 +20,14 @@ import type { IGfxDevice, IGfxBindGroupLayout } from './IGfxDevice.js';
 import type { SpriteBatch, AtlasRegion } from './SpriteBatch.js';
 import { TextureAtlas } from './SpriteBatch.js';
 import type { Color } from '../Math.js';
-import { FontData, parseBMFont, parseBMFontJson, parseMSDFJson, mergeFontData } from './FontData.js';
-import type { BMFontJson, MSDFAtlasJson } from './FontData.js';
+import { FontData, parseBMFont, parseBMFontJson, mergeFontData } from './FontData.js';
+import type { BMFontJson } from './FontData.js';
 import { layoutText, measureText, findMissingChars, canRender } from './FontLayout.js';
 import type { TextStyle, TextLayoutResult } from './FontLayout.js';
 
 // Re-export for convenience
 export type { TextStyle, TextLayoutResult };
-export type { BMFontJson, MSDFAtlasJson };
+export type { BMFontJson };
 export { findMissingChars, canRender, mergeFontData };
 
 // ── Font Entry ───────────────────────────────────────────────────────────
@@ -163,27 +162,6 @@ export class TextRenderer {
   }
 
   /**
-   * Load an MSDF font (msdf-atlas-gen JSON + atlas PNG).
-   * NOTE: Phase 2 — MSDF rendering requires a dedicated TextBatch with MSDF shader.
-   *       For now, this only loads the data. Rendering will fall back to bitmap-style
-   *       (won't look correct for MSDF — placeholder until TextBatch is implemented).
-   */
-  async loadMSDFFont(key: string, atlasUrl: string, jsonUrl: string): Promise<void> {
-    if (this.fonts.has(key)) return;
-
-    const [jsonData, atlas] = await Promise.all([
-      fetch(jsonUrl).then(r => {
-        if (!r.ok) throw new Error(`Failed to load MSDF metadata: ${jsonUrl} (${r.status})`);
-        return r.json() as Promise<MSDFAtlasJson>;
-      }),
-      TextureAtlas.load(this.gfx, this.atlasLayout, atlasUrl),
-    ]);
-
-    const data = parseMSDFJson(jsonData);
-    this.fonts.set(key, { data, atlas });
-  }
-
-  /**
    * Check if a font is loaded.
    */
   hasFont(key: string): boolean {
@@ -212,9 +190,6 @@ export class TextRenderer {
   /**
    * Draw text using the SpriteBatch.
    * MUST be called between spriteBatch.begin() and spriteBatch.end().
-   *
-   * For BMFont: renders directly via SpriteBatch (uses sprite pipeline).
-   * For MSDF:  Phase 2 — will use a dedicated TextBatch.
    *
    * @param text   The string to render
    * @param x      X position (world/screen space)

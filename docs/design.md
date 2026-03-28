@@ -291,8 +291,6 @@ TextRenderer
 ├── loadFont(url: string): Promise<void>
 ├── drawText(text, position, style): void
 └── measure(text, style): { width, height }
-初期方案：Canvas 2D 预渲染到纹理 → SpriteBatch 绘制
-进阶方案：MSDF 字体，无限缩放不模糊
 4.2 3D 渲染器（远期扩展）
 初期不实现，但架构预留接口：
 MeshRenderer    → 加载 glTF, 基础 PBR
@@ -456,7 +454,6 @@ mote-engine/
 │   │   └── shaders/
 │   │       ├── sprite_batch.wgsl / tilemap.wgsl
 │   │       ├── vector.wgsl / particle.wgsl
-│   │       └── text_msdf.wgsl
 │   │
 │   ├── framework/               # Layer 3: Framework
 │   │   ├── GameLoop.ts / InputManager.ts
@@ -563,7 +560,6 @@ Phase 4: Polish（1-2 周）
 目标：能做像样的小游戏
 - AudioManager（音效 + 音乐）
 - ParticleRenderer（粒子效果）
-- TextRenderer（MSDF 文字）
 - VectorRenderer（Debug 绘制）
 - 基础 UI 系统
 - 里程碑：一个完整的可玩 Demo

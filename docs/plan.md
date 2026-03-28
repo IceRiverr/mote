@@ -209,8 +209,8 @@
 ### 5.3 文字渲染
 
 - [ ] 实现 `src/renderer/2d/TextRenderer.ts`
-  - 初期：Canvas 2D 预渲染到纹理 → SpriteBatch 绘制
-  - 进阶：MSDF 字体渲染
+  - 使用 Canvas 2D 预渲染到纹理 → SpriteBatch 绘制
+  - 或 bitmap font 格式（如 AngelCode BMFont）
 
 ### 5.4 矢量渲染
 

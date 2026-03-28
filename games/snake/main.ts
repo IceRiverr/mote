@@ -299,10 +299,7 @@ class Game {
   drawText(textRenderer: TextRenderer, text: string, x: number, y: number, fontSize: number, color: Color): void {
     if (!textRenderer.hasFont('fonsung')) return;
     const font = textRenderer.getFont('fonsung');
-    // 转换为世界坐标（网格坐标系）
-    const worldX = x;
-    const worldY = y + fontSize; // 调整y坐标使文字在预期位置
-    textRenderer.drawText(text, worldX, worldY, { font, fontSize, color });
+    textRenderer.drawText(text, x, y, { font, fontSize, color });
   }
 }
 

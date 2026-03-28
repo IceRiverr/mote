@@ -93,13 +93,14 @@ export function parseBMFontJson(json: BMFontJson): FontData {
     const w = char.width ?? 0;
     const h = char.height ?? 0;
 
+    // BMFont: y=0 at top, WebGPU texture: v=0 at bottom, so flip V
     glyphs.set(char.id, {
       unicode: char.id,
       advance: char.xadvance ?? 0,
       u0: x / scaleW,
-      v0: y / scaleH,
+      v0: 1 - (y + h) / scaleH,
       u1: (x + w) / scaleW,
-      v1: (y + h) / scaleH,
+      v1: 1 - y / scaleH,
       offsetX: char.xoffset ?? 0,
       offsetY: char.yoffset ?? 0,
       width: w,

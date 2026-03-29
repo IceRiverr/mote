@@ -279,7 +279,7 @@ class Game {
       const centerY = (GRID_ROWS * CELL_SIZE) / 2;
 
       if (this.state === 'menu') {
-        tr.drawText('贪吃蛇', centerX, centerY - 80, { font: this.font, fontSize: 32, color: TEXT_TITLE_COLOR, align: 'center' });
+        tr.drawText('疯狂贪吃蛇007-02', centerX, centerY - 80, { font: this.font, fontSize: 32, color: TEXT_TITLE_COLOR, align: 'center' });
         tr.drawText('按方向键开始游戏', centerX, centerY, { font: this.font, fontSize: 16, color: TEXT_DIM_COLOR, align: 'center' });
       } else if (this.state === 'playing') {
         tr.drawText(`得分: ${this.score}`, 10, 10, { font: this.font, fontSize: 16, color: TEXT_WHITE_90 });

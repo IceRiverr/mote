@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite';
-import { resolve } from 'path';
-import { viteStaticCopy } from 'vite-plugin-static-copy';
+import { resolve, dirname } from 'path';
 import fs from 'fs';
 import path from 'path';
 
@@ -23,6 +22,29 @@ function sharedAssetsPlugin(sharedAssetsDir: string) {
   };
 }
 
+function copyGameAssetsPlugin() {
+  return {
+    name: 'copy-game-assets',
+    closeBundle() {
+      // 复制 dungeon assets
+      const dungeonSrc = resolve(__dirname, 'games/dungeon/assets');
+      const dungeonDest = resolve(__dirname, 'dist/games/dungeon/assets');
+      if (fs.existsSync(dungeonSrc)) {
+        fs.mkdirSync(dirname(dungeonDest), { recursive: true });
+        fs.cpSync(dungeonSrc, dungeonDest, { recursive: true });
+      }
+      
+      // 复制 tiny-town assets
+      const tinyTownSrc = resolve(__dirname, 'games/tiny-town/assets');
+      const tinyTownDest = resolve(__dirname, 'dist/games/tiny-town/assets');
+      if (fs.existsSync(tinyTownSrc)) {
+        fs.mkdirSync(dirname(tinyTownDest), { recursive: true });
+        fs.cpSync(tinyTownSrc, tinyTownDest, { recursive: true });
+      }
+    },
+  };
+}
+
 export default defineConfig({
   root: '.',
   resolve: {
@@ -31,12 +53,7 @@ export default defineConfig({
     },
   },
   plugins: [
-    viteStaticCopy({
-      targets: [
-        { src: 'games/dungeon/assets', dest: 'games/dungeon' },
-        { src: 'games/tiny-town/assets', dest: 'games/tiny-town' },
-      ],
-    }),
+    copyGameAssetsPlugin(),
     sharedAssetsPlugin(resolve(__dirname, 'shared/assets')),
   ],
   build: {

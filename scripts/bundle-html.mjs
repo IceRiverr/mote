@@ -49,8 +49,15 @@ const outPath = outArg
 
 // ── 工具函数 ──────────────────────────────────────────────────────────────────
 
-/** 将 /assets/... 路径解析为 dist 目录下的绝对路径 */
-function resolveAsset(assetPath) {
+/** 将 /assets/... 或 /games/{game}/assets/... 路径解析为绝对路径 */
+function resolveAsset(assetPath, gameName) {
+  // 处理 /games/{game}/assets/... 路径
+  const gamesAssetsMatch = assetPath.match(/^\/games\/([^\/]+)\/assets\/(.*)/);
+  if (gamesAssetsMatch) {
+    const [, gName, subPath] = gamesAssetsMatch;
+    return path.join(ROOT, 'games', gName, 'assets', subPath);
+  }
+  // 处理 /assets/... 路径
   return path.join(DIST, assetPath);
 }
 
@@ -70,6 +77,7 @@ function mimeOf(ext) {
     '.woff2': 'font/woff2',
     '.woff':  'font/woff',
     '.ttf':   'font/ttf',
+    '.wav':   'audio/wav',
   };
   return map[ext] || 'application/octet-stream';
 }
@@ -112,7 +120,8 @@ const replacedAssets = new Set();
 
 // 先处理所有非 JS 资源（字体等），建立 /assets/path -> dataUrl 映射
 const assetDataUrls = new Map(); // assetAbsPath -> dataUrl
-const assetUrlRe = /['"`](\/assets\/[^'"`\s]+\.(png|jpg|json|woff2|woff|ttf))[`'"]/g;
+// 匹配 /assets/... 和 /games/{game}/assets/... 路径
+const assetUrlRe = /['"`](\/?(?:assets\/|games\/[^\/]+\/assets\/)[^'"`]+?\.(png|jpg|jpeg|json|woff2|woff|ttf|wav))['"`]/gi;
 
 // 扫描所有 JS 文件中引用的资源
 for (const jsPath of jsPathSet) {
@@ -121,13 +130,13 @@ for (const jsPath of jsPathSet) {
   const content = fs.readFileSync(filePath, 'utf-8');
   let am;
   while ((am = assetUrlRe.exec(content)) !== null) {
-    const assetPath = am[1]; // e.g. /assets/fonts/Fonsung/xxx.png
-    const ext = path.extname(assetPath);
-    const filePath2 = resolveAsset(assetPath);
-    if (fs.existsSync(filePath2) && !assetDataUrls.has(assetPath)) {
+    const fullAssetPath = am[1]; // 完整路径含扩展名
+    const ext = path.extname(fullAssetPath);
+    const filePath2 = resolveAsset(fullAssetPath, gameName);
+    if (fs.existsSync(filePath2) && !assetDataUrls.has(fullAssetPath)) {
       const dataUrl = toDataUrl(filePath2, mimeOf(ext));
-      assetDataUrls.set(assetPath, dataUrl);
-      console.log(`  Inlined asset: ${assetPath} (${Math.round(dataUrl.length / 1024)}KB)`);
+      assetDataUrls.set(fullAssetPath, dataUrl);
+      console.log(`  Inlined asset: ${fullAssetPath} (${Math.round(dataUrl.length / 1024)}KB)`);
     }
   }
   assetUrlRe.lastIndex = 0;
@@ -143,8 +152,8 @@ for (const jsPath of jsPathSet) {
     continue;
   }
   let content = fs.readFileSync(filePath, 'utf-8');
-  content = content.replace(assetUrlRe, (match, assetPath) => {
-    const dataUrl = assetDataUrls.get(assetPath);
+  content = content.replace(assetUrlRe, (match, fullAssetPath) => {
+    const dataUrl = assetDataUrls.get(fullAssetPath);
     if (!dataUrl) return match;
     return `${match[0]}${dataUrl}${match[0]}`;
   });

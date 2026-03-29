@@ -65,8 +65,6 @@ import { ROOM_01 } from './maps/room_01.js';
 import { T, BLOCKED_TILES, SPRITE_FILES } from './TileIds.js';
 
 const TILE = 64;
-const ASSETS = '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)';
-const CHAR_ASSETS = `${ASSETS}/Characters`;
 
 // 使用导入的地图数据
 const MAP_DATA = ROOM_01;
@@ -244,16 +242,44 @@ async function init(): Promise<void> {
   // Get atlas layout from batch for texture loading
   const atlasLayout = batch.getAtlasBindGroupLayout();
 
-  // Load tile sprites
-  const uniqueFiles = [...new Set(Object.values(SPRITE_FILES).filter(Boolean))] as string[];
+  // Load tile sprites (静态路径，支持打包)
+  // 注意：使用 /*inline*/ 注释防止 Vite 将路径提取为变量
   const atlasMap = new Map<string, TextureAtlas>();
-  await Promise.all(uniqueFiles.map(async (file) => {
-    const atlas = await TextureAtlas.load(gfx, atlasLayout, `${ASSETS}/${file}`);
-    atlasMap.set(file, atlas);
-  }));
+
+  // 使用完整静态路径加载所有纹理（避免使用变量，确保能被 bundle-html 正确扫描）
+  const [tile, wall, wall_corner, wall_edge, door_closed, door_open,
+         floor_chest, floor_barrel, stairs_down, water, planks, floor_trap, floor_campfire] = await Promise.all([
+    TextureAtlas.load(gfx, atlasLayout, '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)/tile.png'),
+    TextureAtlas.load(gfx, atlasLayout, '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)/wall.png'),
+    TextureAtlas.load(gfx, atlasLayout, '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)/wall_corner.png'),
+    TextureAtlas.load(gfx, atlasLayout, '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)/wall_edge.png'),
+    TextureAtlas.load(gfx, atlasLayout, '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)/door_closed.png'),
+    TextureAtlas.load(gfx, atlasLayout, '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)/door_open.png'),
+    TextureAtlas.load(gfx, atlasLayout, '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)/floor_chest.png'),
+    TextureAtlas.load(gfx, atlasLayout, '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)/floor_barrel.png'),
+    TextureAtlas.load(gfx, atlasLayout, '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)/stairs_down.png'),
+    TextureAtlas.load(gfx, atlasLayout, '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)/water.png'),
+    TextureAtlas.load(gfx, atlasLayout, '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)/planks.png'),
+    TextureAtlas.load(gfx, atlasLayout, '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)/floor_trap.png'),
+    TextureAtlas.load(gfx, atlasLayout, '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)/floor_campfire.png'),
+  ]);
+
+  atlasMap.set('tile.png', tile);
+  atlasMap.set('wall.png', wall);
+  atlasMap.set('wall_corner.png', wall_corner);
+  atlasMap.set('wall_edge.png', wall_edge);
+  atlasMap.set('door_closed.png', door_closed);
+  atlasMap.set('door_open.png', door_open);
+  atlasMap.set('floor_chest.png', floor_chest);
+  atlasMap.set('floor_barrel.png', floor_barrel);
+  atlasMap.set('stairs_down.png', stairs_down);
+  atlasMap.set('water.png', water);
+  atlasMap.set('planks.png', planks);
+  atlasMap.set('floor_trap.png', floor_trap);
+  atlasMap.set('floor_campfire.png', floor_campfire);
 
   // Load hero sprite
-  const heroAtlas = await TextureAtlas.load(gfx, atlasLayout, `${CHAR_ASSETS}/green_character.png`);
+  const heroAtlas = await TextureAtlas.load(gfx, atlasLayout, '/games/dungeon/assets/kenney_scribble-dungeons/PNG/Default (64px)/Characters/green_character.png');
 
   // 初始化音频系统
   const audio = new AudioManager();

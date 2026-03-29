@@ -104,7 +104,9 @@ async function main() {
 
   // 步骤3: 打包
   log('\n📋 步骤 2/3: 打包成单页 HTML...', 'yellow');
-  const outPath = path.join(ROOT, `${gameName}-standalone.html`);
+  // 默认输出到游戏目录下
+  const gameDir = path.join(ROOT, 'games', gameName);
+  const outPath = path.join(gameDir, `${gameName}-standalone.html`);
   
   try {
     const bundleScript = path.join(ROOT, 'scripts/bundle-html.mjs');
@@ -129,7 +131,9 @@ async function main() {
     log('\n' + '═'.repeat(40), 'green');
     log('✅ 打包成功！', 'green');
     log('═'.repeat(40), 'green');
-    log(`\n📄 文件: ${outPath}`, 'cyan');
+    // 计算相对路径显示
+    const relativePath = path.relative(ROOT, outPath);
+    log(`\n📄 文件: ${relativePath}`, 'cyan');
     log(`📊 大小: ${sizeKB} KB (${sizeMB} MB)`, 'cyan');
     log(`\n🚀 使用方式:`, 'yellow');
     log(`   • 双击打开`, 'blue');

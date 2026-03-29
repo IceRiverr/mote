@@ -16,22 +16,6 @@
     font-family: 'Segoe UI', system-ui, sans-serif;
     color: #e0e0e0;
   }
-  .header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 16px;
-  }
-  .back {
-    color: #6bb8ff;
-    text-decoration: none;
-    font-size: 0.85rem;
-    opacity: 0.7;
-    transition: opacity 0.15s;
-  }
-  .back:hover { opacity: 1; }
-  h1 { font-size: 1.2rem; font-weight: 300; letter-spacing: 0.08em; }
-  h1 span { color: #4ade80; font-weight: 600; }
   .game-wrapper {
     position: relative;
     display: inline-block;
@@ -110,10 +94,6 @@
 </style>
 </head>
 <body>
-  <div class="header">
-    <a class="back" href="/">← 返回游戏列表</a>
-    <h1><span>Snake</span></h1>
-  </div>
   <div class="game-wrapper">
     <canvas id="canvas" width="640" height="480"></canvas>
     <div class="dpad-container" id="dpad">

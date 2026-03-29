@@ -22,9 +22,9 @@ bundle dungeon
 
 ## 输出
 
-打包后的文件位于项目根目录：
+打包后的文件位于对应游戏目录下：
 ```
-{game-name}-standalone.html
+games/{game-name}/game.html
 ```
 
 ## 示例

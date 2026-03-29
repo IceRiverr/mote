@@ -43,9 +43,9 @@ if (!fs.existsSync(htmlPath)) {
   process.exit(1);
 }
 
-const outPath = outArg
-  ? path.resolve(outArg)
-  : path.join(ROOT, `${gameName}-standalone.html`);
+// 默认输出到对应游戏目录下
+const defaultOutPath = path.join(ROOT, 'games', gameName, 'game.html');
+const outPath = outArg ? path.resolve(outArg) : defaultOutPath;
 
 // ── 工具函数 ──────────────────────────────────────────────────────────────────
 

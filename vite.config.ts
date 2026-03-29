@@ -14,6 +14,7 @@ export default defineConfig({
       targets: [
         { src: 'games/dungeon/assets', dest: 'games/dungeon' },
         { src: 'games/tiny-town/assets', dest: 'games/tiny-town' },
+        { src: 'shared/assets', dest: '.' },
       ],
     }),
   ],

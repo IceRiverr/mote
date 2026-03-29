@@ -323,15 +323,14 @@ async function init(): Promise<void> {
   // Load Fonsung Chinese font (merged from 3000 + 500 parts)
   let fontLoaded = false;
   try {
-    // 直接从引擎数据目录加载字体文件
     await textRenderer.loadBitmapFontJsonMulti('fonsung', [
-      { 
-        atlasUrl: '/packages/engine/data/BMFont/Fonsung/Fonsung-16-3000.png', 
-        jsonUrl: '/packages/engine/data/BMFont/Fonsung/Fonsung-16-3000.json' 
+      {
+        atlasUrl: '/assets/fonts/Fonsung/Fonsung-16-3000.png',
+        jsonUrl: '/assets/fonts/Fonsung/Fonsung-16-3000.json'
       },
-      { 
-        atlasUrl: '/packages/engine/data/BMFont/Fonsung/Fonsung-16-3500.png', 
-        jsonUrl: '/packages/engine/data/BMFont/Fonsung/Fonsung-16-3500.json' 
+      {
+        atlasUrl: '/assets/fonts/Fonsung/Fonsung-16-3500.png',
+        jsonUrl: '/assets/fonts/Fonsung/Fonsung-16-3500.json'
       },
     ]);
     fontLoaded = true;

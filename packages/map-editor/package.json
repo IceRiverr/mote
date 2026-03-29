@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@mote/engine": "workspace:*"
+    "@mote/engine": "*"
   },
   "devDependencies": {
     "typescript": "^6.0.2",

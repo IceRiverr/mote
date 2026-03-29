@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 export default defineConfig({
   root: '.',
@@ -8,6 +9,14 @@ export default defineConfig({
       '@mote/engine': resolve(__dirname, 'packages/engine/src/index.ts'),
     },
   },
+  plugins: [
+    viteStaticCopy({
+      targets: [
+        { src: 'games/dungeon/assets', dest: 'games/dungeon' },
+        { src: 'games/tiny-town/assets', dest: 'games/tiny-town' },
+      ],
+    }),
+  ],
   build: {
     outDir: 'dist',
     target: 'esnext',

@@ -17,5 +17,5 @@
     }
   },
   "include": ["packages", "games"],
-  "exclude": ["vite.config.ts", "**/dist/**"]
+  "exclude": ["vite.config.ts", "**/dist/**", "**/assets/**"]
 }

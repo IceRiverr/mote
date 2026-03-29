@@ -12,6 +12,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "bundle": "node scripts/bundle-html.mjs",
     "deploy": "npm run build && node scripts/deploy.mjs",
     "deploy:full": "npm run build && scp -r dist/* root@8.210.175.90:/var/www/iceriver.cc/",
     "commit": "bash git-commit.sh",

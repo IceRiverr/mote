@@ -1,6 +1,27 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
+import fs from 'fs';
+import path from 'path';
+
+function sharedAssetsPlugin(sharedAssetsDir: string) {
+  return {
+    name: 'shared-assets',
+    configureServer(server: any) {
+      server.middlewares.use('/assets', (req: any, res: any, next: any) => {
+        const filePath = path.join(sharedAssetsDir, req.url);
+        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+          res.end(fs.readFileSync(filePath));
+        } else {
+          next();
+        }
+      });
+    },
+    closeBundle() {
+      fs.cpSync(sharedAssetsDir, resolve(__dirname, 'dist/assets'), { recursive: true });
+    },
+  };
+}
 
 export default defineConfig({
   root: '.',
@@ -14,9 +35,9 @@ export default defineConfig({
       targets: [
         { src: 'games/dungeon/assets', dest: 'games/dungeon' },
         { src: 'games/tiny-town/assets', dest: 'games/tiny-town' },
-        { src: 'shared/assets', dest: '.' },
       ],
     }),
+    sharedAssetsPlugin(resolve(__dirname, 'shared/assets')),
   ],
   build: {
     outDir: 'dist',

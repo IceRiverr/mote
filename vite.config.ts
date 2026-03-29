@@ -65,6 +65,7 @@ export default defineConfig({
         snake:      resolve(__dirname, 'games/snake/index.html'),
         tinyTown:   resolve(__dirname, 'games/tiny-town/index.html'),
         dungeon:    resolve(__dirname, 'games/dungeon/index.html'),
+        breakout:   resolve(__dirname, 'games/breakout/index.html'),
         mapEditor:  resolve(__dirname, 'packages/map-editor/index.html'),
       },
     },

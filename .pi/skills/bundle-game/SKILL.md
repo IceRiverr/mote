@@ -1,11 +1,20 @@
 ---
 name: bundle-game
-description: 当用户说"打包游戏"、"生成单页"、"bundle"、"打包成html"时触发。将指定游戏打包成单个独立HTML文件，可直接发给朋友使用。
+description: 当用户说"打包游戏"、"生成单页"、"bundle"、"打包成html"时触发。将游戏打包成单个独立HTML文件，双击即可运行，无需服务器，可直接发给朋友使用。
 ---
 
 # Bundle Game
 
-将游戏的构建产物打包成单个独立 HTML 文件，所有资源（JS、字体、图片）全部内联，可离线运行。
+将游戏打包成**单个独立的 HTML 文件**，双击即可运行，无需服务器，方便直接发给朋友。
+
+## 前置条件
+
+确保已构建游戏：
+```bash
+npm run build
+# 或构建单个游戏
+npm run build:snake
+```
 
 ## 用法
 
@@ -24,31 +33,20 @@ bundle dungeon
 
 打包后的文件位于对应游戏目录下：
 ```
-games/{game-name}/game.html
+games/{game-name}/{game-name}-standalone.html
 ```
 
 ## 示例
 
 ```bash
-# 打包贪吃蛇游戏
+# 打包到游戏目录（默认）
 打包游戏 snake
-# 输出: snake-standalone.html (约 1.5MB)
+# 输出: games/snake/snake-standalone.html
 
-# 打包打砖块游戏
-打包游戏 breakout
-# 输出: breakout-standalone.html
+# 打包到指定路径
+node scripts/bundle-html.mjs breakout --out ./breakout-standalone.html
 ```
 
-## 技术原理
+## 使用
 
-1. **收集** - 扫描 `dist/games/{game}/` 下的所有 JS 模块
-2. **内联** - 将字体、图片等资源转为 Base64 Data URL
-3. **Blob URL** - 用 Blob URL 保持 ES Module 作用域隔离
-4. **合并** - 生成单个可双击运行的 HTML 文件
-
-## 手动打包
-
-```bash
-# 使用底层脚本
-node scripts/bundle-html.mjs <game-name> [--out <path>]
-```
+生成后双击 HTML 文件即可在浏览器中离线运行，也可直接发送给朋友。

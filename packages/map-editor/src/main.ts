@@ -46,6 +46,7 @@ document.addEventListener('keydown', (e) => {
 document.getElementById('btnNew')!.addEventListener('click', () => {
   if (confirm('确定要新建地图吗？当前未保存的更改将丢失。')) editor.newMap();
 });
+document.getElementById('btnImportTileset')!.addEventListener('click', () => editor.openTilesetImporter());
 document.getElementById('btnImportConfig')!.addEventListener('click', () => editor.importConfig());
 document.getElementById('btnImport')!.addEventListener('click', () => editor.importMap());
 document.getElementById('btnExport')!.addEventListener('click', () => editor.export('ts'));

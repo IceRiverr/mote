@@ -184,64 +184,67 @@ export class MapEditor {
 
   private updatePalette(): void {
     if (!this.config) return;
-    
+
     const palette = document.getElementById('palette')!;
     palette.innerHTML = '';
-    
+
+    // 网格容器
+    const grid = document.createElement('div');
+    grid.className = 'tileset-grid';
+    palette.appendChild(grid);
+
+    const CELL = 40; // 每格显示尺寸（px）
+
     this.config.tiles.forEach(tile => {
-      const item = document.createElement('div');
-      item.className = 'tile-item' + (tile.id === this.selectedTileId ? ' active' : '');
+      const cell = document.createElement('div');
+      cell.className = 'tileset-cell' + (tile.id === this.selectedTileId ? ' active' : '');
+      cell.title = tile.name;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = CELL;
+      canvas.height = CELL;
+      canvas.style.cssText = `width:${CELL}px;height:${CELL}px;image-rendering:pixelated;display:block;`;
+      const pctx = canvas.getContext('2d')!;
+
+      const draw = (img?: HTMLImageElement) => {
+        pctx.clearRect(0, 0, CELL, CELL);
+        if (img && tile.tilesetImage) {
+          const sx = tile.srcX ?? 0;
+          const sy = tile.srcY ?? 0;
+          const sw = tile.srcW ?? this.config!.tileSize;
+          const sh = tile.srcH ?? this.config!.tileSize;
+          pctx.drawImage(img, sx, sy, sw, sh, 0, 0, CELL, CELL);
+        } else {
+          pctx.fillStyle = tile.color;
+          pctx.fillRect(0, 0, CELL, CELL);
+        }
+      };
+
       if (tile.tilesetImage) {
-        const sx = tile.srcX ?? 0;
-        const sy = tile.srcY ?? 0;
-        const sw = tile.srcW ?? this.config!.tileSize;
-        const sh = tile.srcH ?? this.config!.tileSize;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = 32;
-        canvas.height = 32;
-        canvas.style.cssText = 'width:32px;height:32px;image-rendering:pixelated;';
-        const pctx = canvas.getContext('2d')!;
-
-        const preview = document.createElement('div');
-        preview.className = 'tile-preview';
-        preview.style.background = tile.color;
-        preview.appendChild(canvas);
-
-        const label = document.createElement('div');
-        label.className = 'tile-name';
-        label.textContent = tile.name;
-
-        item.appendChild(preview);
-        item.appendChild(label);
-
-        const drawPreview = (img: HTMLImageElement) =>
-          pctx.drawImage(img, sx, sy, sw, sh, 0, 0, 32, 32);
-
         const img = this.loadImage(tile.tilesetImage);
         if (img) {
-          drawPreview(img);
+          draw(img);
         } else {
+          draw(); // 先画颜色占位
           const src = tile.tilesetImage;
           const poll = () => {
             const loaded = this.imageCache.get(src);
-            loaded ? drawPreview(loaded) : setTimeout(poll, 100);
+            loaded ? draw(loaded) : setTimeout(poll, 100);
           };
           setTimeout(poll, 100);
         }
       } else {
-        item.innerHTML = `
-          <div class="tile-preview" style="background: ${tile.color}"></div>
-          <div class="tile-name">${tile.name}</div>
-        `;
+        draw();
       }
-      item.addEventListener('click', () => {
+
+      cell.appendChild(canvas);
+      cell.addEventListener('click', () => {
         this.selectedTileId = tile.id;
-        document.querySelectorAll('.tile-item').forEach(el => el.classList.remove('active'));
-        item.classList.add('active');
+        grid.querySelectorAll('.tileset-cell').forEach(el => el.classList.remove('active'));
+        cell.classList.add('active');
         document.getElementById('selectedTile')!.textContent = tile.name;
       });
-      palette.appendChild(item);
+      grid.appendChild(cell);
     });
   }
 
@@ -930,7 +933,6 @@ ${tilesRows.join(',\n')}
     message.textContent = `已导出: ${filename}`;
     toast.classList.remove('hidden', 'hiding');
 
-    // 3秒后自动隐藏
     setTimeout(() => {
       toast.classList.add('hiding');
       setTimeout(() => {
@@ -938,5 +940,270 @@ ${tilesRows.join(',\n')}
         toast.classList.remove('hiding');
       }, 300);
     }, 3000);
+  }
+
+  /**
+   * 打开图集导入弹窗
+   */
+  openTilesetImporter(): void {
+    const importer = new TilesetImporter((tiles, imageDataUrl) => {
+      if (!this.config) {
+        // 没有配置时，用图集创建一个新配置
+        this.config = {
+          id: 'imported',
+          name: 'Imported',
+          tileSize: tiles[0]?.srcW ?? 16,
+          defaultWidth: 20,
+          defaultHeight: 15,
+          tiles,
+        };
+        this.mapData = {
+          version: 1,
+          name: 'untitled',
+          width: this.config.defaultWidth,
+          height: this.config.defaultHeight,
+          tileSize: this.config.tileSize,
+          tiles: new Array(this.config.defaultWidth * this.config.defaultHeight).fill(0),
+          spawnPoint: { x: 10, y: 7 },
+        };
+        document.getElementById('configName')!.textContent = this.config.name;
+        this.updateProperties();
+        this.resizeCanvas();
+      } else {
+        // 已有配置时，追加 tiles（id 从当前最大值续接）
+        const maxId = this.config.tiles.reduce((m, t) => Math.max(m, t.id), -1);
+        tiles.forEach((t, i) => { t.id = maxId + 1 + i; });
+        this.config.tiles.push(...tiles);
+      }
+      // 缓存 blob 图片
+      if (imageDataUrl) {
+        const img = new Image();
+        img.onload = () => {
+          tiles.forEach(t => {
+            if (t.tilesetImage) this.imageCache.set(t.tilesetImage, img);
+          });
+          this.updatePalette();
+        };
+        img.src = imageDataUrl;
+      } else {
+        this.updatePalette();
+      }
+    });
+    importer.open();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TilesetImporter — 独立的图集切割工具
+// ---------------------------------------------------------------------------
+
+interface TilesetImporterResult {
+  id: number;
+  name: string;
+  color: string;
+  solid: boolean;
+  tilesetImage: string;
+  srcX: number;
+  srcY: number;
+  srcW: number;
+  srcH: number;
+}
+
+class TilesetImporter {
+  private overlay: HTMLElement;
+  private previewCanvas: HTMLCanvasElement;
+  private pctx: CanvasRenderingContext2D;
+  private image: HTMLImageElement | null = null;
+  private imageDataUrl = '';
+  private tileSize = 16;
+  private spacing = 1;
+  private margin = 0;
+  private cols = 0;
+  private rows = 0;
+  // 选中的格子 index set
+  private selected = new Set<number>();
+
+  constructor(private onConfirm: (tiles: TilesetImporterResult[], imageDataUrl: string) => void) {
+    this.overlay = document.getElementById('tilesetModal')!;
+    this.previewCanvas = document.getElementById('tilesetPreviewCanvas') as HTMLCanvasElement;
+    this.pctx = this.previewCanvas.getContext('2d')!;
+    this.bindEvents();
+  }
+
+  open(): void {
+    this.overlay.classList.remove('hidden');
+  }
+
+  private close(): void {
+    this.overlay.classList.add('hidden');
+    this.image = null;
+    this.imageDataUrl = '';
+    this.selected.clear();
+    this.pctx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+    this.previewCanvas.width = 0;
+    this.updateInfo();
+  }
+
+  private bindEvents(): void {
+    document.getElementById('btnTilesetModalClose')!.addEventListener('click', () => this.close());
+    document.getElementById('btnTilesetCancel')!.addEventListener('click', () => this.close());
+
+    document.getElementById('btnTilesetLoadImage')!.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          this.imageDataUrl = ev.target!.result as string;
+          const img = new Image();
+          img.onload = () => { this.image = img; this.redraw(); };
+          img.src = this.imageDataUrl;
+        };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    });
+
+    // 参数变化时重绘
+    const redrawOnChange = () => { this.readParams(); this.redraw(); };
+    document.getElementById('tilesetTileSize')!.addEventListener('change', redrawOnChange);
+    document.getElementById('tilesetSpacing')!.addEventListener('change', redrawOnChange);
+    document.getElementById('tilesetMargin')!.addEventListener('change', redrawOnChange);
+
+    // 点击 / 拖拽选择 tile
+    let dragging = false;
+    let dragMode: 'add' | 'remove' = 'add';
+
+    this.previewCanvas.addEventListener('mousedown', (e) => {
+      dragging = true;
+      const idx = this.hitTest(e);
+      if (idx < 0) return;
+      dragMode = this.selected.has(idx) ? 'remove' : 'add';
+      this.toggle(idx, dragMode);
+    });
+    this.previewCanvas.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const idx = this.hitTest(e);
+      if (idx >= 0) this.toggle(idx, dragMode);
+    });
+    window.addEventListener('mouseup', () => { dragging = false; });
+
+    document.getElementById('btnTilesetConfirm')!.addEventListener('click', () => {
+      if (!this.image || this.selected.size === 0) return;
+      const tiles = this.buildTiles();
+      this.onConfirm(tiles, this.imageDataUrl);
+      this.close();
+    });
+  }
+
+  private readParams(): void {
+    this.tileSize = Math.max(1, parseInt((document.getElementById('tilesetTileSize') as HTMLInputElement).value) || 16);
+    this.spacing  = Math.max(0, parseInt((document.getElementById('tilesetSpacing')  as HTMLInputElement).value) || 0);
+    this.margin   = Math.max(0, parseInt((document.getElementById('tilesetMargin')   as HTMLInputElement).value) || 0);
+  }
+
+  private redraw(): void {
+    if (!this.image) return;
+    this.readParams();
+
+    const { tileSize: ts, spacing: sp, margin: mg } = this;
+    const step = ts + sp;
+    this.cols = Math.floor((this.image.width  - mg * 2 + sp) / step);
+    this.rows = Math.floor((this.image.height - mg * 2 + sp) / step);
+
+    // 缩放预览：最大宽度 620px
+    const DISPLAY_TILE = Math.max(ts, Math.min(48, Math.floor(600 / this.cols)));
+    const scale = DISPLAY_TILE / ts;
+
+    this.previewCanvas.width  = Math.round(this.image.width  * scale);
+    this.previewCanvas.height = Math.round(this.image.height * scale);
+    this.previewCanvas.style.width  = this.previewCanvas.width  + 'px';
+    this.previewCanvas.style.height = this.previewCanvas.height + 'px';
+
+    this.pctx.imageSmoothingEnabled = false;
+    this.pctx.drawImage(this.image, 0, 0, this.previewCanvas.width, this.previewCanvas.height);
+
+    // 绘制网格线 + 选中高亮
+    for (let row = 0; row < this.rows; row++) {
+      for (let col = 0; col < this.cols; col++) {
+        const sx = (mg + col * step) * scale;
+        const sy = (mg + row * step) * scale;
+        const sw = ts * scale;
+        const sh = ts * scale;
+        const idx = row * this.cols + col;
+
+        if (this.selected.has(idx)) {
+          this.pctx.fillStyle = 'rgba(107, 184, 255, 0.35)';
+          this.pctx.fillRect(sx, sy, sw, sh);
+          this.pctx.strokeStyle = '#6bb8ff';
+          this.pctx.lineWidth = 1.5;
+        } else {
+          this.pctx.strokeStyle = 'rgba(255,255,255,0.15)';
+          this.pctx.lineWidth = 0.5;
+        }
+        this.pctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
+      }
+    }
+    this.updateInfo();
+  }
+
+  private hitTest(e: MouseEvent): number {
+    if (!this.image) return -1;
+    const rect = this.previewCanvas.getBoundingClientRect();
+    const scale = this.previewCanvas.width / this.image.width;
+    const { tileSize: ts, spacing: sp, margin: mg } = this;
+    const step = ts + sp;
+
+    const px = (e.clientX - rect.left) / scale;
+    const py = (e.clientY - rect.top)  / scale;
+    const col = Math.floor((px - mg) / step);
+    const row = Math.floor((py - mg) / step);
+
+    // 确认点击落在 tile 内（不在间距上）
+    const localX = (px - mg) - col * step;
+    const localY = (py - mg) - row * step;
+    if (localX < 0 || localX >= ts || localY < 0 || localY >= ts) return -1;
+    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return -1;
+
+    return row * this.cols + col;
+  }
+
+  private toggle(idx: number, mode: 'add' | 'remove'): void {
+    if (mode === 'add') this.selected.add(idx);
+    else this.selected.delete(idx);
+    this.redraw();
+  }
+
+  private updateInfo(): void {
+    document.getElementById('tilesetSelectionInfo')!.textContent =
+      `已选 ${this.selected.size} 个 tile` + (this.cols ? `  (图集 ${this.cols}×${this.rows})` : '');
+  }
+
+  private buildTiles(): TilesetImporterResult[] {
+    const { tileSize: ts, spacing: sp, margin: mg } = this;
+    const step = ts + sp;
+    // 用 blob URL 作为图片路径（已在 Editor 里缓存到 imageCache）
+    const src = this.imageDataUrl;
+
+    return [...this.selected]
+      .sort((a, b) => a - b)
+      .map((idx, i) => {
+        const col = idx % this.cols;
+        const row = Math.floor(idx / this.cols);
+        return {
+          id: i,
+          name: `TILE_${String(idx).padStart(4, '0')}`,
+          color: '#888888',
+          solid: false,
+          tilesetImage: src,
+          srcX: mg + col * step,
+          srcY: mg + row * step,
+          srcW: ts,
+          srcH: ts,
+        };
+      });
   }
 }

@@ -353,45 +353,6 @@
     text-align: center;
   }
 
-  .config-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 24px;
-  }
-
-  .config-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    background: #1a1a24;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .config-item:hover {
-    border-color: #6bb8ff44;
-    background: #252532;
-  }
-
-  .config-item input[type="radio"] {
-    accent-color: #6bb8ff;
-  }
-
-  .config-name {
-    font-size: 14px;
-    color: #ccc;
-  }
-
-  .config-desc {
-    font-size: 12px;
-    color: #666;
-    margin-top: 2px;
-  }
-
   .hidden {
     display: none !important;
   }
@@ -453,19 +414,6 @@
 </style>
 </head>
 <body>
-  <!-- 配置选择弹窗 -->
-  <div id="configModal" class="config-modal">
-    <div class="config-panel">
-      <div class="config-title">选择游戏配置</div>
-      <div class="config-list" id="configList">
-        <!-- 动态填充 -->
-      </div>
-      <button class="btn btn-primary" id="confirmConfig" style="width: 100%;">
-        开始编辑
-      </button>
-    </div>
-  </div>
-
   <!-- 导出名称输入弹窗 -->
   <div id="exportModal" class="config-modal hidden">
     <div class="config-panel" style="min-width: 360px;">
@@ -493,7 +441,8 @@
   <div class="toolbar">
     <div class="toolbar-section">
       <button class="btn" id="btnNew">新建</button>
-      <button class="btn" id="btnImport">导入</button>
+      <button class="btn" id="btnImportConfig">导入配置</button>
+      <button class="btn" id="btnImport">导入地图</button>
       <button class="btn" id="btnExport">导出</button>
     </div>
     <div class="toolbar-section">

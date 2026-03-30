@@ -67,6 +67,26 @@ export class MapEditor {
     this.updateUndoRedoUI();
   }
 
+  /**
+   * 从 JSON 文件导入游戏配置
+   */
+  importConfig(): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      try {
+        const config: GameConfig = JSON.parse(await file.text());
+        this.loadConfig(config);
+      } catch (err) {
+        alert('配置文件无效: ' + (err as Error).message);
+      }
+    };
+    input.click();
+  }
+
   loadConfig(config: GameConfig): void {
     this.config = config;
     if (!this.config) throw new Error('Invalid config');

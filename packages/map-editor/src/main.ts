@@ -1,51 +1,8 @@
 // Mote Map Editor - Main Entry
 
 import { MapEditor } from './Editor.js';
-import type { GameConfig } from './MapData.js';
 
 const editor = new MapEditor();
-
-// 已知游戏列表（仅用于选择弹窗，配置从各游戏目录 fetch）
-const GAMES = [
-  { id: 'dungeon',   label: 'Dungeon',    desc: '地牢探索' },
-  { id: 'tiny-town', label: 'Tiny Town',  desc: '城镇建设' },
-];
-
-async function loadGameConfig(gameId: string): Promise<GameConfig> {
-  const res = await fetch(`/games/${gameId}/map-editor.config.json`);
-  if (!res.ok) throw new Error(`Failed to load config for "${gameId}": ${res.status}`);
-  return res.json();
-}
-
-async function initConfigSelect(): Promise<void> {
-  const list = document.getElementById('configList')!;
-
-  GAMES.forEach((game, i) => {
-    const item = document.createElement('label');
-    item.className = 'config-item';
-    item.innerHTML = `
-      <input type="radio" name="config" value="${game.id}" ${i === 0 ? 'checked' : ''}>
-      <div>
-        <div class="config-name">${game.label}</div>
-        <div class="config-desc">${game.desc}</div>
-      </div>
-    `;
-    list.appendChild(item);
-  });
-
-  document.getElementById('confirmConfig')!.addEventListener('click', async () => {
-    const selected = document.querySelector('input[name="config"]:checked') as HTMLInputElement;
-    if (!selected) return;
-
-    try {
-      const config = await loadGameConfig(selected.value);
-      editor.loadConfig(config);
-      document.getElementById('configModal')!.classList.add('hidden');
-    } catch (err) {
-      alert(`加载配置失败: ${(err as Error).message}`);
-    }
-  });
-}
 
 // 绑定工具按钮
 document.querySelectorAll('.tool-btn').forEach(btn => {
@@ -89,6 +46,7 @@ document.addEventListener('keydown', (e) => {
 document.getElementById('btnNew')!.addEventListener('click', () => {
   if (confirm('确定要新建地图吗？当前未保存的更改将丢失。')) editor.newMap();
 });
+document.getElementById('btnImportConfig')!.addEventListener('click', () => editor.importConfig());
 document.getElementById('btnImport')!.addEventListener('click', () => editor.importMap());
 document.getElementById('btnExport')!.addEventListener('click', () => editor.export('ts'));
 
@@ -109,6 +67,4 @@ document.getElementById('btnGrid')!.addEventListener('click', () => editor.toggl
 document.getElementById('btnZoomIn')!.addEventListener('click', () => editor.zoomIn());
 document.getElementById('btnZoomOut')!.addEventListener('click', () => editor.zoomOut());
 
-// 初始化
-initConfigSelect();
 editor.init();

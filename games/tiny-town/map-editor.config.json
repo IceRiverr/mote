@@ -1,0 +1,13 @@
+{
+  "id": "tiny-town",
+  "name": "Tiny Town",
+  "tileSize": 16,
+  "defaultWidth": 20,
+  "defaultHeight": 15,
+  "tiles": [
+    { "id": 0, "name": "GRASS", "color": "#7C9A63", "solid": false, "tilesetImage": "/games/tiny-town/assets/kenney_tiny-town/Tiles/tile_0000.png" },
+    { "id": 1, "name": "WATER", "color": "#5B8DB8", "solid": true,  "tilesetImage": "/games/tiny-town/assets/kenney_tiny-town/Tiles/tile_0000.png" },
+    { "id": 2, "name": "TREE",  "color": "#4A6741", "solid": true,  "tilesetImage": "/games/tiny-town/assets/kenney_tiny-town/Tiles/tile_0000.png" },
+    { "id": 3, "name": "HOUSE", "color": "#A67B5B", "solid": true,  "tilesetImage": "/games/tiny-town/assets/kenney_tiny-town/Tiles/tile_0000.png" }
+  ]
+}

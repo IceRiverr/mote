@@ -26,20 +26,28 @@ function copyGameAssetsPlugin() {
   return {
     name: 'copy-game-assets',
     closeBundle() {
-      // 复制 dungeon assets
+      // 复制 dungeon assets + config
       const dungeonSrc = resolve(__dirname, 'games/dungeon/assets');
       const dungeonDest = resolve(__dirname, 'dist/games/dungeon/assets');
       if (fs.existsSync(dungeonSrc)) {
         fs.mkdirSync(dirname(dungeonDest), { recursive: true });
         fs.cpSync(dungeonSrc, dungeonDest, { recursive: true });
       }
-      
-      // 复制 tiny-town assets
+      const dungeonConfig = resolve(__dirname, 'games/dungeon/map-editor.config.json');
+      if (fs.existsSync(dungeonConfig)) {
+        fs.copyFileSync(dungeonConfig, resolve(__dirname, 'dist/games/dungeon/map-editor.config.json'));
+      }
+
+      // 复制 tiny-town assets + config
       const tinyTownSrc = resolve(__dirname, 'games/tiny-town/assets');
       const tinyTownDest = resolve(__dirname, 'dist/games/tiny-town/assets');
       if (fs.existsSync(tinyTownSrc)) {
         fs.mkdirSync(dirname(tinyTownDest), { recursive: true });
         fs.cpSync(tinyTownSrc, tinyTownDest, { recursive: true });
+      }
+      const tinyTownConfig = resolve(__dirname, 'games/tiny-town/map-editor.config.json');
+      if (fs.existsSync(tinyTownConfig)) {
+        fs.copyFileSync(tinyTownConfig, resolve(__dirname, 'dist/games/tiny-town/map-editor.config.json'));
       }
     },
   };

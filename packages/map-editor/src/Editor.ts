@@ -1,4 +1,4 @@
-import type { MapData, TileDef } from './MapData.js';
+import type { MapData, GameConfig } from './MapData.js';
 import { BrushTool } from './tools/BrushTool.js';
 import { EraserTool } from './tools/EraserTool.js';
 import { RectTool } from './tools/RectTool.js';
@@ -8,55 +8,6 @@ import type { Command } from './commands/Command.js';
 
 // 重新导出 RectTool 类型用于 instanceof 检查
 export { RectTool };
-
-interface GameConfig {
-  id: string;
-  name: string;
-  tileSize: number;
-  tiles: TileDef[];
-  defaultWidth: number;
-  defaultHeight: number;
-}
-
-// 内嵌配置，后续可改为 JSON 文件
-const GAME_CONFIGS: Record<string, GameConfig> = {
-  dungeon: {
-    id: 'dungeon',
-    name: 'Dungeon',
-    tileSize: 64,
-    defaultWidth: 16,
-    defaultHeight: 12,
-    tiles: [
-      { id: 0, name: 'VOID', color: '#000000', solid: false },
-      { id: 1, name: 'FLOOR', color: '#8B7355', solid: false },
-      { id: 2, name: 'WALL', color: '#4A4A4A', solid: true },
-      { id: 3, name: 'WALL_CORNER', color: '#3A3A3A', solid: true },
-      { id: 4, name: 'WALL_EDGE', color: '#5A5A5A', solid: true },
-      { id: 5, name: 'DOOR_CLOSED', color: '#6B4E3D', solid: true },
-      { id: 6, name: 'DOOR_OPEN', color: '#5A3D2D', solid: false },
-      { id: 7, name: 'CHEST', color: '#D4A84B', solid: true },
-      { id: 8, name: 'BARREL', color: '#8B4513', solid: true },
-      { id: 9, name: 'STAIRS_DOWN', color: '#666666', solid: false },
-      { id: 10, name: 'WATER', color: '#4A90D9', solid: true },
-      { id: 11, name: 'PLANKS', color: '#A0826D', solid: false },
-      { id: 12, name: 'TRAP', color: '#8B0000', solid: false },
-      { id: 13, name: 'CAMPFIRE', color: '#FF6B35', solid: true },
-    ],
-  },
-  'tiny-town': {
-    id: 'tiny-town',
-    name: 'Tiny Town',
-    tileSize: 32,
-    defaultWidth: 20,
-    defaultHeight: 15,
-    tiles: [
-      { id: 0, name: 'GRASS', color: '#7C9A63', solid: false },
-      { id: 1, name: 'WATER', color: '#5B8DB8', solid: true },
-      { id: 2, name: 'TREE', color: '#4A6741', solid: true },
-      { id: 3, name: 'HOUSE', color: '#A67B5B', solid: true },
-    ],
-  },
-};
 
 export class MapEditor {
   private canvas!: HTMLCanvasElement;
@@ -78,6 +29,11 @@ export class MapEditor {
   
   // 绘制缓存
   private ctx2d!: CanvasRenderingContext2D;
+
+  // Tileset 图片缓存：图片路径 -> HTMLImageElement
+  private imageCache = new Map<string, HTMLImageElement>();
+  // 加载中的图片：图片路径 -> Promise（防止重复请求）
+  private imageLoading = new Map<string, Promise<HTMLImageElement>>();
 
   // 命令历史（用于撤销/重做）
   private commandHistory = new CommandHistory();
@@ -111,9 +67,9 @@ export class MapEditor {
     this.updateUndoRedoUI();
   }
 
-  loadConfig(configId: string): void {
-    this.config = GAME_CONFIGS[configId];
-    if (!this.config) throw new Error(`Config not found: ${configId}`);
+  loadConfig(config: GameConfig): void {
+    this.config = config;
+    if (!this.config) throw new Error('Invalid config');
     
     // 创建新地图
     this.mapData = {
@@ -215,10 +171,50 @@ export class MapEditor {
     this.config.tiles.forEach(tile => {
       const item = document.createElement('div');
       item.className = 'tile-item' + (tile.id === this.selectedTileId ? ' active' : '');
-      item.innerHTML = `
-        <div class="tile-preview" style="background: ${tile.color}"></div>
-        <div class="tile-name">${tile.name}</div>
-      `;
+      if (tile.tilesetImage) {
+        const sx = tile.srcX ?? 0;
+        const sy = tile.srcY ?? 0;
+        const sw = tile.srcW ?? this.config!.tileSize;
+        const sh = tile.srcH ?? this.config!.tileSize;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        canvas.style.cssText = 'width:32px;height:32px;image-rendering:pixelated;';
+        const pctx = canvas.getContext('2d')!;
+
+        const preview = document.createElement('div');
+        preview.className = 'tile-preview';
+        preview.style.background = tile.color;
+        preview.appendChild(canvas);
+
+        const label = document.createElement('div');
+        label.className = 'tile-name';
+        label.textContent = tile.name;
+
+        item.appendChild(preview);
+        item.appendChild(label);
+
+        const drawPreview = (img: HTMLImageElement) =>
+          pctx.drawImage(img, sx, sy, sw, sh, 0, 0, 32, 32);
+
+        const img = this.loadImage(tile.tilesetImage);
+        if (img) {
+          drawPreview(img);
+        } else {
+          const src = tile.tilesetImage;
+          const poll = () => {
+            const loaded = this.imageCache.get(src);
+            loaded ? drawPreview(loaded) : setTimeout(poll, 100);
+          };
+          setTimeout(poll, 100);
+        }
+      } else {
+        item.innerHTML = `
+          <div class="tile-preview" style="background: ${tile.color}"></div>
+          <div class="tile-name">${tile.name}</div>
+        `;
+      }
       item.addEventListener('click', () => {
         this.selectedTileId = tile.id;
         document.querySelectorAll('.tile-item').forEach(el => el.classList.remove('active'));
@@ -389,8 +385,23 @@ export class MapEditor {
         const px = x * size;
         const py = y * size;
         
-        ctx.fillStyle = tile?.color || '#000000';
-        ctx.fillRect(px, py, size, size);
+        // 优先用 spritesheet 图片，否则回退到颜色块
+        let drawn = false;
+        if (tile?.tilesetImage) {
+          const img = this.loadImage(tile.tilesetImage);
+          if (img) {
+            const sx = tile.srcX ?? 0;
+            const sy = tile.srcY ?? 0;
+            const sw = tile.srcW ?? this.config.tileSize;
+            const sh = tile.srcH ?? this.config.tileSize;
+            ctx.drawImage(img, sx, sy, sw, sh, px, py, size, size);
+            drawn = true;
+          }
+        }
+        if (!drawn) {
+          ctx.fillStyle = tile?.color || '#000000';
+          ctx.fillRect(px, py, size, size);
+        }
         
         // 绘制网格
         if (this.showGrid) {
@@ -436,6 +447,24 @@ export class MapEditor {
         ctx.setLineDash([]);
       }
     }
+  }
+
+  // 加载图片（带缓存，防重复请求）
+  private loadImage(src: string): HTMLImageElement | null {
+    if (this.imageCache.has(src)) return this.imageCache.get(src)!;
+
+    if (!this.imageLoading.has(src)) {
+      const promise = new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => { this.imageCache.set(src, img); resolve(img); };
+        img.onerror = reject;
+        img.src = src;
+      });
+      this.imageLoading.set(src, promise);
+      promise.finally(() => this.imageLoading.delete(src));
+    }
+
+    return null; // 首次调用时图片还未加载完，返回 null 用颜色回退
   }
 
   // 公共 API

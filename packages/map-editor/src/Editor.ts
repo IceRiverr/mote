@@ -1156,10 +1156,29 @@ class FolderSpriteImporter {
   }
 
   private async scanFolderPath(): Promise<void> {
-    const path = this.pathInput.value.trim();
+    let path = this.pathInput.value.trim();
     if (!path) {
       alert('请输入文件夹路径');
       return;
+    }
+
+    // 检测并转换本地路径格式
+    // 支持格式: D:\dev\mote\games\dungeon\assets\... 或 D:/dev/mote/games/dungeon/assets/...
+    const localPathMatch = path.match(/^([a-zA-Z]:[/\\]|\\)(.+)$/);
+    if (localPathMatch) {
+      const localPath = path.replace(/\\/g, '/');
+      // 尝试匹配项目结构，查找 games 目录
+      const gamesMatch = localPath.match(/[/\\]games[/\\](.+)$/i);
+      if (gamesMatch) {
+        // 提取 games 后面的路径
+        const relativePath = '/' + gamesMatch[1].replace(/\\/g, '/');
+        path = relativePath;
+        this.pathInput.value = path;
+        console.log(`[MapEditor] 本地路径已转换: ${localPath} -> ${path}`);
+      } else {
+        alert('无法从本地路径自动推断服务器路径。\n\n请确保路径包含 games 目录，\n或手动输入服务器路径格式：/games/游戏名/assets/Sprites');
+        return;
+      }
     }
 
     this.folderPath = path;

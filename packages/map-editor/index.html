@@ -595,10 +595,13 @@
 
         <!-- 基础路径设置（仅本地模式显示） -->
         <div id="folderBasePathSection" class="hidden" style="margin-bottom:12px;">
-          <label style="display:block;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">导出时的基础路径</label>
-          <input type="text" class="prop-input" id="folderSpriteBasePath" placeholder="/games/dungeon/assets/Sprites" style="width:100%;">
-          <div style="font-size:11px;color:#666;margin-top:4px;">
-            图片在 tileset 中保存的路径前缀
+          <label style="display:block;font-size:11px;color:#ff6b6b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">⚠️ 导出时的基础路径（必须正确填写）</label>
+          <input type="text" class="prop-input" id="folderSpriteBasePath" placeholder="/games/dungeon/assets/Sprites" style="width:100%;" onchange="this.style.borderColor='';">
+          <div style="font-size:11px;color:#ff6b6b;margin-top:4px;">
+            浏览器限制无法自动获取完整路径。请手动修改为正确路径，格式：/games/游戏名/.../Sprites
+          </div>
+          <div style="font-size:11px;color:#6bb8ff;margin-top:4px;">
+            💡 提示：使用【服务器路径模式】可自动推断正确路径
           </div>
         </div>
 

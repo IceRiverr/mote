@@ -207,9 +207,24 @@ export class MapEditor {
         } else {
           draw(); // 先画颜色占位
           const src = tile.tilesetImage;
+          let attempts = 0;
+          const maxAttempts = 50; // 最多轮询5秒
           const poll = () => {
+            attempts++;
             const loaded = this.imageCache.get(src);
-            loaded ? draw(loaded) : setTimeout(poll, 100);
+            if (loaded) {
+              draw(loaded);
+            } else if (attempts < maxAttempts && this.imageLoading.has(src)) {
+              setTimeout(poll, 100);
+            } else {
+              // 加载失败或超时，显示错误标记
+              pctx.fillStyle = '#ff4444';
+              pctx.fillRect(0, 0, CELL, CELL);
+              pctx.fillStyle = '#fff';
+              pctx.font = '10px sans-serif';
+              pctx.textAlign = 'center';
+              pctx.fillText('!', CELL/2, CELL/2 + 3);
+            }
           };
           setTimeout(poll, 100);
         }
@@ -489,11 +504,14 @@ export class MapEditor {
       const promise = new Promise<HTMLImageElement>((resolve, reject) => {
         const img = new Image();
         img.onload = () => { this.imageCache.set(src, img); resolve(img); };
-        img.onerror = reject;
+        img.onerror = () => {
+          console.warn(`[MapEditor] 图片加载失败: ${src}`);
+          this.imageLoading.delete(src);
+          reject(new Error(`Failed to load image: ${src}`));
+        };
         img.src = src;
       });
       this.imageLoading.set(src, promise);
-      promise.finally(() => this.imageLoading.delete(src));
     }
 
     return null; // 首次调用时图片还未加载完，返回 null 用颜色回退
@@ -1294,9 +1312,44 @@ class FolderSpriteImporter {
 
       this.localPathDisplay.textContent = `${files.length} 个 PNG 文件`;
 
-      // 询问基础路径
-      const defaultBasePath = `/games/${files[0].webkitRelativePath.split('/')[0]}/assets/Sprites`;
+      // 从 webkitRelativePath 推断基础路径
+      // webkitRelativePath 格式取决于用户选择的文件夹层级
+      // 例如用户选择 D:\dev\mote\games\dungeon\assets\kenney_scribble-dungeons\Sprites
+      // 可能得到: "kenney_scribble-dungeons/Sprites/arrow.png" (如果选的是父文件夹)
+      // 或: "Sprites/arrow.png" (如果选的是 Sprites 文件夹本身)
+      const fullPath = files[0].webkitRelativePath;
+      const pathParts = fullPath.split('/');
+      
+      // 尝试推断路径，寻找 assets 关键字
+      let defaultBasePath = '';
+      const assetsIndex = pathParts.findIndex(p => p.toLowerCase() === 'assets');
+      
+      if (assetsIndex >= 0 && pathParts.length > assetsIndex + 1) {
+        // 找到了 assets，假设结构是: .../assets/xxx/Sprites/xxx.png
+        // 取 assets 后面的部分
+        const afterAssets = pathParts.slice(0, -1); // 去掉文件名
+        defaultBasePath = `/games/{游戏名}/${afterAssets.join('/')}`;
+      } else if (pathParts.length >= 2) {
+        // 没有找到 assets，取除文件名外的所有路径
+        const folderPath = pathParts.slice(0, -1).join('/');
+        defaultBasePath = `/games/{游戏名}/assets/${folderPath}`;
+      } else {
+        defaultBasePath = '/games/{游戏名}/assets/Sprites';
+      }
+      
       this.basePathInput.value = defaultBasePath;
+      this.basePathInput.style.borderColor = '#ff6b6b';
+      
+      // 自动选择占位符部分，方便用户直接输入替换
+      setTimeout(() => {
+        const input = this.basePathInput;
+        const start = input.value.indexOf('{');
+        const end = input.value.indexOf('}') + 1;
+        if (start >= 0 && end > start) {
+          input.setSelectionRange(start, end);
+          input.focus();
+        }
+      }, 100);
 
       await this.loadSpritesFromFiles(files);
     };
@@ -1464,6 +1517,17 @@ class FolderSpriteImporter {
     if (selectedSprites.length === 0) {
       alert('请至少选择一个精灵');
       return;
+    }
+
+    // 本地模式下验证基础路径
+    if (this.currentMode === 'local') {
+      const basePath = this.basePathInput.value.trim();
+      if (!basePath || basePath.includes('{') || !basePath.startsWith('/')) {
+        alert('请填写正确的基础路径！格式：/games/游戏名/assets/Sprites');
+        this.basePathInput.focus();
+        this.basePathInput.style.borderColor = '#ff6b6b';
+        return;
+      }
     }
 
     // 构建 tile 数据

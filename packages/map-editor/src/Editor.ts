@@ -79,12 +79,68 @@ export class MapEditor {
       if (!file) return;
       try {
         const config: GameConfig = JSON.parse(await file.text());
+
+        // 检查是否有 tile 引用相对路径图片（非 data URL、非绝对路径）
+        const relativeImages = new Set(
+          config.tiles
+            .map(t => t.tilesetImage)
+            .filter((src): src is string => !!src && !src.startsWith('data:') && !src.startsWith('http') && !src.startsWith('/'))
+        );
+
+        if (relativeImages.size > 0) {
+          // 让用户选择图片文件，按文件名匹配
+          const imageFiles = await this.pickImageFiles([...relativeImages]);
+          for (const tile of config.tiles) {
+            if (tile.tilesetImage && imageFiles.has(tile.tilesetImage)) {
+              tile.tilesetImage = imageFiles.get(tile.tilesetImage)!;
+            }
+          }
+        }
+
         this.loadConfig(config);
+
+        // 预加载所有 data URL 图片到缓存
+        for (const tile of config.tiles) {
+          if (tile.tilesetImage?.startsWith('data:')) {
+            this.loadImage(tile.tilesetImage);
+          }
+        }
       } catch (err) {
         alert('配置文件无效: ' + (err as Error).message);
       }
     };
     input.click();
+  }
+
+  /**
+   * 让用户选择图片文件，返回 filename -> dataURL 映射
+   */
+  private pickImageFiles(filenames: string[]): Promise<Map<string, string>> {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.multiple = true;
+      input.onchange = async (e) => {
+        const files = Array.from((e.target as HTMLInputElement).files ?? []);
+        const map = new Map<string, string>();
+        await Promise.all(files.map(file => new Promise<void>(res => {
+          // 匹配文件名（含或不含路径前缀）
+          const matchKey = filenames.find(name => name.endsWith(file.name) || file.name === name);
+          if (!matchKey) { res(); return; }
+          const reader = new FileReader();
+          reader.onload = (ev) => { map.set(matchKey, ev.target!.result as string); res(); };
+          reader.readAsDataURL(file);
+        })));
+        resolve(map);
+      };
+      // 用户取消时也 resolve 空 map
+      input.addEventListener('cancel', () => resolve(new Map()));
+      input.click();
+      if (filenames.length > 0) {
+        alert(`请选择以下图片文件：\n${filenames.join('\n')}`);
+      }
+    });
   }
 
   loadConfig(config: GameConfig): void {
@@ -243,6 +299,35 @@ export class MapEditor {
         grid.querySelectorAll('.tileset-cell').forEach(el => el.classList.remove('active'));
         cell.classList.add('active');
         document.getElementById('selectedTile')!.textContent = tile.name;
+      });
+      cell.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        const input = document.createElement('input');
+        input.value = tile.name;
+        input.style.cssText = `
+          position:absolute; inset:0; width:100%; height:100%;
+          background:#1a1a24; border:1px solid #6bb8ff; border-radius:3px;
+          color:#e0e0e0; font-size:9px; text-align:center;
+          padding:2px; box-sizing:border-box; z-index:10;
+        `;
+        cell.style.position = 'relative';
+        cell.appendChild(input);
+        input.focus();
+        input.select();
+        const commit = () => {
+          const newName = input.value.trim() || tile.name;
+          tile.name = newName;
+          cell.title = newName;
+          if (this.selectedTileId === tile.id) {
+            document.getElementById('selectedTile')!.textContent = newName;
+          }
+          input.remove();
+        };
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', (ke) => {
+          if (ke.key === 'Enter') { ke.preventDefault(); commit(); }
+          if (ke.key === 'Escape') { input.remove(); }
+        });
       });
       grid.appendChild(cell);
     });
@@ -557,15 +642,15 @@ export class MapEditor {
     document.getElementById('saveStatus')!.textContent = '未保存';
   }
 
-  // 当前待导出的格式和回调
-  private pendingExport: { format: 'ts' | 'json'; resolve: (name: string | null) => void } | null = null;
+  // 当前待导出的回调
+  private pendingExport: { resolve: (name: string | null) => void } | null = null;
 
   /**
    * 显示导出对话框，返回用户输入的名称（或 null 如果取消）
    */
-  private showExportDialog(format: 'ts' | 'json'): Promise<string | null> {
+  private showExportDialog(): Promise<string | null> {
     return new Promise((resolve) => {
-      this.pendingExport = { format, resolve };
+      this.pendingExport = { resolve };
 
       const modal = document.getElementById('exportModal')!;
       const input = document.getElementById('exportNameInput') as HTMLInputElement;
@@ -591,13 +676,13 @@ export class MapEditor {
     // 隐藏模态框
     document.getElementById('exportModal')!.classList.add('hidden');
 
-    const { format, resolve } = this.pendingExport;
+    const { resolve } = this.pendingExport;
     this.pendingExport = null;
 
     resolve(name);
 
     // 执行实际导出
-    await this.doExport(format, name);
+    await this.doExport(name);
   }
 
   /**
@@ -617,83 +702,49 @@ export class MapEditor {
   /**
    * 开始导出流程
    */
-  async export(format: 'ts' | 'json'): Promise<void> {
+  async export(): Promise<void> {
     if (!this.mapData || !this.config) return;
 
-    const name = await this.showExportDialog(format);
+    const name = await this.showExportDialog();
     if (name === null) return; // 用户取消
 
     // 实际导出在 confirmExport 中执行
   }
 
   /**
-   * 执行实际导出
+   * 执行实际导出（JSON 格式）
    */
-  private async doExport(format: 'ts' | 'json', inputName: string): Promise<void> {
+  private async doExport(inputName: string): Promise<void> {
     if (!this.mapData || !this.config) return;
 
-    // 规范化名称：移除非字母数字字符，转为有效标识符
+    // 规范化名称
     const sanitizedName = inputName.trim().replace(/[^a-zA-Z0-9_]/g, '_').replace(/^[0-9]/, '_$&') || 'untitled';
 
     // 更新属性面板中的名称
     (document.getElementById('mapName') as HTMLInputElement).value = sanitizedName;
 
-    // 常量名使用大写（蛇形命名），文件名使用小写（kebab-case）
-    const constName = sanitizedName.toUpperCase();
+    // 文件名使用小写（kebab-case）
     const fileName = sanitizedName.toLowerCase().replace(/_/g, '-');
 
-    let content: string;
-    let defaultFilename: string;
-    let mimeType: string;
-    let fileExtension: string;
-
-    if (format === 'ts') {
-      // 导出为 TypeScript
-      const tilesStr = this.mapData.tiles
-        .map((t, i) => {
-          const sep = (i + 1) % this.mapData!.width === 0 ? ',\n' : ', ';
-          return `  T.${this.config!.tiles.find(tile => tile.id === t)?.name || 'VOID'}${sep}`;
-        })
-        .join('');
-
-      content = `// Auto-generated by Mote Map Editor
-// Map: ${sanitizedName}
-import { T } from './TileIds.js';
-
-export const ${constName} = {
-  name: '${sanitizedName}',
-  width: ${this.mapData.width},
-  height: ${this.mapData.height},
-  tileSize: ${this.mapData.tileSize},
-  spawnPoint: { x: ${this.mapData.spawnPoint.x}, y: ${this.mapData.spawnPoint.y} },
-  tiles: [
-${tilesStr}  ] as const,
-};
-
-// 默认导出，方便直接导入
-export default ${constName};
-`;
-      defaultFilename = `${fileName}.ts`;
-      mimeType = 'text/typescript';
-      fileExtension = '.ts';
-    } else {
-      // 导出为 JSON，自定义格式让 tiles 按行列排列
-      const tilesRows: string[] = [];
-      for (let y = 0; y < this.mapData.height; y++) {
-        const rowTiles: string[] = [];
-        for (let x = 0; x < this.mapData.width; x++) {
-          const tileId = this.mapData.tiles[y * this.mapData.width + x];
-          rowTiles.push(String(tileId));
-        }
-        tilesRows.push(`    ${rowTiles.join(', ')}`);
+    // 导出为 JSON
+    const tilesRows: string[] = [];
+    for (let y = 0; y < this.mapData.height; y++) {
+      const rowTiles: string[] = [];
+      for (let x = 0; x < this.mapData.width; x++) {
+        const tileId = this.mapData.tiles[y * this.mapData.width + x];
+        rowTiles.push(String(tileId));
       }
+      tilesRows.push(`    ${rowTiles.join(', ')}`);
+    }
 
-      content = `{
+    const tilesetJson = this.config.tileset ? `\n  "tileset": "${this.config.tileset}",` : '';
+
+    const content = `{
   "version": ${this.mapData.version},
   "name": "${sanitizedName}",
   "width": ${this.mapData.width},
   "height": ${this.mapData.height},
-  "tileSize": ${this.mapData.tileSize},
+  "tileSize": ${this.mapData.tileSize},${tilesetJson}
   "tiles": [
 ${tilesRows.join(',\n')}
   ],
@@ -702,45 +753,30 @@ ${tilesRows.join(',\n')}
     "y": ${this.mapData.spawnPoint.y}
   }
 }`;
-      defaultFilename = `${fileName}.json`;
-      mimeType = 'application/json';
-      fileExtension = '.json';
-    }
+    const defaultFilename = `${fileName}.json`;
+    const mimeType = 'application/json';
 
-    // 尝试使用 File System Access API 让用户选择保存路径
+    // 尝试使用 File System Access API
     if ('showSaveFilePicker' in window) {
       try {
         const fileHandle = await (window as any).showSaveFilePicker({
           suggestedName: defaultFilename,
-          types: [
-            {
-              description: format === 'ts' ? 'TypeScript 文件' : 'JSON 文件',
-              accept: {
-                [mimeType]: [fileExtension],
-              },
-            },
-          ],
+          types: [{ description: 'JSON 文件', accept: { [mimeType]: ['.json'] } }],
         });
 
-        // 写入文件
         const writable = await fileHandle.createWritable();
         await writable.write(content);
         await writable.close();
 
         document.getElementById('saveStatus')!.textContent = `已导出: ${fileHandle.name}`;
-
-        // 显示成功提示
         this.showExportSuccess(fileHandle.name);
       } catch (err) {
-        // 用户取消选择或发生错误
         if ((err as Error).name !== 'AbortError') {
           console.error('导出失败:', err);
-          // 回退到传统下载方式
           this.downloadFile(content, defaultFilename, mimeType);
         }
       }
     } else {
-      // 浏览器不支持 File System Access API，使用传统下载方式
       this.downloadFile(content, defaultFilename, mimeType);
     }
   }
@@ -755,8 +791,6 @@ ${tilesRows.join(',\n')}
     URL.revokeObjectURL(url);
 
     document.getElementById('saveStatus')!.textContent = `已导出: ${filename}`;
-
-    // 显示成功提示
     this.showExportSuccess(filename);
   }
 
@@ -766,7 +800,6 @@ ${tilesRows.join(',\n')}
   newMap(): void {
     if (!this.config) return;
 
-    // 重置为默认尺寸
     this.mapData = {
       version: 1,
       name: 'untitled',
@@ -777,51 +810,81 @@ ${tilesRows.join(',\n')}
       spawnPoint: { x: Math.floor(this.config.defaultWidth / 2), y: Math.floor(this.config.defaultHeight / 2) },
     };
 
-    // 更新 UI
     this.updateProperties();
     this.resizeCanvas();
     this.markDirty();
-
-    // 清空命令历史
     this.commandHistory.clear();
     this.updateUndoRedoUI();
-
     document.getElementById('saveStatus')!.textContent = '新建地图';
   }
 
   /**
-   * 导入地图
+   * 导入地图（仅支持 JSON 格式）
+   * 如果地图包含 tileset 字段，会自动加载对应的 tileset 配置
    */
   importMap(): void {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json,.ts';
+    input.accept = '.json';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
 
       try {
         const content = await file.text();
-        let data: any;
+        const data = JSON.parse(content);
 
-        if (file.name.endsWith('.json')) {
-          data = JSON.parse(content);
-        } else {
-          // 解析 TypeScript 文件
-          data = this.parseTypeScriptMap(content);
-          if (!data) {
-            alert('无法解析 TypeScript 文件，请确保格式正确');
-            return;
-          }
-        }
-
-        // 验证数据结构
         if (!data.tiles || !data.width || !data.height) {
           alert('无效的地图文件');
           return;
         }
 
-        // 应用导入的数据
+        // 如果地图包含 tileset 字段，自动加载 tileset 配置
+        if (data.tileset) {
+          try {
+            const tilesetResponse = await fetch(data.tileset);
+            if (tilesetResponse.ok) {
+              const tilesetData = await tilesetResponse.json();
+              
+              // 创建或更新 config
+              this.config = {
+                id: data.name || 'imported',
+                name: data.name || 'Imported Map',
+                tileSize: data.tileSize || tilesetData.tileSize || 64,
+                defaultWidth: data.width,
+                defaultHeight: data.height,
+                exportMode: 'index',
+                tileset: data.tileset,
+                tiles: tilesetData.tiles.map((t: any, idx: number) => ({
+                  id: idx,
+                  name: t.name,
+                  color: '#888888',
+                  solid: false,
+                  tilesetImage: tilesetData.image || t.image,
+                  srcX: t.x,
+                  srcY: t.y,
+                  srcW: t.width,
+                  srcH: t.height,
+                })),
+              };
+              
+              // 预加载图片
+              for (const tile of this.config.tiles) {
+                if (tile.tilesetImage) {
+                  this.loadImage(tile.tilesetImage);
+                }
+              }
+              
+              // 更新 UI
+              this.updatePalette();
+              document.getElementById('configName')!.textContent = this.config.name;
+            }
+          } catch (tilesetErr) {
+            console.warn('加载 tileset 失败:', tilesetErr);
+            // 继续加载地图，只是没有 tileset 配置
+          }
+        }
+
         this.mapData = {
           version: data.version || 1,
           name: data.name || 'imported',
@@ -832,15 +895,11 @@ ${tilesRows.join(',\n')}
           spawnPoint: data.spawnPoint || { x: Math.floor(data.width / 2), y: Math.floor(data.height / 2) },
         };
 
-        // 更新 UI
         this.updateProperties();
         this.resizeCanvas();
         this.markDirty();
-
-        // 清空命令历史
         this.commandHistory.clear();
         this.updateUndoRedoUI();
-
         document.getElementById('saveStatus')!.textContent = `已导入: ${file.name}`;
       } catch (err) {
         console.error('导入失败:', err);
@@ -851,76 +910,82 @@ ${tilesRows.join(',\n')}
   }
 
   /**
-   * 解析 TypeScript 地图文件
+   * 导出 tileset 配置为 tilesets.json
    */
-  private parseTypeScriptMap(content: string): { tiles: number[]; width: number; height: number; name: string; tileSize: number; spawnPoint: { x: number; y: number } } | null {
-    // 创建 T 枚举名称到 ID 的反向映射
-    const tileNameToId = new Map<string, number>();
-    this.config?.tiles.forEach(tile => {
-      tileNameToId.set(tile.name, tile.id);
-    });
+  async exportTileset(): Promise<void> {
+    if (!this.config) { alert('请先加载或创建 tileset 配置'); return; }
 
-    // 尝试提取 width 和 height
-    const widthMatch = content.match(/width:\s*(\d+)/);
-    const heightMatch = content.match(/height:\s*(\d+)/);
-    const tileSizeMatch = content.match(/tileSize:\s*(\d+)/);
-    const nameMatch = content.match(/name:\s*['"]([^'"]+)['"]/);
-
-    // 尝试提取 spawnPoint
-    const spawnXMatch = content.match(/spawnPoint:\s*\{[^}]*x:\s*(\d+)/);
-    const spawnYMatch = content.match(/spawnPoint:\s*\{[^}]*y:\s*(\d+)/);
-
-    // 提取 tiles 数组内容
-    // 匹配 tiles: [ ... ] 或 tiles: [ ... ] as const
-    const tilesMatch = content.match(/tiles:\s*\[([\s\S]*?)\](?:\s*as\s+const)?/);
-    if (!tilesMatch) return null;
-
-    const tilesContent = tilesMatch[1];
-
-    // 解析 tiles 内容，支持两种格式：
-    // 1. T.VOID, T.WALL, ... (枚举格式)
-    // 2. 0, 1, 2, ... (数字格式)
-    const tiles: number[] = [];
-    const tileEntries = tilesContent.split(',');
-
-    for (const entry of tileEntries) {
-      const trimmed = entry.trim();
-      if (!trimmed) continue;
-
-      // 尝试匹配 T.XXX 格式
-      const enumMatch = trimmed.match(/^T\.(\w+)$/);
-      if (enumMatch) {
-        const tileName = enumMatch[1];
-        const tileId = tileNameToId.get(tileName);
-        if (tileId !== undefined) {
-          tiles.push(tileId);
-        } else {
-          console.warn(`未知的瓦片类型: T.${tileName}`);
-          tiles.push(0); // 默认使用 VOID
-        }
-      } else {
-        // 尝试直接解析数字
-        const numId = parseInt(trimmed, 10);
-        if (!isNaN(numId)) {
-          tiles.push(numId);
-        }
+    const imagePaths = new Set<string>();
+    for (const tile of this.config.tiles) {
+      if (tile.tilesetImage && !tile.tilesetImage.startsWith('data:')) {
+        imagePaths.add(tile.tilesetImage);
       }
     }
 
-    const width = widthMatch ? parseInt(widthMatch[1], 10) : Math.floor(Math.sqrt(tiles.length));
-    const height = heightMatch ? parseInt(heightMatch[1], 10) : Math.ceil(tiles.length / width);
+    const firstTile = this.config.tiles[0];
+    const isSpritesheet = imagePaths.size === 1 && firstTile?.srcX !== undefined;
 
-    return {
-      tiles,
-      width,
-      height,
-      name: nameMatch ? nameMatch[1] : 'imported',
-      tileSize: tileSizeMatch ? parseInt(tileSizeMatch[1], 10) : (this.config?.tileSize || 64),
-      spawnPoint: {
-        x: spawnXMatch ? parseInt(spawnXMatch[1], 10) : Math.floor(width / 2),
-        y: spawnYMatch ? parseInt(spawnYMatch[1], 10) : Math.floor(height / 2),
-      },
-    };
+    let exportData: any;
+
+    if (isSpritesheet) {
+      const imagePath = [...imagePaths][0];
+      let spacing = 0;
+      if (this.config.tiles.length > 1) {
+        const secondTile = this.config.tiles.find(t => t.srcY === firstTile.srcY && (t.srcX ?? 0) > (firstTile.srcX ?? 0));
+        if (secondTile && secondTile.srcX !== undefined && firstTile.srcX !== undefined) {
+          spacing = secondTile.srcX - firstTile.srcX - (firstTile.srcW ?? this.config.tileSize);
+        }
+      }
+
+      exportData = {
+        image: imagePath,
+        tileSize: this.config.tileSize,
+        spacing: spacing > 0 ? spacing : 0,
+        tiles: this.config.tiles.map((tile, idx) => ({
+          id: idx,
+          name: tile.name,
+          x: tile.srcX ?? 0,
+          y: tile.srcY ?? 0,
+          width: tile.srcW ?? this.config!.tileSize,
+          height: tile.srcH ?? this.config!.tileSize,
+        })),
+      };
+    } else {
+      exportData = {
+        tileSize: this.config.tileSize,
+        tiles: this.config.tiles.map((tile, idx) => ({
+          id: idx,
+          name: tile.name,
+          image: tile.tilesetImage || '',
+          width: tile.srcW ?? this.config!.tileSize,
+          height: tile.srcH ?? this.config!.tileSize,
+        })),
+      };
+    }
+
+    const json = JSON.stringify(exportData, null, 2);
+
+    if ('showSaveFilePicker' in window) {
+      try {
+        const fileHandle = await (window as any).showSaveFilePicker({
+          suggestedName: 'tilesets.json',
+          types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+        });
+
+        const writable = await fileHandle.createWritable();
+        await writable.write(json);
+        await writable.close();
+
+        this.showExportSuccess('tilesets.json');
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          console.error('导出失败:', err);
+          this.downloadFile(json, 'tilesets.json', 'application/json');
+        }
+      }
+    } else {
+      this.downloadFile(json, 'tilesets.json', 'application/json');
+    }
   }
 
   /**
@@ -946,15 +1011,15 @@ ${tilesRows.join(',\n')}
    * 打开图集导入弹窗
    */
   openTilesetImporter(): void {
-    const importer = new TilesetImporter((tiles, imageDataUrl) => {
+    const importer = new TilesetImporter((tiles, imagePath) => {
       if (!this.config) {
-        // 没有配置时，用图集创建一个新配置
         this.config = {
           id: 'imported',
           name: 'Imported',
           tileSize: tiles[0]?.srcW ?? 16,
           defaultWidth: 20,
           defaultHeight: 15,
+          exportMode: 'index',
           tiles,
         };
         this.mapData = {
@@ -970,13 +1035,12 @@ ${tilesRows.join(',\n')}
         this.updateProperties();
         this.resizeCanvas();
       } else {
-        // 已有配置时，追加 tiles（id 从当前最大值续接）
         const maxId = this.config.tiles.reduce((m, t) => Math.max(m, t.id), -1);
         tiles.forEach((t, i) => { t.id = maxId + 1 + i; });
         this.config.tiles.push(...tiles);
+        this.config.exportMode = 'index';
       }
-      // 缓存 blob 图片
-      if (imageDataUrl) {
+      if (imagePath) {
         const img = new Image();
         img.onload = () => {
           tiles.forEach(t => {
@@ -984,7 +1048,7 @@ ${tilesRows.join(',\n')}
           });
           this.updatePalette();
         };
-        img.src = imageDataUrl;
+        img.src = imagePath;
       } else {
         this.updatePalette();
       }
@@ -1014,16 +1078,17 @@ class TilesetImporter {
   private previewCanvas: HTMLCanvasElement;
   private pctx: CanvasRenderingContext2D;
   private image: HTMLImageElement | null = null;
-  private imageDataUrl = '';
+  private imagePath = '';
   private tileSize = 16;
   private spacing = 1;
   private margin = 0;
   private cols = 0;
   private rows = 0;
-  // 选中的格子 index set
+  private zoom = 3;
   private selected = new Set<number>();
+  private hoveredIdx = -1;
 
-  constructor(private onConfirm: (tiles: TilesetImporterResult[], imageDataUrl: string) => void) {
+  constructor(private onConfirm: (tiles: TilesetImporterResult[], imagePath: string) => void) {
     this.overlay = document.getElementById('tilesetModal')!;
     this.previewCanvas = document.getElementById('tilesetPreviewCanvas') as HTMLCanvasElement;
     this.pctx = this.previewCanvas.getContext('2d')!;
@@ -1037,8 +1102,9 @@ class TilesetImporter {
   private close(): void {
     this.overlay.classList.add('hidden');
     this.image = null;
-    this.imageDataUrl = '';
+    this.imagePath = '';
     this.selected.clear();
+    this.hoveredIdx = -1;
     this.pctx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
     this.previewCanvas.width = 0;
     this.updateInfo();
@@ -1048,6 +1114,23 @@ class TilesetImporter {
     document.getElementById('btnTilesetModalClose')!.addEventListener('click', () => this.close());
     document.getElementById('btnTilesetCancel')!.addEventListener('click', () => this.close());
 
+    const pathInput = document.getElementById('tilesetImagePath') as HTMLInputElement;
+    const btnLoadPath = document.getElementById('btnTilesetLoadPath')!;
+    
+    btnLoadPath.addEventListener('click', () => {
+      const path = pathInput.value.trim();
+      if (!path) return;
+      this.loadImageFromPath(path);
+    });
+    
+    pathInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const path = pathInput.value.trim();
+        if (!path) return;
+        this.loadImageFromPath(path);
+      }
+    });
+
     document.getElementById('btnTilesetLoadImage')!.addEventListener('click', () => {
       const input = document.createElement('input');
       input.type = 'file';
@@ -1055,25 +1138,51 @@ class TilesetImporter {
       input.onchange = (e) => {
         const file = (e.target as HTMLInputElement).files?.[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          this.imageDataUrl = ev.target!.result as string;
-          const img = new Image();
-          img.onload = () => { this.image = img; this.redraw(); };
-          img.src = this.imageDataUrl;
+        const url = URL.createObjectURL(file);
+        this.imagePath = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => { 
+          this.image = img; 
+          this.redraw(); 
+          const actualPath = prompt('请输入图片的实际路径（如 /games/tiny-town/assets/kenney_tiny-town_tilemap.png）：', 
+            `/games/tiny-town/assets/${file.name}`);
+          if (actualPath) {
+            this.imagePath = actualPath;
+            if (pathInput) pathInput.value = actualPath;
+          }
         };
-        reader.readAsDataURL(file);
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          alert('图片加载失败');
+        };
+        img.src = url;
       };
       input.click();
     });
 
-    // 参数变化时重绘
     const redrawOnChange = () => { this.readParams(); this.redraw(); };
     document.getElementById('tilesetTileSize')!.addEventListener('change', redrawOnChange);
     document.getElementById('tilesetSpacing')!.addEventListener('change', redrawOnChange);
     document.getElementById('tilesetMargin')!.addEventListener('change', redrawOnChange);
 
-    // 点击 / 拖拽选择 tile
+    const zoomSlider = document.getElementById('tilesetZoom') as HTMLInputElement;
+    const zoomLabel  = document.getElementById('tilesetZoomLabel')!;
+    zoomSlider.addEventListener('input', () => {
+      this.zoom = parseInt(zoomSlider.value);
+      zoomLabel.textContent = `${this.zoom}×`;
+      this.redraw();
+    });
+
+    document.getElementById('btnTilesetSelectAll')!.addEventListener('click', () => {
+      if (!this.image) return;
+      for (let i = 0; i < this.cols * this.rows; i++) this.selected.add(i);
+      this.redraw();
+    });
+    document.getElementById('btnTilesetSelectNone')!.addEventListener('click', () => {
+      this.selected.clear();
+      this.redraw();
+    });
+
     let dragging = false;
     let dragMode: 'add' | 'remove' = 'add';
 
@@ -1085,16 +1194,25 @@ class TilesetImporter {
       this.toggle(idx, dragMode);
     });
     this.previewCanvas.addEventListener('mousemove', (e) => {
-      if (!dragging) return;
       const idx = this.hitTest(e);
-      if (idx >= 0) this.toggle(idx, dragMode);
+      if (idx !== this.hoveredIdx) {
+        this.hoveredIdx = idx;
+        this.updateHoverInfo(idx);
+        this.redraw();
+      }
+      if (dragging && idx >= 0) this.toggle(idx, dragMode);
+    });
+    this.previewCanvas.addEventListener('mouseleave', () => {
+      this.hoveredIdx = -1;
+      this.updateHoverInfo(-1);
+      this.redraw();
     });
     window.addEventListener('mouseup', () => { dragging = false; });
 
     document.getElementById('btnTilesetConfirm')!.addEventListener('click', () => {
       if (!this.image || this.selected.size === 0) return;
       const tiles = this.buildTiles();
-      this.onConfirm(tiles, this.imageDataUrl);
+      this.onConfirm(tiles, this.imagePath);
       this.close();
     });
   }
@@ -1109,15 +1227,12 @@ class TilesetImporter {
     if (!this.image) return;
     this.readParams();
 
-    const { tileSize: ts, spacing: sp, margin: mg } = this;
+    const { tileSize: ts, spacing: sp, margin: mg, zoom } = this;
     const step = ts + sp;
     this.cols = Math.floor((this.image.width  - mg * 2 + sp) / step);
     this.rows = Math.floor((this.image.height - mg * 2 + sp) / step);
 
-    // 缩放预览：最大宽度 620px
-    const DISPLAY_TILE = Math.max(ts, Math.min(48, Math.floor(600 / this.cols)));
-    const scale = DISPLAY_TILE / ts;
-
+    const scale = zoom;
     this.previewCanvas.width  = Math.round(this.image.width  * scale);
     this.previewCanvas.height = Math.round(this.image.height * scale);
     this.previewCanvas.style.width  = this.previewCanvas.width  + 'px';
@@ -1126,7 +1241,6 @@ class TilesetImporter {
     this.pctx.imageSmoothingEnabled = false;
     this.pctx.drawImage(this.image, 0, 0, this.previewCanvas.width, this.previewCanvas.height);
 
-    // 绘制网格线 + 选中高亮
     for (let row = 0; row < this.rows; row++) {
       for (let col = 0; col < this.cols; col++) {
         const sx = (mg + col * step) * scale;
@@ -1140,6 +1254,11 @@ class TilesetImporter {
           this.pctx.fillRect(sx, sy, sw, sh);
           this.pctx.strokeStyle = '#6bb8ff';
           this.pctx.lineWidth = 1.5;
+        } else if (idx === this.hoveredIdx) {
+          this.pctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+          this.pctx.fillRect(sx, sy, sw, sh);
+          this.pctx.strokeStyle = 'rgba(255,255,255,0.5)';
+          this.pctx.lineWidth = 1;
         } else {
           this.pctx.strokeStyle = 'rgba(255,255,255,0.15)';
           this.pctx.lineWidth = 0.5;
@@ -1162,7 +1281,6 @@ class TilesetImporter {
     const col = Math.floor((px - mg) / step);
     const row = Math.floor((py - mg) / step);
 
-    // 确认点击落在 tile 内（不在间距上）
     const localX = (px - mg) - col * step;
     const localY = (py - mg) - row * step;
     if (localX < 0 || localX >= ts || localY < 0 || localY >= ts) return -1;
@@ -1178,15 +1296,40 @@ class TilesetImporter {
   }
 
   private updateInfo(): void {
+    const total = this.cols * this.rows;
     document.getElementById('tilesetSelectionInfo')!.textContent =
-      `已选 ${this.selected.size} 个 tile` + (this.cols ? `  (图集 ${this.cols}×${this.rows})` : '');
+      this.cols
+        ? `已选 ${this.selected.size} / ${total} 个  (图集 ${this.cols}×${this.rows})`
+        : '点击图集中的 tile 来选择，已选 0 个';
+  }
+
+  private updateHoverInfo(idx: number): void {
+    const el = document.getElementById('tilesetHoverInfo')!;
+    if (idx < 0 || !this.cols) { el.textContent = ''; return; }
+    const col = idx % this.cols;
+    const row = Math.floor(idx / this.cols);
+    el.textContent = `index ${idx}  (${col}, ${row})`;
+  }
+
+  private loadImageFromPath(path: string): void {
+    this.imagePath = path;
+    const img = new Image();
+    img.onload = () => {
+      this.image = img;
+      this.redraw();
+      const pathInput = document.getElementById('tilesetImagePath') as HTMLInputElement;
+      if (pathInput) pathInput.value = path;
+    };
+    img.onerror = () => {
+      alert(`无法加载图片: ${path}\n请检查路径是否正确（如 /games/tiny-town/assets/kenney_tiny-town_tilemap.png）`);
+    };
+    img.src = path;
   }
 
   private buildTiles(): TilesetImporterResult[] {
     const { tileSize: ts, spacing: sp, margin: mg } = this;
     const step = ts + sp;
-    // 用 blob URL 作为图片路径（已在 Editor 里缓存到 imageCache）
-    const src = this.imageDataUrl;
+    const src = this.imagePath;
 
     return [...this.selected]
       .sort((a, b) => a - b)

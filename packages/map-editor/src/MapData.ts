@@ -21,6 +21,15 @@ export interface GameConfig {
   defaultWidth: number;
   defaultHeight: number;
   tiles: TileDef[];
+  /** 导出模式：
+   *  'enum'  — 用 T.NAME 枚举（dungeon 等手写配置）
+   *  'index' — 直接输出图集 index 数字（从图集导入的 tileset）
+   */
+  exportMode?: 'enum' | 'index';
+  /** tileset JSON 文件路径（相对于网站根目录）
+   *  如：/games/tiny-town/assets/kenney_tiny-town_tilesets.json
+   */
+  tileset?: string;
 }
 
 export interface MapData {

@@ -1,48 +1,35 @@
 import { createGfxDevice, SpriteBatch, TextureAtlas, Camera2D, GameLoop, InputManager, ActionMap, ActionType, Vec2, Color } from '@mote/engine';
 import type { AtlasRegion } from '@mote/engine';
 
-// ── Tilemap atlas constants ───────────────────────────────────────────────────
-const ATLAS_W     = 192;
-const ATLAS_H     = 176;
-const TILE_COLS   = 12;
-const TILE_STRIDE = 17;
-const TILE_PX     = 16;
-
-function tileRegion(index: number): AtlasRegion {
-  const col = index % TILE_COLS;
-  const row = Math.floor(index / TILE_COLS);
-  return {
-    u0: (col * TILE_STRIDE) / ATLAS_W,
-    v0: (row * TILE_STRIDE) / ATLAS_H,
-    u1: (col * TILE_STRIDE + TILE_PX) / ATLAS_W,
-    v1: (row * TILE_STRIDE + TILE_PX) / ATLAS_H,
-    pixelWidth: TILE_PX, pixelHeight: TILE_PX,
-  };
+// ── Tileset Types ─────────────────────────────────────────────────────────────
+interface TilesetTile {
+  id: number;
+  name: string;
+  x?: number;
+  y?: number;
+  width: number;
+  height: number;
+  image?: string;
 }
 
-// ── Map data ──────────────────────────────────────────────────────────────────
-const MAP_COLS = 20;
-const MAP_ROWS = 15;
-const TILE_SIZE = 32;
+interface TilesetData {
+  image?: string;
+  tileSize: number;
+  spacing?: number;
+  tiles: TilesetTile[];
+}
 
-// prettier-ignore
-const MAP: number[] = [
-   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-   0, 12, 13, 13, 14,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-   0, 24, 25, 25, 26,  0, 60, 61,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-   0, 24, 25, 25, 26,  0, 48, 49,  0,  0, 84, 84, 84, 84, 84,  0,  0,  0,  0,  0,
-   0, 36, 37, 37, 38,  0,  0,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  0,
-   0,  0,  0,  0,  0,  0,  0,  4,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  4,  0,
-   0,  0, 72,  0,  0,  0,  0,  4,  0, 60, 61,  0,  0,  0,  0,  0,  0,  0,  4,  0,
-   0,  0,  0,  0,  0,  0,  0,  4,  0, 48, 49,  0,  0, 96,  0,  0,  0,  0,  4,  0,
-   0,  1,  1,  1,  1,  1,  1,  5,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  5,  0,
-   0,  0,  0,  0,  0,  0,  0,  4,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  4,  0,
-   0,  0,  0,  0,  0,  0,  0,  4,  0,  0, 97, 98,  0,  0,  0,  0,  0,  0,  4,  0,
-   0,  0, 72,  0,  0,  0,  0,  4,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  4,  0,
-   0,  0,  0,  0,  0,  0,  0,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  0,
-   0,  0,  0,  2,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-];
+// ── Map Types ─────────────────────────────────────────────────────────────────
+interface MapData {
+  version: number;
+  name: string;
+  width: number;
+  height: number;
+  tileSize: number;
+  tileset: string;
+  tiles: number[];
+  spawnPoint: { x: number; y: number };
+}
 
 const canvas   = document.getElementById('canvas') as HTMLCanvasElement;
 const statusEl = document.getElementById('status') as HTMLDivElement;
@@ -74,10 +61,27 @@ async function init(): Promise<void> {
   gameplay.enable();
   input.addMap(gameplay);
 
-  const tileAtlas = await TextureAtlas.load(gfx, batch.getAtlasBindGroupLayout(), '/games/tiny-town/assets/kenney_tiny-town/Tilemap/tilemap_packed.png');
-  const regions   = Array.from({ length: TILE_COLS * 11 }, (_, i) => tileRegion(i));
+  // ── Load map data ────────────────────────────────────────────────────────────
+  const mapData = await loadMap('/games/tiny-town/maps/tiny-town01.json');
+  
+  // ── Load tileset ─────────────────────────────────────────────────────────────
+  const tilesetData = await loadTileset(mapData.tileset);
+  
+  const isSpritesheet = !!tilesetData.image;
+  let tileAtlas: TextureAtlas;
+  let regions: AtlasRegion[];
+  
+  if (isSpritesheet) {
+    tileAtlas = await TextureAtlas.load(gfx, batch.getAtlasBindGroupLayout(), tilesetData.image!);
+    regions = createRegionsFromSpritesheet(tilesetData, tileAtlas);
+  } else {
+    const result = await createAtlasesFromIndividualImages(tilesetData, gfx, batch);
+    tileAtlas = result.atlas;
+    regions = result.regions;
+  }
 
-  camera.position = new Vec2((MAP_COLS * TILE_SIZE) / 2, (MAP_ROWS * TILE_SIZE) / 2);
+  const TILE_SIZE = 32;
+  camera.position = new Vec2((mapData.width * TILE_SIZE) / 2, (mapData.height * TILE_SIZE) / 2);
 
   const CAM_SPEED = 300;
   statusEl.textContent = 'WebGPU ✓ — Tiny Town — WASD / 方向键 / 左摇杆 平移';
@@ -93,17 +97,105 @@ async function init(): Promise<void> {
 
   loop.onRender = (_alpha) => {
     batch.begin(camera);
-    for (let row = 0; row < MAP_ROWS; row++) {
-      for (let col = 0; col < MAP_COLS; col++) {
+    for (let row = 0; row < mapData.height; row++) {
+      for (let col = 0; col < mapData.width; col++) {
         const wx = col * TILE_SIZE + TILE_SIZE / 2;
         const wy = row * TILE_SIZE + TILE_SIZE / 2;
-        batch.drawQuad(wx, wy, TILE_SIZE, TILE_SIZE, 0, regions[MAP[row * MAP_COLS + col]], tileAtlas, Color.white());
+        const tileIndex = mapData.tiles[row * mapData.width + col];
+        batch.drawQuad(wx, wy, TILE_SIZE, TILE_SIZE, 0, regions[tileIndex], tileAtlas, Color.white());
       }
     }
     batch.end();
   };
 
   loop.start();
+}
+
+async function loadMap(path: string): Promise<MapData> {
+  const response = await fetch(path);
+  if (!response.ok) {
+    throw new Error(`Failed to load map: ${response.status} ${response.statusText}`);
+  }
+  return await response.json();
+}
+
+async function loadTileset(path: string): Promise<TilesetData> {
+  const response = await fetch(path);
+  if (!response.ok) {
+    throw new Error(`Failed to load tileset: ${response.status} ${response.statusText}`);
+  }
+  return await response.json();
+}
+
+function createRegionsFromSpritesheet(tileset: TilesetData, atlas: TextureAtlas): AtlasRegion[] {
+  const imgWidth = atlas.texture.width;
+  const imgHeight = atlas.texture.height;
+
+  return tileset.tiles.map(tile => ({
+    u0: (tile.x ?? 0) / imgWidth,
+    v0: (tile.y ?? 0) / imgHeight,
+    u1: ((tile.x ?? 0) + tile.width) / imgWidth,
+    v1: ((tile.y ?? 0) + tile.height) / imgHeight,
+    pixelWidth: tile.width,
+    pixelHeight: tile.height,
+  }));
+}
+
+async function createAtlasesFromIndividualImages(
+  tileset: TilesetData, 
+  gfx: any, 
+  batch: SpriteBatch
+): Promise<{ atlas: TextureAtlas; regions: AtlasRegion[] }> {
+  const tilesWithImage = tileset.tiles.filter(t => t.image);
+  
+  const images = await Promise.all(
+    tilesWithImage.map(async tile => {
+      const img = new Image();
+      img.src = tile.image!;
+      img.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error(`Failed to load: ${tile.image}`));
+      });
+      return { img };
+    })
+  );
+
+  const maxWidth = Math.max(...images.map(({ img }) => img.width));
+  const totalHeight = images.reduce((sum, { img }) => sum + img.height, 0);
+  
+  const canvas = document.createElement('canvas');
+  canvas.width = maxWidth;
+  canvas.height = totalHeight;
+  const ctx = canvas.getContext('2d')!;
+  
+  let currentY = 0;
+  const regions: AtlasRegion[] = [];
+  
+  for (const { img } of images) {
+    ctx.drawImage(img, 0, currentY);
+    
+    regions.push({
+      u0: 0 / maxWidth,
+      v0: currentY / totalHeight,
+      u1: img.width / maxWidth,
+      v1: (currentY + img.height) / totalHeight,
+      pixelWidth: img.width,
+      pixelHeight: img.height,
+    });
+    
+    currentY += img.height;
+  }
+  
+  const blob = await new Promise<Blob>((resolve) => canvas.toBlob(blob => resolve(blob!), 'image/png'));
+  const url = URL.createObjectURL(blob);
+  
+  try {
+    const atlas = await TextureAtlas.load(gfx, batch.getAtlasBindGroupLayout(), url);
+    return { atlas, regions };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 init().catch(err => {

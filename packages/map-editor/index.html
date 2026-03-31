@@ -503,6 +503,14 @@
         <button class="btn" id="btnTilesetModalClose">✕</button>
       </div>
       <div class="tileset-modal-body">
+        <!-- 图片路径输入 -->
+        <div style="display:flex; gap:8px; align-items:flex-end;">
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">图片路径</label>
+            <input type="text" class="prop-input" id="tilesetImagePath" placeholder="/games/tiny-town/assets/kenney_tiny-town_tilemap.png" style="width:100%;">
+          </div>
+          <button class="btn" id="btnTilesetLoadPath">加载</button>
+        </div>
         <div class="tileset-params">
           <div class="tileset-param">
             <label>Tile 大小 (px)</label>
@@ -517,10 +525,20 @@
             <input type="number" class="prop-input" id="tilesetMargin" value="0" min="0" max="64">
           </div>
         </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <button class="btn" id="btnTilesetSelectAll">全选</button>
+          <button class="btn" id="btnTilesetSelectNone">取消选择</button>
+          <label style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-left:auto;">缩放</label>
+          <input type="range" id="tilesetZoom" min="1" max="8" value="3" step="1" style="width:100px;accent-color:#6bb8ff;">
+          <span id="tilesetZoomLabel" style="font-size:12px;color:#888;min-width:28px;">3×</span>
+        </div>
         <div class="tileset-preview-area">
           <canvas id="tilesetPreviewCanvas"></canvas>
         </div>
-        <div class="tileset-selection-info" id="tilesetSelectionInfo">点击图集中的 tile 来选择，已选 0 个</div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="tileset-selection-info" id="tilesetSelectionInfo">点击图集中的 tile 来选择，已选 0 个</div>
+          <div id="tilesetHoverInfo" style="font-size:12px;color:#6bb8ff;font-family:monospace;margin-left:auto;"></div>
+        </div>
       </div>
       <div class="tileset-modal-footer">
         <button class="btn" id="btnTilesetCancel">取消</button>
@@ -654,8 +672,8 @@
       </div>
 
       <div class="export-btns">
-        <button class="btn btn-primary" id="btnExportTs" title="导出为 .ts 文件，可自定义名称">📄 导出 TypeScript</button>
-        <button class="btn" id="btnExportJson" title="导出为 .json 文件，可自定义名称">📋 导出 JSON</button>
+        <button class="btn btn-primary" id="btnExportJson" title="导出为 .json 文件，可自定义名称">📋 导出 JSON</button>
+        <button class="btn" id="btnExportTileset" title="导出当前 tileset 配置为 tilesets.json">🖼 导出 Tileset</button>
       </div>
     </div>
   </div>

@@ -49,11 +49,11 @@ document.getElementById('btnNew')!.addEventListener('click', () => {
 document.getElementById('btnImportTileset')!.addEventListener('click', () => editor.openTilesetImporter());
 document.getElementById('btnImportConfig')!.addEventListener('click', () => editor.importConfig());
 document.getElementById('btnImport')!.addEventListener('click', () => editor.importMap());
-document.getElementById('btnExport')!.addEventListener('click', () => editor.export('ts'));
+document.getElementById('btnExport')!.addEventListener('click', () => editor.export());
 
 // 右侧导出按钮
-document.getElementById('btnExportTs')!.addEventListener('click', () => editor.export('ts'));
-document.getElementById('btnExportJson')!.addEventListener('click', () => editor.export('json'));
+document.getElementById('btnExportJson')!.addEventListener('click', () => editor.export());
+document.getElementById('btnExportTileset')!.addEventListener('click', () => editor.exportTileset());
 
 // 导出对话框
 document.getElementById('confirmExport')!.addEventListener('click', () => editor.confirmExport());

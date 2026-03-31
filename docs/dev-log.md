@@ -1,0 +1,4 @@
+## 2026年3月30日
+这是我的开发日志，我计划在这里记录开发过程。
+
+D:\dev\mote\games\tiny-town\assets\kenney_tiny-town_tilemap.png 我希望导入图集是导入的是这张图，然后导出图集时，也描述的是这张图，然后地图可以引用这个 png 和 json 的图集。然后游戏内页引用 png 和 json 的信息来渲染，现在这整个流程是对的吗？

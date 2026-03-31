@@ -1315,24 +1315,24 @@ class FolderSpriteImporter {
       // 从 webkitRelativePath 推断基础路径
       // webkitRelativePath 格式取决于用户选择的文件夹层级
       // 例如用户选择 D:\dev\mote\games\dungeon\assets\kenney_scribble-dungeons\Sprites
-      // 可能得到: "kenney_scribble-dungeons/Sprites/arrow.png" (如果选的是父文件夹)
-      // 或: "Sprites/arrow.png" (如果选的是 Sprites 文件夹本身)
+      // 如果选的是父文件夹(kenney_scribble-dungeons): "Sprites/arrow.png"
+      // 如果选的是 Sprites 文件夹本身: "arrow.png" (缺少上层路径!)
       const fullPath = files[0].webkitRelativePath;
       const pathParts = fullPath.split('/');
       
-      // 尝试推断路径，寻找 assets 关键字
-      let defaultBasePath = '';
-      const assetsIndex = pathParts.findIndex(p => p.toLowerCase() === 'assets');
+      // 检查是否直接选择了 Sprites 文件夹（只有文件名，没有文件夹层级）
+      if (pathParts.length === 1) {
+        // 用户直接选择了 Sprites 文件夹，无法推断完整路径
+        alert('⚠️ 选择错误！\n\n您直接选择了 Sprites 文件夹。\n\n请重新选择 Sprites 的父文件夹（如 kenney_scribble-dungeons），\n以便程序能正确推断完整路径结构。');
+      }
       
-      if (assetsIndex >= 0 && pathParts.length > assetsIndex + 1) {
-        // 找到了 assets，假设结构是: .../assets/xxx/Sprites/xxx.png
-        // 取 assets 后面的部分
-        const afterAssets = pathParts.slice(0, -1); // 去掉文件名
-        defaultBasePath = `/games/{游戏名}/${afterAssets.join('/')}`;
-      } else if (pathParts.length >= 2) {
-        // 没有找到 assets，取除文件名外的所有路径
+      // 尝试推断路径
+      let defaultBasePath = '';
+      
+      if (pathParts.length >= 2) {
+        // 取除文件名外的所有路径
         const folderPath = pathParts.slice(0, -1).join('/');
-        defaultBasePath = `/games/{游戏名}/assets/${folderPath}`;
+        defaultBasePath = `/games/{游戏名}/${folderPath}`;
       } else {
         defaultBasePath = '/games/{游戏名}/assets/Sprites';
       }

@@ -1,0 +1,356 @@
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/barrels_stacked.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/bed.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/bridge_end.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/bridge.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/bed_luxurious.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/campfire.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/carpet.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/chair.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/crate.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/chest.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/coffin.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/cart.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/crate_small.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/door_closed.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/door_open.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/doorway.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_arrow.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/dragon.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_arrow_circle.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_arrow_curve.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_barrel.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_arrow_head.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_barrels.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_barrels_stacked.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_bed.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_campfire.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_bed_luxurious.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_cart.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_chair.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_chest.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_coffin.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_door_closed.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_crate_small.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_door_open.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_dragon.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_doorway.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_inner_diagonal.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_inner_long_diagonal.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_path.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_inner_long_round.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_inner_round.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_path_crossing.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_path_curve.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_planks.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_plants.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_puddle.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_track_cart.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_track.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_table.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_track_crossing.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_track_curve.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_trap.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_tree.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_trapdoor_round.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_trapdoor_square.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_wall.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_wall_corner.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_wall_damaged.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_wall_curve.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_wall_edge.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_wall_demolished.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_wall_half.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_wall_diagonal.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_wall_secret.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/floor_wall_trap.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/grass.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/green_character.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/inner_diagonal.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/green_hand.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/inner_long_diagonal.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/inner_long_round.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/inner_round.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/path_curve.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/path_crossing.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/path.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/planks.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/puddle.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/plants.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/purple_character.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/red_hand.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/red_character.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/purple_hand.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/shield_straight.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/stairs_down.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/shield_curved.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/stairs_down_detail.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/table.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/tile.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/tiles_center.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/tiles.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/tiles_corner.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/tiles_cracked.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/tiles_decorative.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/track.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/track_cart.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/track_crossing.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/track_curve.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/trap.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/trap_door.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/trapdoor_round.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/trapdoor_square.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/wall_curve.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/tree.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/wall_corner.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/wall_damaged.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/wall.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/wall_demolished.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/wall_diagonal.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/wall_edge.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/wall_half.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/wall_secret.png
+img.onerror @ Editor.ts:432
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/wall_trap.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/water.png
+img.onerror @ Editor.ts:432
+
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/arrow.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/arrow.png
+
+Editor.ts:508 [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/arrow.png
+img.onerror @ Editor.ts:508
+Editor.ts:434 Uncaught (in promise) 
+img.onerror @ Editor.ts:434
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/arrow.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+img.onerror @ Editor.ts:434
+ [MapEditor] 图片加载失败: /games/Sprites/assets/Sprites/arrow.png
+img.onerror @ Editor.ts:432
+Editor.ts:434 Uncaught (in promise) 
+img.onerror @ Editor.ts:434

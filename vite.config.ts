@@ -85,9 +85,9 @@ function copyGameAssetsPlugin() {
         const stat = fs.statSync(fullPath);
 
         if (stat.isDirectory()) {
-          // 返回目录索引
+          // 返回目录索引，使用完整路径 /games/...
           res.setHeader('Content-Type', 'text/html; charset=utf-8');
-          res.end(generateDirectoryListing(fullPath, req.url));
+          res.end(generateDirectoryListing(fullPath, '/games' + req.url));
         } else if (stat.isFile()) {
           // 返回文件
           res.end(fs.readFileSync(fullPath));

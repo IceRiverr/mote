@@ -393,3 +393,5 @@ games/dungeon/
 - [x] 移除 TypeScript 地图导出，只保留 JSON 格式
 - [x] 导入精灵功能（独立图片模式）- 适用于 dungeon 等大量独立 PNG 的情况
 - [x] 开发服务器支持目录索引，便于扫描文件夹
+
+"tileset": "/games/dungeon/assets/dungeon_tilesets.json", 这个名字有问题。

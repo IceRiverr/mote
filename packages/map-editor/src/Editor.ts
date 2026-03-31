@@ -1170,8 +1170,8 @@ class FolderSpriteImporter {
       // 尝试匹配项目结构，查找 games 目录
       const gamesMatch = localPath.match(/[/\\]games[/\\](.+)$/i);
       if (gamesMatch) {
-        // 提取 games 后面的路径
-        const relativePath = '/' + gamesMatch[1].replace(/\\/g, '/');
+        // 提取 games 及其后面的路径，保留 /games 前缀
+        const relativePath = '/games/' + gamesMatch[1].replace(/\\/g, '/');
         path = relativePath;
         this.pathInput.value = path;
         console.log(`[MapEditor] 本地路径已转换: ${localPath} -> ${path}`);

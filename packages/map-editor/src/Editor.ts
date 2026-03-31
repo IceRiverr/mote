@@ -67,82 +67,6 @@ export class MapEditor {
     this.updateUndoRedoUI();
   }
 
-  /**
-   * 从 JSON 文件导入游戏配置
-   */
-  importConfig(): void {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      try {
-        const config: GameConfig = JSON.parse(await file.text());
-
-        // 检查是否有 tile 引用相对路径图片（非 data URL、非绝对路径）
-        const relativeImages = new Set(
-          config.tiles
-            .map(t => t.tilesetImage)
-            .filter((src): src is string => !!src && !src.startsWith('data:') && !src.startsWith('http') && !src.startsWith('/'))
-        );
-
-        if (relativeImages.size > 0) {
-          // 让用户选择图片文件，按文件名匹配
-          const imageFiles = await this.pickImageFiles([...relativeImages]);
-          for (const tile of config.tiles) {
-            if (tile.tilesetImage && imageFiles.has(tile.tilesetImage)) {
-              tile.tilesetImage = imageFiles.get(tile.tilesetImage)!;
-            }
-          }
-        }
-
-        this.loadConfig(config);
-
-        // 预加载所有 data URL 图片到缓存
-        for (const tile of config.tiles) {
-          if (tile.tilesetImage?.startsWith('data:')) {
-            this.loadImage(tile.tilesetImage);
-          }
-        }
-      } catch (err) {
-        alert('配置文件无效: ' + (err as Error).message);
-      }
-    };
-    input.click();
-  }
-
-  /**
-   * 让用户选择图片文件，返回 filename -> dataURL 映射
-   */
-  private pickImageFiles(filenames: string[]): Promise<Map<string, string>> {
-    return new Promise((resolve) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.multiple = true;
-      input.onchange = async (e) => {
-        const files = Array.from((e.target as HTMLInputElement).files ?? []);
-        const map = new Map<string, string>();
-        await Promise.all(files.map(file => new Promise<void>(res => {
-          // 匹配文件名（含或不含路径前缀）
-          const matchKey = filenames.find(name => name.endsWith(file.name) || file.name === name);
-          if (!matchKey) { res(); return; }
-          const reader = new FileReader();
-          reader.onload = (ev) => { map.set(matchKey, ev.target!.result as string); res(); };
-          reader.readAsDataURL(file);
-        })));
-        resolve(map);
-      };
-      // 用户取消时也 resolve 空 map
-      input.addEventListener('cancel', () => resolve(new Map()));
-      input.click();
-      if (filenames.length > 0) {
-        alert(`请选择以下图片文件：\n${filenames.join('\n')}`);
-      }
-    });
-  }
-
   loadConfig(config: GameConfig): void {
     this.config = config;
     if (!this.config) throw new Error('Invalid config');
@@ -1008,6 +932,57 @@ ${tilesRows.join(',\n')}
   }
 
   /**
+   * 打开批量导入文件夹精灵弹窗
+   */
+  openFolderSpriteImporter(): void {
+    const importer = new FolderSpriteImporter((tiles, folderPath) => {
+      if (!this.config) {
+        // 如果没有配置，创建新配置
+        const tileSize = tiles[0]?.srcW || 64;
+        this.config = {
+          id: 'imported-folder',
+          name: 'Imported Folder',
+          tileSize: tileSize,
+          defaultWidth: 20,
+          defaultHeight: 15,
+          exportMode: 'index',
+          tileset: `${folderPath}/tilesets.json`,
+          tiles,
+        };
+        this.mapData = {
+          version: 1,
+          name: 'untitled',
+          width: this.config.defaultWidth,
+          height: this.config.defaultHeight,
+          tileSize: this.config.tileSize,
+          tiles: new Array(this.config.defaultWidth * this.config.defaultHeight).fill(0),
+          spawnPoint: { x: 10, y: 7 },
+        };
+        document.getElementById('configName')!.textContent = this.config.name;
+        this.updateProperties();
+        this.resizeCanvas();
+      } else {
+        // 追加到现有配置
+        const maxId = this.config.tiles.reduce((m, t) => Math.max(m, t.id), -1);
+        tiles.forEach((t, i) => { t.id = maxId + 1 + i; });
+        this.config.tiles.push(...tiles);
+        this.config.exportMode = 'index';
+      }
+
+      // 预加载所有图片到缓存
+      tiles.forEach(t => {
+        if (t.tilesetImage) {
+          this.loadImage(t.tilesetImage);
+        }
+      });
+
+      this.updatePalette();
+      this.markDirty();
+    });
+    importer.open();
+  }
+
+  /**
    * 打开图集导入弹窗
    */
   openTilesetImporter(): void {
@@ -1054,6 +1029,476 @@ ${tilesRows.join(',\n')}
       }
     });
     importer.open();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// FolderSpriteImporter — 批量导入文件夹精灵（独立图片模式）
+// ---------------------------------------------------------------------------
+
+interface FolderSpriteItem {
+  id: number;
+  name: string;
+  filename: string;
+  imageUrl: string;
+  width: number;
+  height: number;
+  selected: boolean;
+  element?: HTMLElement;
+  imgElement?: HTMLImageElement;
+}
+
+class FolderSpriteImporter {
+  private overlay: HTMLElement;
+  private grid: HTMLElement;
+  private pathInput: HTMLInputElement;
+  private basePathInput: HTMLInputElement;
+  private localPathDisplay: HTMLElement;
+  private selectionInfo: HTMLElement;
+  private pathModeSection: HTMLElement;
+  private localModeSection: HTMLElement;
+  private basePathSection: HTMLElement;
+  private btnPathMode: HTMLElement;
+  private btnLocalMode: HTMLElement;
+
+  private sprites: FolderSpriteItem[] = [];
+  private currentMode: 'path' | 'local' = 'path';
+  private folderPath = '';
+
+  constructor(private onConfirm: (tiles: TilesetImporterResult[], folderPath: string) => void) {
+    this.overlay = document.getElementById('folderSpriteModal')!;
+    this.grid = document.getElementById('folderSpriteGrid')!;
+    this.pathInput = document.getElementById('folderSpritePath') as HTMLInputElement;
+    this.basePathInput = document.getElementById('folderSpriteBasePath') as HTMLInputElement;
+    this.localPathDisplay = document.getElementById('folderSpriteLocalPath')!;
+    this.selectionInfo = document.getElementById('folderSpriteSelectionInfo')!;
+    this.pathModeSection = document.getElementById('folderPathMode')!;
+    this.localModeSection = document.getElementById('folderLocalMode')!;
+    this.basePathSection = document.getElementById('folderBasePathSection')!;
+    this.btnPathMode = document.getElementById('btnFolderModePath')!;
+    this.btnLocalMode = document.getElementById('btnFolderModeLocal')!;
+
+    this.bindEvents();
+  }
+
+  open(): void {
+    this.reset();
+    this.overlay.classList.remove('hidden');
+  }
+
+  private close(): void {
+    this.overlay.classList.add('hidden');
+    this.reset();
+  }
+
+  private reset(): void {
+    this.sprites = [];
+    this.folderPath = '';
+    this.pathInput.value = '';
+    this.basePathInput.value = '';
+    this.localPathDisplay.textContent = '未选择文件夹';
+    this.updateGrid();
+    this.updateSelectionInfo();
+    this.setMode('path');
+  }
+
+  private bindEvents(): void {
+    // 关闭按钮
+    document.getElementById('btnFolderSpriteModalClose')!.addEventListener('click', () => this.close());
+    document.getElementById('btnFolderSpriteCancel')!.addEventListener('click', () => this.close());
+
+    // 模式切换
+    this.btnPathMode.addEventListener('click', () => this.setMode('path'));
+    this.btnLocalMode.addEventListener('click', () => this.setMode('local'));
+
+    // 路径模式：扫描文件夹
+    document.getElementById('btnFolderSpriteLoadPath')!.addEventListener('click', () => this.scanFolderPath());
+    this.pathInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.scanFolderPath();
+    });
+
+    // 本地模式：选择文件夹
+    document.getElementById('btnFolderSpriteSelectFolder')!.addEventListener('click', () => this.selectLocalFolder());
+
+    // 全选/取消全选
+    document.getElementById('btnFolderSpriteSelectAll')!.addEventListener('click', () => this.selectAll(true));
+    document.getElementById('btnFolderSpriteSelectNone')!.addEventListener('click', () => this.selectAll(false));
+
+    // 确认导入
+    document.getElementById('btnFolderSpriteConfirm')!.addEventListener('click', () => this.confirm());
+  }
+
+  private setMode(mode: 'path' | 'local'): void {
+    this.currentMode = mode;
+    this.btnPathMode.classList.toggle('active', mode === 'path');
+    this.btnLocalMode.classList.toggle('active', mode === 'local');
+    this.pathModeSection.classList.toggle('hidden', mode !== 'path');
+    this.localModeSection.classList.toggle('hidden', mode !== 'local');
+    this.basePathSection.classList.toggle('hidden', mode !== 'local');
+  }
+
+  private async scanFolderPath(): Promise<void> {
+    const path = this.pathInput.value.trim();
+    if (!path) {
+      alert('请输入文件夹路径');
+      return;
+    }
+
+    this.folderPath = path;
+
+    // 尝试获取文件夹内容
+    // 使用 fetch 获取目录索引（如果服务器支持）
+    try {
+      const response = await fetch(path);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const text = await response.text();
+
+      // 解析 HTML 目录索引
+      if (text.includes('<!DOCTYPE html>') || text.includes('<html>')) {
+        const pngFiles = this.parseHtmlDirectoryListing(text, path);
+        if (pngFiles.length === 0) {
+          alert('未在文件夹中找到 PNG 文件');
+          return;
+        }
+        await this.loadSpritesFromPaths(pngFiles);
+      } else {
+        // 尝试解析为 JSON（如果服务器返回文件列表）
+        try {
+          const files = JSON.parse(text);
+          if (Array.isArray(files)) {
+            const pngFiles = files
+              .filter((f: string) => f.endsWith('.png') || f.endsWith('.PNG'))
+              .map((f: string) => `${path}/${f}`);
+            await this.loadSpritesFromPaths(pngFiles);
+          }
+        } catch {
+          alert('无法解析文件夹内容。请确保路径正确且服务器支持目录索引。');
+        }
+      }
+    } catch (err) {
+      console.error('扫描文件夹失败:', err);
+
+      // 如果 fetch 失败，提示用户手动输入文件列表
+      const useManualList = confirm(
+        '无法自动扫描文件夹。是否手动输入文件列表？\n\n' +
+        '您可以：\n' +
+        '1. 在终端运行: ls *.png > files.txt\n' +
+        '2. 复制文件内容到弹窗中'
+      );
+
+      if (useManualList) {
+        this.promptManualFileList(path);
+      }
+    }
+  }
+
+  private parseHtmlDirectoryListing(html: string, basePath: string): string[] {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const links = Array.from(doc.querySelectorAll('a'));
+
+    return links
+      .map(a => {
+        const href = a.getAttribute('href') || '';
+        // 处理相对路径
+        if (href.startsWith('http')) return href;
+        if (href.startsWith('/')) return href;
+        return `${basePath}/${href}`.replace(/\/+/g, '/');
+      })
+      .filter(href => href.endsWith('.png') || href.endsWith('.PNG'));
+  }
+
+  private promptManualFileList(basePath: string): void {
+    const input = prompt(
+      '请输入 PNG 文件名列表（每行一个）：',
+      'arrow.png\nbarrel.png\nbed.png'
+    );
+    if (!input) return;
+
+    const files = input
+      .split('\n')
+      .map(f => f.trim())
+      .filter(f => f && (f.endsWith('.png') || f.endsWith('.PNG')))
+      .map(f => {
+        if (f.startsWith('http') || f.startsWith('/')) return f;
+        return `${basePath}/${f}`.replace(/\/+/g, '/');
+      });
+
+    this.loadSpritesFromPaths(files);
+  }
+
+  private async loadSpritesFromPaths(urls: string[]): Promise<void> {
+    this.sprites = [];
+    this.updateGridLoading();
+
+    // 并行加载所有图片
+    const loadPromises = urls.map((url, index) => this.loadSpriteFromUrl(url, index));
+    const results = await Promise.all(loadPromises);
+
+    this.sprites = results.filter((s): s is FolderSpriteItem => s !== null);
+    this.sprites.sort((a, b) => a.name.localeCompare(b.name));
+    this.sprites.forEach((s, i) => { s.id = i; });
+
+    this.updateGrid();
+    this.updateSelectionInfo();
+  }
+
+  private async loadSpriteFromUrl(url: string, index: number): Promise<FolderSpriteItem | null> {
+    try {
+      const img = await this.loadImage(url);
+      const filename = url.split('/').pop() || `sprite_${index}`;
+      const name = filename.replace(/\.png$/i, '');
+
+      return {
+        id: index,
+        name,
+        filename,
+        imageUrl: url,
+        width: img.width,
+        height: img.height,
+        selected: true,
+      };
+    } catch (err) {
+      console.warn(`加载图片失败: ${url}`, err);
+      return null;
+    }
+  }
+
+  private loadImage(url: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  private selectLocalFolder(): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    (input as any).webkitdirectory = true;
+    (input as any).directory = true;
+
+    input.onchange = async () => {
+      const files = Array.from(input.files || []).filter(f =>
+        f.name.endsWith('.png') || f.name.endsWith('.PNG')
+      );
+
+      if (files.length === 0) {
+        alert('所选文件夹中没有 PNG 文件');
+        return;
+      }
+
+      this.localPathDisplay.textContent = `${files.length} 个 PNG 文件`;
+
+      // 询问基础路径
+      const defaultBasePath = `/games/${files[0].webkitRelativePath.split('/')[0]}/assets/Sprites`;
+      this.basePathInput.value = defaultBasePath;
+
+      await this.loadSpritesFromFiles(files);
+    };
+
+    input.click();
+  }
+
+  private async loadSpritesFromFiles(files: File[]): Promise<void> {
+    this.sprites = [];
+    this.updateGridLoading();
+
+    const loadPromises = files.map((file, index) => this.loadSpriteFromFile(file, index));
+    const results = await Promise.all(loadPromises);
+
+    this.sprites = results.filter((s): s is FolderSpriteItem => s !== null);
+    this.sprites.sort((a, b) => a.name.localeCompare(b.name));
+    this.sprites.forEach((s, i) => { s.id = i; });
+
+    this.updateGrid();
+    this.updateSelectionInfo();
+  }
+
+  private async loadSpriteFromFile(file: File, index: number): Promise<FolderSpriteItem | null> {
+    try {
+      const url = URL.createObjectURL(file);
+      const img = await this.loadImage(url);
+      const name = file.name.replace(/\.png$/i, '');
+
+      return {
+        id: index,
+        name,
+        filename: file.name,
+        imageUrl: url,
+        width: img.width,
+        height: img.height,
+        selected: true,
+      };
+    } catch (err) {
+      console.warn(`加载文件失败: ${file.name}`, err);
+      return null;
+    }
+  }
+
+  private updateGridLoading(): void {
+    this.grid.innerHTML = `
+      <div style="color:#666; font-size:13px; text-align:center; padding:40px; grid-column:1/-1;">
+        加载中...
+      </div>
+    `;
+  }
+
+  private updateGrid(): void {
+    this.grid.innerHTML = '';
+
+    if (this.sprites.length === 0) {
+      this.grid.innerHTML = `
+        <div style="color:#666; font-size:13px; text-align:center; padding:40px; grid-column:1/-1;">
+          ${this.currentMode === 'path' ? '请输入文件夹路径并点击扫描' : '请选择本地文件夹'}
+        </div>
+      `;
+      return;
+    }
+
+    this.sprites.forEach(sprite => {
+      const item = document.createElement('div');
+      item.className = `folder-sprite-item ${sprite.selected ? 'selected' : ''}`;
+
+      const preview = document.createElement('div');
+      preview.className = 'folder-sprite-preview';
+
+      const img = document.createElement('img');
+      img.src = sprite.imageUrl;
+      img.alt = sprite.name;
+      img.onload = () => {
+        // 如果图片太大，限制显示尺寸
+        if (img.width > 64 || img.height > 64) {
+          const scale = Math.min(64 / img.width, 64 / img.height);
+          img.style.width = `${img.width * scale}px`;
+          img.style.height = `${img.height * scale}px`;
+        }
+      };
+
+      preview.appendChild(img);
+      sprite.imgElement = img;
+
+      const name = document.createElement('div');
+      name.className = 'folder-sprite-name';
+      name.textContent = sprite.name;
+
+      const size = document.createElement('div');
+      size.className = 'folder-sprite-size';
+      size.textContent = `${sprite.width}×${sprite.height}`;
+
+      item.appendChild(preview);
+      item.appendChild(name);
+      item.appendChild(size);
+
+      item.addEventListener('click', () => {
+        sprite.selected = !sprite.selected;
+        item.classList.toggle('selected', sprite.selected);
+        this.updateSelectionInfo();
+      });
+
+      // 双击重命名
+      item.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        const input = document.createElement('input');
+        input.value = sprite.name;
+        input.style.cssText = `
+          position: absolute;
+          bottom: 4px;
+          left: 4px;
+          right: 4px;
+          width: calc(100% - 8px);
+          padding: 2px 4px;
+          background: #1a1a24;
+          border: 1px solid #6bb8ff;
+          border-radius: 3px;
+          color: #e0e0e0;
+          font-size: 11px;
+          text-align: center;
+          z-index: 10;
+        `;
+        item.style.position = 'relative';
+        item.appendChild(input);
+        input.focus();
+        input.select();
+
+        const commit = () => {
+          const newName = input.value.trim() || sprite.name;
+          sprite.name = newName;
+          name.textContent = newName;
+          input.remove();
+        };
+
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', (ke) => {
+          if (ke.key === 'Enter') { ke.preventDefault(); commit(); }
+          if (ke.key === 'Escape') { input.remove(); }
+        });
+      });
+
+      this.grid.appendChild(item);
+      sprite.element = item;
+    });
+  }
+
+  private selectAll(selected: boolean): void {
+    this.sprites.forEach(sprite => {
+      sprite.selected = selected;
+      if (sprite.element) {
+        sprite.element.classList.toggle('selected', selected);
+      }
+    });
+    this.updateSelectionInfo();
+  }
+
+  private updateSelectionInfo(): void {
+    const selectedCount = this.sprites.filter(s => s.selected).length;
+    this.selectionInfo.textContent = `已选 ${selectedCount} / ${this.sprites.length} 个`;
+  }
+
+  private confirm(): void {
+    const selectedSprites = this.sprites.filter(s => s.selected);
+    if (selectedSprites.length === 0) {
+      alert('请至少选择一个精灵');
+      return;
+    }
+
+    // 构建 tile 数据
+    const tiles: TilesetImporterResult[] = selectedSprites.map((sprite, index) => {
+      let imagePath: string;
+
+      if (this.currentMode === 'local') {
+        // 本地模式：使用基础路径 + 文件名
+        const basePath = this.basePathInput.value.trim() || '/games/assets/Sprites';
+        imagePath = `${basePath}/${sprite.filename}`.replace(/\/+/g, '/');
+      } else {
+        // 路径模式：直接使用 URL
+        imagePath = sprite.imageUrl;
+      }
+
+      return {
+        id: index,
+        name: sprite.name,
+        color: '#888888',
+        solid: false,
+        tilesetImage: imagePath,
+        srcX: 0,
+        srcY: 0,
+        srcW: sprite.width,
+        srcH: sprite.height,
+      };
+    });
+
+    // 构建文件夹路径（用于导出 tileset）
+    const folderPath = this.currentMode === 'local'
+      ? (this.basePathInput.value.trim() || '/games/assets/Sprites')
+      : this.folderPath;
+
+    this.onConfirm(tiles, folderPath);
+    this.close();
   }
 }
 

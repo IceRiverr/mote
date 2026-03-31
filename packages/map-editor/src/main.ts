@@ -47,12 +47,11 @@ document.getElementById('btnNew')!.addEventListener('click', () => {
   if (confirm('确定要新建地图吗？当前未保存的更改将丢失。')) editor.newMap();
 });
 document.getElementById('btnImportTileset')!.addEventListener('click', () => editor.openTilesetImporter());
-document.getElementById('btnImportConfig')!.addEventListener('click', () => editor.importConfig());
+document.getElementById('btnImportFolder')!.addEventListener('click', () => editor.openFolderSpriteImporter());
 document.getElementById('btnImport')!.addEventListener('click', () => editor.importMap());
 document.getElementById('btnExport')!.addEventListener('click', () => editor.export());
 
 // 右侧导出按钮
-document.getElementById('btnExportJson')!.addEventListener('click', () => editor.export());
 document.getElementById('btnExportTileset')!.addEventListener('click', () => editor.exportTileset());
 
 // 导出对话框

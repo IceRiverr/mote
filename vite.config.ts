@@ -22,9 +22,80 @@ function sharedAssetsPlugin(sharedAssetsDir: string) {
   };
 }
 
+// 生成目录索引 HTML
+function generateDirectoryListing(dirPath: string, reqPath: string): string {
+  const files = fs.readdirSync(dirPath);
+  const items = files.map(file => {
+    const fullPath = path.join(dirPath, file);
+    const isDir = fs.statSync(fullPath).isDirectory();
+    const href = `${reqPath}${reqPath.endsWith('/') ? '' : '/'}${file}${isDir ? '/' : ''}`;
+    const icon = isDir ? '📁' : getFileIcon(file);
+    return `<li><a href="${href}">${icon} ${file}${isDir ? '/' : ''}</a></li>`;
+  }).join('\n');
+
+  return `<!DOCTYPE html>
+<html>
+<head><title>Index of ${reqPath}</title>
+<style>
+  body { font-family: system-ui; padding: 20px; background: #0a0a0f; color: #e0e0e0; }
+  h1 { font-size: 1.2em; border-bottom: 1px solid #333; padding-bottom: 10px; }
+  ul { list-style: none; padding: 0; }
+  li { padding: 4px 0; }
+  a { color: #6bb8ff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <h1>Index of ${reqPath}</h1>
+  <ul>${reqPath !== '/' ? '<li><a href="../">📁 ../</a></li>' : ''}
+${items}</ul>
+</body>
+</html>`;
+}
+
+function getFileIcon(filename: string): string {
+  if (filename.endsWith('.png') || filename.endsWith('.jpg')) return '🖼️';
+  if (filename.endsWith('.json')) return '📋';
+  if (filename.endsWith('.ts')) return '📜';
+  if (filename.endsWith('.html')) return '🌐';
+  return '📄';
+}
+
 function copyGameAssetsPlugin() {
   return {
     name: 'copy-game-assets',
+    configureServer(server: any) {
+      // 为游戏资源提供目录索引
+      server.middlewares.use('/games', (req: any, res: any, next: any) => {
+        const gamesDir = resolve(__dirname, 'games');
+        const fullPath = path.join(gamesDir, req.url);
+
+        // 安全检查：确保路径在游戏目录内
+        if (!fullPath.startsWith(gamesDir)) {
+          res.statusCode = 403;
+          res.end('Forbidden');
+          return;
+        }
+
+        if (!fs.existsSync(fullPath)) {
+          next();
+          return;
+        }
+
+        const stat = fs.statSync(fullPath);
+
+        if (stat.isDirectory()) {
+          // 返回目录索引
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.end(generateDirectoryListing(fullPath, req.url));
+        } else if (stat.isFile()) {
+          // 返回文件
+          res.end(fs.readFileSync(fullPath));
+        } else {
+          next();
+        }
+      });
+    },
     closeBundle() {
       // 复制 dungeon assets + config
       const dungeonSrc = resolve(__dirname, 'games/dungeon/assets');

@@ -281,13 +281,6 @@
     border-color: #6bb8ff;
   }
 
-  .export-btns {
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
   .btn-primary {
     background: #6bb8ff22;
     border-color: #6bb8ff;
@@ -492,9 +485,146 @@
   .toast.hiding {
     animation: toastFadeOut 0.3s ease forwards;
   }
+
+  /* 文件夹精灵导入样式 */
+  .folder-sprite-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    background: #1a1a24;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .folder-sprite-item:hover {
+    background: #252532;
+    border-color: #3a3a4a;
+  }
+
+  .folder-sprite-item.selected {
+    background: #6bb8ff22;
+    border-color: #6bb8ff;
+  }
+
+  .folder-sprite-item.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .folder-sprite-preview {
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+    background: #0a0a0f;
+    border-radius: 4px;
+  }
+
+  .folder-sprite-preview img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+  }
+
+  .folder-sprite-name {
+    font-size: 11px;
+    color: #888;
+    text-align: center;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .folder-sprite-item.selected .folder-sprite-name {
+    color: #6bb8ff;
+  }
+
+  .folder-sprite-size {
+    font-size: 10px;
+    color: #666;
+    margin-top: 2px;
+  }
 </style>
 </head>
 <body>
+  <!-- 批量导入文件夹精灵弹窗 -->
+  <div id="folderSpriteModal" class="tileset-modal-overlay hidden">
+    <div class="tileset-modal" style="width: 800px;">
+      <div class="tileset-modal-header">
+        <h2>导入精灵</h2>
+        <button class="btn" id="btnFolderSpriteModalClose">✕</button>
+      </div>
+      <div class="tileset-modal-body">
+        <!-- 导入模式切换 -->
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <button class="btn active" id="btnFolderModePath" style="flex:1;">📁 服务器路径模式</button>
+          <button class="btn" id="btnFolderModeLocal" style="flex:1;">💻 本地文件夹模式</button>
+        </div>
+        
+        <!-- 服务器路径模式 -->
+        <div id="folderPathMode">
+          <div style="display:flex; gap:8px; align-items:flex-end; margin-bottom:8px;">
+            <div style="flex:1;">
+              <label style="display:block;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">文件夹路径</label>
+              <input type="text" class="prop-input" id="folderSpritePath" placeholder="/games/dungeon/assets/Sprites" style="width:100%;">
+            </div>
+            <button class="btn" id="btnFolderSpriteLoadPath">扫描</button>
+          </div>
+          <div style="font-size:11px;color:#666;margin-bottom:8px;">
+            示例: /games/dungeon/assets/kenney_scribble-dungeons/Sprites
+          </div>
+        </div>
+        
+        <!-- 本地文件夹模式（隐藏） -->
+        <div id="folderLocalMode" class="hidden">
+          <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+            <button class="btn" id="btnFolderSpriteSelectFolder">选择本地文件夹...</button>
+            <span id="folderSpriteLocalPath" style="font-size:12px;color:#888;">未选择文件夹</span>
+          </div>
+          <div style="font-size:11px;color:#666;margin-bottom:8px;">
+            选择包含 PNG 图片的文件夹，将自动扫描所有图片
+          </div>
+        </div>
+
+        <!-- 基础路径设置（仅本地模式显示） -->
+        <div id="folderBasePathSection" class="hidden" style="margin-bottom:12px;">
+          <label style="display:block;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">导出时的基础路径</label>
+          <input type="text" class="prop-input" id="folderSpriteBasePath" placeholder="/games/dungeon/assets/Sprites" style="width:100%;">
+          <div style="font-size:11px;color:#666;margin-top:4px;">
+            图片在 tileset 中保存的路径前缀
+          </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+          <button class="btn" id="btnFolderSpriteSelectAll">全选</button>
+          <button class="btn" id="btnFolderSpriteSelectNone">取消选择</button>
+          <div class="tileset-selection-info" id="folderSpriteSelectionInfo" style="margin-left:auto;">已选 0 个</div>
+        </div>
+
+        <!-- 精灵预览区域 -->
+        <div class="tileset-preview-area" id="folderSpritePreviewArea" style="max-height: 380px;">
+          <div id="folderSpriteGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(80px, 1fr)); gap:8px; width:100%;">
+            <div style="color:#666; font-size:13px; text-align:center; padding:40px;">
+              请输入文件夹路径或选择本地文件夹
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tileset-modal-footer">
+        <button class="btn" id="btnFolderSpriteCancel">取消</button>
+        <button class="btn btn-primary" id="btnFolderSpriteConfirm">导入选中精灵</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 图集导入弹窗 -->
   <div id="tilesetModal" class="tileset-modal-overlay hidden">
     <div class="tileset-modal">
@@ -573,12 +703,19 @@
 
   <!-- 主界面 -->
   <div class="toolbar">
+    <!-- 图集操作组 -->
     <div class="toolbar-section">
+      <span style="font-size:11px;color:#666;margin-right:4px;">🖼 图集</span>
+      <button class="btn" id="btnImportTileset">导入图集</button>
+      <button class="btn" id="btnImportFolder">导入精灵</button>
+      <button class="btn" id="btnExportTileset">导出图集</button>
+    </div>
+    <!-- 地图操作组 -->
+    <div class="toolbar-section">
+      <span style="font-size:11px;color:#666;margin-right:4px;">🗺 地图</span>
       <button class="btn" id="btnNew">新建</button>
-      <button class="btn" id="btnImportTileset">图集</button>
-      <button class="btn" id="btnImportConfig">导入配置</button>
-      <button class="btn" id="btnImport">导入地图</button>
-      <button class="btn" id="btnExport">导出</button>
+      <button class="btn" id="btnImport">导入</button>
+      <button class="btn btn-primary" id="btnExport">导出</button>
     </div>
     <div class="toolbar-section">
       <button class="btn icon-btn" id="btnUndo" title="撤销 (Ctrl+Z)">
@@ -669,11 +806,6 @@
           <div class="prop-label">选中瓦片</div>
           <div class="prop-value" id="selectedTile">VOID</div>
         </div>
-      </div>
-
-      <div class="export-btns">
-        <button class="btn btn-primary" id="btnExportJson" title="导出为 .json 文件，可自定义名称">📋 导出 JSON</button>
-        <button class="btn" id="btnExportTileset" title="导出当前 tileset 配置为 tilesets.json">🖼 导出 Tileset</button>
       </div>
     </div>
   </div>

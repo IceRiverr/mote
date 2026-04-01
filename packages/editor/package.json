@@ -18,6 +18,8 @@
     "preact": "^10.29.0"
   },
   "devDependencies": {
+    "@preact/preset-vite": "^2.10.5",
+    "@testing-library/preact": "^3.2.4",
     "@vitest/coverage-v8": "^3.0.0",
     "happy-dom": "^17.0.0",
     "typescript": "^6.0.2",

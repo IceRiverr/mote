@@ -1,99 +1,101 @@
-# Editor 测试套件
+# Mote Editor Tests
 
-这个目录包含 mote Editor 的自动化测试。
+所有测试文件统一存放在此目录。
 
-## 测试结构
+## 目录结构
 
 ```
 src/__tests__/
-├── Command.test.ts         # CommandHistory Undo/Redo 测试
-├── TileCommands.test.ts    # PaintTilesCommand, ResizeMapCommand 测试
-├── MapData.test.ts         # 数据类型和工具函数测试
-├── BrushTool.test.ts       # 画笔工具测试
-├── EraserTool.test.ts      # 橡皮工具测试
-└── RectTool.test.ts        # 矩形工具测试
+├── README.md                      # 本文件
+│
+├── # 核心模块测试 (116 tests)
+├── CommandHistory.test.ts         # Undo/Redo 管理 (14)
+├── EditorBridge.test.ts           # 引擎桥接接口 (35)
+├── ProjectManager.test.ts         # 文件系统管理 (33)
+├── SelectionManager.test.ts       # 选中状态管理 (22)
+├── useEditor.test.tsx             # React Hooks (12)
+├── SetTileCommand.test.ts         # Tile 命令 (14)
+├── BrushToolNew.test.ts           # Tilemap 工具 (16)
+│
+├── # UI 组件测试 (37 tests)
+├── EditorLayout.test.tsx          # 主布局 (7)
+├── SceneTreePanel.test.tsx        # 实体树面板 (7)
+├── InspectorPanel.test.tsx        # 属性面板 (6)
+├── ViewportPanel.test.tsx         # 视口面板 (6)
+├── BottomPanel.test.tsx           # 底部面板 (4)
+│
+└── # (已移除旧的工具测试)
+```
+
+## 测试规范
+
+### 文件命名
+
+- 单元测试: `{ModuleName}.test.ts`
+- 组件测试: `{ComponentName}.test.tsx`
+
+### 导入路径
+
+测试文件使用相对于 `src/` 的导入路径：
+
+```typescript
+// 正确 - 从 src/ 开始
+import { EditorLayout } from '../ui/components/EditorLayout.js';
+import { useEditor } from '../hooks/useEditor.js';
+import { BrushTool } from '../tools/BrushToolNew.js';
+
+// 错误 - 不要使用相对路径回到原模块位置
+import { EditorLayout } from '../EditorLayout.js';
+```
+
+### 测试结构
+
+```typescript
+import { describe, it, expect } from 'vitest';
+
+describe('ModuleName', () => {
+  describe('功能分组', () => {
+    it('应该正确描述测试行为', () => {
+      // Arrange
+      const input = ...;
+      
+      // Act
+      const result = functionUnderTest(input);
+      
+      // Assert
+      expect(result).toBe(expected);
+    });
+  });
+});
 ```
 
 ## 运行测试
 
 ```bash
-# 在项目根目录
-npm test              # 运行所有 editor 测试
-npm run test:watch    # 监听模式（开发时使用）
-npm run test:coverage # 生成覆盖率报告
+# 运行所有测试
+npm test
 
-# 在 editor 包目录
-cd packages/editor
-npm test              # 运行测试
-npm run test:watch    # 监听模式
+# 监视模式
+npm run test:watch
+
+# 覆盖率报告
+npm run test:coverage
+
+# 运行特定测试文件
+npm test -- SetTileCommand
+npm test -- BrushToolNew
 ```
 
-## 测试覆盖范围
+## 当前测试统计
 
-### Command.test.ts (15 tests)
-- `CommandHistory.execute()` - 命令执行和历史管理
-- `CommandHistory.undo()` - 撤销操作
-- `CommandHistory.redo()` - 重做操作
-- `CommandHistory.clear()` - 清空历史
-- 边界条件：空历史、最大历史限制、重做历史截断
+- **总测试数**: 176
+- **测试文件数**: 12
+- **核心模块**: 116
+- **UI 组件**: 37
 
-### TileCommands.test.ts (8 tests)
-- `PaintTilesCommand` - 单/多瓦片绘制、撤销恢复、命令名称
-- `ResizeMapCommand` - 地图尺寸调整
+### Phase 3 测试
 
-### MapData.test.ts (16 tests)
-- `MapData` 结构验证
-- `TileDef` 属性验证
-- `GameConfig` 结构验证
-- 坐标转换工具函数
-- 边界检查
-
-### BrushTool.test.ts (13 tests)
-- 工具属性验证
-- 鼠标事件处理（down/move/up）
-- 拖拽绘制
-- 命令提交
-- 边界条件
-
-### EraserTool.test.ts (11 tests)
-- 擦除功能
-- VOID 瓦片处理
-- 命令记录
-- 复杂场景
-
-### RectTool.test.ts (14 tests)
-- 矩形预览
-- 正/反向拖拽
-- 矩形填充
-- 预览清除
-
-## 添加新测试
-
-创建新的测试文件：`src/__tests__/YourFeature.test.ts`
-
-```typescript
-import { describe, it, expect, beforeEach } from 'vitest';
-import { YourClass } from '../YourClass.js';
-
-describe('YourClass', () => {
-  it('应该...', () => {
-    // 测试代码
-  });
-});
-```
-
-## Mock 策略
-
-由于 Editor 依赖 DOM，测试中使用模拟对象：
-
-```typescript
-function createMockEditor(): MapEditor {
-  const tiles = new Map<string, number>();
-  return {
-    getTile: (x, y) => tiles.get(`${x},${y}`) ?? 0,
-    setTile: (x, y, id) => tiles.set(`${x},${y}`, id),
-    getSelectedTile: () => 1,
-    executeCommand: (cmd) => { /* ... */ },
-  } as unknown as MapEditor;
-}
-```
+| 测试文件 | 测试数 | 说明 |
+|---------|--------|------|
+| SetTileCommand.test.ts | 14 | Tile 设置/批量/清空/填充命令 |
+| BrushToolNew.test.ts | 16 | 画笔/橡皮/矩形工具 (新架构) |

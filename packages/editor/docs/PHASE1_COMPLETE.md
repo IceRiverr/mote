@@ -2,18 +2,18 @@
 
 ## 完成情况
 
-✅ **所有核心模块已完成并通过测试** (193 个测试通过)
+✅ **所有核心模块已完成并通过测试** (223 个测试通过)
 
 ## 新增模块
 
 ### 核心模块 (`src/core/`)
 
-| 模块 | 描述 | 测试数 |
-|------|------|--------|
-| `CommandHistory` | Undo/Redo 管理器 | 14 |
-| `SelectionManager` | 实体选中状态管理 (Signal 响应式) | 22 |
-| `EditorBridge` | 编辑器与引擎的桥接接口 + Mock 实现 | 35 |
-| `ProjectManager` | 文件系统管理 (File System Access API) | 33 |
+| 模块 | 描述 | 测试文件 | 测试数 |
+|------|------|----------|--------|
+| `CommandHistory` | Undo/Redo 管理器 | `__tests__/CommandHistory.test.ts` | 14 |
+| `SelectionManager` | 实体选中状态管理 (Signal 响应式) | `__tests__/SelectionManager.test.ts` | 22 |
+| `EditorBridge` | 编辑器与引擎的桥接接口 + Mock 实现 | `__tests__/EditorBridge.test.ts` | 35 |
+| `ProjectManager` | 文件系统管理 (File System Access API) | `__tests__/ProjectManager.test.ts` | 33 |
 
 ### 类型定义 (`src/types/`)
 
@@ -26,13 +26,26 @@
 
 - `EditorContext.ts` - Preact Context 定义
 - `useEditor.ts` - 核心 Hooks (useEditor, useSelection, useCommandHistory, usePlayState)
-- Hooks 测试: 12 个
+- Hooks 测试: `__tests__/useEditor.test.tsx` (12 个)
 
 ### 配置文件
 
 - `vite.config.ts` - Vite + Preact 配置
 - `tsconfig.json` - TypeScript + Preact JSX 配置
 - `package.json` - 依赖更新 (preact, @preact/signals, idb, @preact/preset-vite)
+
+## 测试目录结构
+
+所有测试统一存放在 `src/__tests__/` 目录下：
+
+```
+src/__tests__/
+├── CommandHistory.test.ts      (14 tests)
+├── EditorBridge.test.ts        (35 tests)
+├── ProjectManager.test.ts      (33 tests)
+├── SelectionManager.test.ts    (22 tests)
+└── useEditor.test.tsx          (12 tests)
+```
 
 ## 依赖安装
 
@@ -44,18 +57,26 @@ npm install -D @preact/preset-vite @testing-library/preact
 ## 测试统计
 
 ```
-Test Files: 11 passed
-Tests:      193 passed
+Test Files: 16 passed
+Tests:      223 passed
 ```
 
 ### 测试文件列表
 
-- `src/core/__tests__/CommandHistory.test.ts` - Undo/Redo 功能测试
-- `src/core/__tests__/SelectionManager.test.ts` - 选中管理测试
-- `src/core/__tests__/EditorBridge.test.ts` - 桥接接口测试
-- `src/core/__tests__/ProjectManager.test.ts` - 文件系统管理测试
-- `src/hooks/__tests__/useEditor.test.tsx` - React Hooks 测试
-- 原有测试: MapData, TileCommands, Command, BrushTool, EraserTool, RectTool
+**核心模块测试** (116 tests):
+- `__tests__/CommandHistory.test.ts` - Undo/Redo 功能测试
+- `__tests__/SelectionManager.test.ts` - 选中管理测试
+- `__tests__/EditorBridge.test.ts` - 桥接接口测试
+- `__tests__/ProjectManager.test.ts` - 文件系统管理测试
+- `__tests__/useEditor.test.tsx` - React Hooks 测试
+
+**遗留工具测试** (77 tests):
+- `__tests__/MapData.test.ts`
+- `__tests__/TileCommands.test.ts`
+- `__tests__/Command.test.ts`
+- `__tests__/BrushTool.test.ts`
+- `__tests__/EraserTool.test.ts`
+- `__tests__/RectTool.test.ts`
 
 ## 关键特性
 

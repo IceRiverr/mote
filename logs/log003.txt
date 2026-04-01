@@ -1,0 +1,56 @@
+PS D:\dev\mote\packages\editor> npm run dev
+
+> @mote/editor@0.1.0 dev
+> vite
+
+
+  VITE v8.0.3  ready in 208 ms
+
+  ➜  Local:   http://localhost:3000/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+23:05:32 [vite] (client) Pre-transform error: Transform failed with 1 error:
+
+[PARSE_ERROR] Error: Expected `...` but found `Identifier`
+     ╭─[ src/main.tsx:510:12 ]
+     │
+ 510 │           {renderFloatingPanel('hierarchy', 'Hierarchy',
+     │            ─────────┬─────────  
+     │                     ╰─────────── `...` expected
+─────╯
+
+  Plugin: vite:oxc
+  File: D:/dev/mote/packages/editor/src/main.tsx
+23:05:32 [vite] (client) Pre-transform error: Transform failed with 1 error:
+
+[PARSE_ERROR] Error: Expected `...` but found `Identifier`
+     ╭─[ src/main.tsx:510:12 ]
+     │
+ 510 │           {renderFloatingPanel('hierarchy', 'Hierarchy',
+     │            ─────────┬─────────
+     │                     ╰─────────── `...` expected
+─────╯
+
+  Plugin: vite:oxc
+  File: D:/dev/mote/packages/editor/src/main.tsx (x2)
+23:05:32 [vite] Internal server error: Transform failed with 1 error:
+
+[PARSE_ERROR] Error: Expected `...` but found `Identifier`
+     ╭─[ src/main.tsx:510:12 ]
+     │
+ 510 │           {renderFloatingPanel('hierarchy', 'Hierarchy',
+     │            ─────────┬─────────
+     │                     ╰─────────── `...` expected
+─────╯
+
+  Plugin: vite:oxc
+  File: D:/dev/mote/packages/editor/src/main.tsx
+      at transformWithOxc (file:///D:/dev/mote/node_modules/vite/dist/node/chunks/node.js:3720:19)
+      at TransformPluginContext.transform (file:///D:/dev/mote/node_modules/vite/dist/node/chunks/node.js:3788:26)
+      at EnvironmentPluginContainer.transform (file:///D:/dev/mote/node_modules/vite/dist/node/chunks/node.js:30048:51)
+      at async loadAndTransform (file:///D:/dev/mote/node_modules/vite/dist/node/chunks/node.js:24177:26)
+      at async viteTransformMiddleware (file:///D:/dev/mote/node_modules/vite/dist/node/chunks/node.js:24986:20)
+
+
+
+

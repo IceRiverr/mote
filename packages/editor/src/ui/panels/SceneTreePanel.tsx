@@ -84,18 +84,31 @@ function TreeNode({ entity, depth, isSelected, isExpanded, onSelect, onToggleExp
 }
 
 interface SceneTreePanelProps {
-  /** 顶部工具栏内容 */
+  /** 面板标题 */
+  title?: string;
+  /** 是否浮动模式（不显示标题栏） */
+  isFloating?: boolean;
+  /** 顶部工具栏内容（仅在 docked 模式下使用） */
   header?: ComponentChildren;
   /** 实体过滤器 */
   filter?: string;
+  /** 点击浮动按钮 */
+  onFloat?: () => void;
 }
 
 /**
  * SceneTreePanel - 场景树面板
  * 
  * 显示场景中的所有实体，支持层级展开/折叠、选中操作。
+ * 支持浮动和停靠两种模式。
  */
-export function SceneTreePanel({ header, filter }: SceneTreePanelProps) {
+export function SceneTreePanel({ 
+  title = 'Hierarchy',
+  isFloating = false,
+  header, 
+  filter,
+  onFloat 
+}: SceneTreePanelProps) {
   const { bridge, selection } = useEditor();
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
@@ -172,6 +185,22 @@ export function SceneTreePanel({ header, filter }: SceneTreePanelProps) {
     return result;
   };
 
+  // 浮动模式：只渲染内容，不渲染标题栏
+  if (isFloating) {
+    return (
+      <div style={floatingStyles.container}>
+        {entities.length === 0 ? (
+          <div style={floatingStyles.empty}>
+            No entities in scene
+          </div>
+        ) : (
+          renderTree(rootEntities, 0)
+        )}
+      </div>
+    );
+  }
+
+  // 停靠模式：渲染标题栏和内容
   return (
     <div class="scene-tree-panel" style={panelStyles.container}>
       {/* Header */}
@@ -179,11 +208,30 @@ export function SceneTreePanel({ header, filter }: SceneTreePanelProps) {
         {header || (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontWeight: 600, fontSize: '12px', textTransform: 'uppercase' }}>
-              Hierarchy
+              {title}
             </span>
-            <span style={{ fontSize: '11px', opacity: 0.6 }}>
-              {entities.length} entities
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', opacity: 0.6 }}>
+                {entities.length} entities
+              </span>
+              {onFloat && (
+                <button
+                  onClick={onFloat}
+                  style={{
+                    padding: '2px 6px',
+                    backgroundColor: 'transparent',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--color-text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                  }}
+                  title="Float"
+                >
+                  ⧉
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -217,6 +265,20 @@ const panelStyles: Record<string, h.JSX.CSSProperties> = {
   },
   tree: {
     flex: 1,
+    overflow: 'auto',
+    padding: '4px 0',
+  },
+  empty: {
+    padding: '20px',
+    textAlign: 'center',
+    color: 'var(--color-text-muted)',
+    fontSize: '12px',
+  },
+};
+
+const floatingStyles: Record<string, h.JSX.CSSProperties> = {
+  container: {
+    height: '100%',
     overflow: 'auto',
     padding: '4px 0',
   },

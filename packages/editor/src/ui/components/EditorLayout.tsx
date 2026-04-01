@@ -116,14 +116,13 @@ export function EditorLayout({
     document.addEventListener('mouseup', handleMouseUp);
     
     // 拖拽时禁用选择
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = isDragging === 'bottom' ? 'ns-resize' : 'ew-resize';
+    // 添加全局 class 用于 cursor 样式
+    document.body.classList.add(isDragging === 'bottom' ? 'resizing-vertical' : 'resizing-horizontal');
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
+      document.body.classList.remove('resizing-horizontal', 'resizing-vertical');
     };
   }, [isDragging]);
 
@@ -147,11 +146,9 @@ export function EditorLayout({
         {/* Left Resizer */}
         <div
           class="mote-layout__resizer mote-layout__resizer--vertical"
-          style={{
-            ...layoutStyles.resizerVertical,
-            cursor: isDragging === 'left' ? 'ew-resize' : undefined,
-          }}
+          style={layoutStyles.resizerVertical}
           onMouseDown={handleLeftResizeStart}
+          title="Drag to resize"
         />
 
         {/* Center Viewport */}
@@ -162,11 +159,9 @@ export function EditorLayout({
         {/* Right Resizer */}
         <div
           class="mote-layout__resizer mote-layout__resizer--vertical"
-          style={{
-            ...layoutStyles.resizerVertical,
-            cursor: isDragging === 'right' ? 'ew-resize' : undefined,
-          }}
+          style={layoutStyles.resizerVertical}
           onMouseDown={handleRightResizeStart}
+          title="Drag to resize"
         />
 
         {/* Right Panel */}
@@ -182,11 +177,9 @@ export function EditorLayout({
       {isBottomPanelOpen && (
         <div
           class="mote-layout__resizer mote-layout__resizer--horizontal"
-          style={{
-            ...layoutStyles.resizerHorizontal,
-            cursor: isDragging === 'bottom' ? 'ns-resize' : undefined,
-          }}
+          style={layoutStyles.resizerHorizontal}
           onMouseDown={handleBottomResizeStart}
+          title="Drag to resize"
         />
       )}
 
@@ -260,17 +253,25 @@ const layoutStyles: Record<string, h.JSX.CSSProperties> = {
     flexDirection: 'column',
   },
   resizerVertical: {
-    width: '4px',
-    backgroundColor: 'transparent',
+    width: '6px',
+    backgroundColor: 'var(--color-bg-tertiary)',
     cursor: 'ew-resize',
-    transition: 'background-color var(--transition-fast)',
-    zIndex: 10,
+    transition: 'all var(--transition-fast)',
+    zIndex: 100,
+    position: 'relative' as const,
+    borderLeft: '1px solid var(--color-border)',
+    borderRight: '1px solid var(--color-border)',
+    boxSizing: 'border-box' as const,
   },
   resizerHorizontal: {
-    height: '4px',
-    backgroundColor: 'transparent',
+    height: '6px',
+    backgroundColor: 'var(--color-bg-tertiary)',
     cursor: 'ns-resize',
-    transition: 'background-color var(--transition-fast)',
-    zIndex: 10,
+    transition: 'all var(--transition-fast)',
+    zIndex: 100,
+    position: 'relative' as const,
+    borderTop: '1px solid var(--color-border)',
+    borderBottom: '1px solid var(--color-border)',
+    boxSizing: 'border-box' as const,
   },
 };

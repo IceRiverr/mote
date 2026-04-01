@@ -126,3 +126,100 @@
   background-color: var(--color-accent);
   color: var(--color-bg-primary);
 }
+
+/* Resizer Styles - Blender-like */
+.mote-layout__resizer {
+  position: relative;
+}
+
+.mote-layout__resizer::before {
+  content: '';
+  position: absolute;
+  background-color: var(--color-border);
+  transition: background-color var(--transition-fast);
+}
+
+/* Vertical Resizer - dots pattern */
+.mote-layout__resizer--vertical::before {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 32px;
+  border-radius: 1px;
+}
+
+.mote-layout__resizer--vertical::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 16px;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--color-border-hover) 0px,
+    var(--color-border-hover) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+  opacity: 0.5;
+}
+
+/* Horizontal Resizer - dots pattern */
+.mote-layout__resizer--horizontal::before {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.mote-layout__resizer--horizontal::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 2px;
+  background: repeating-linear-gradient(
+    to right,
+    var(--color-border-hover) 0px,
+    var(--color-border-hover) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+  opacity: 0.5;
+}
+
+/* Resizer Hover States */
+.mote-layout__resizer:hover {
+  background-color: var(--color-accent) !important;
+}
+
+.mote-layout__resizer:hover::before {
+  background-color: var(--color-accent-hover);
+}
+
+.mote-layout__resizer:hover::after {
+  opacity: 1;
+}
+
+/* Resizer Active States */
+.mote-layout__resizer:active {
+  background-color: var(--color-accent-active) !important;
+}
+
+/* Global cursor during resize */
+body.resizing-horizontal {
+  cursor: ew-resize !important;
+  user-select: none;
+}
+
+body.resizing-vertical {
+  cursor: ns-resize !important;
+  user-select: none;
+}

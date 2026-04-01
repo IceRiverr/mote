@@ -1,4 +1,5 @@
 import { h, type ComponentChildren } from 'preact';
+import { useState } from 'preact/hooks';
 import { useEditor } from '../../hooks/useEditor.js';
 
 interface FieldEditorProps {
@@ -157,92 +158,116 @@ function ComponentEditor({ entityId, componentType, data }: ComponentEditorProps
   );
 }
 
-// Import useState at the top of the file
-import { useState } from 'preact/hooks';
-
 interface InspectorPanelProps {
-  /** 顶部工具栏内容 */
+  /** 面板标题 */
+  title?: string;
+  /** 是否浮动模式（不显示标题栏） */
+  isFloating?: boolean;
+  /** 顶部工具栏内容（仅在 docked 模式下使用） */
   header?: ComponentChildren;
+  /** 点击浮动按钮 */
+  onFloat?: () => void;
 }
 
 /**
  * InspectorPanel - 属性面板
  *
  * 显示和编辑选中实体的组件属性。
+ * 支持浮动和停靠两种模式。
  */
-export function InspectorPanel({ header }: InspectorPanelProps) {
+export function InspectorPanel({ title = 'Inspector', isFloating = false, header, onFloat }: InspectorPanelProps) {
   const { bridge, selection } = useEditor();
   const primaryId = selection.primary;
 
-  if (primaryId === null) {
-    return (
-      <div style={panelStyles.container}>
-        <div style={panelStyles.header}>
-          {header || (
-            <span style={{ fontWeight: 600, fontSize: '12px', textTransform: 'uppercase' }}>
-              Inspector
-            </span>
-          )}
-        </div>
-        <div style={panelStyles.empty}>
+  // 渲染内容
+  const renderContent = () => {
+    if (primaryId === null) {
+      return (
+        <div style={floatingStyles.empty}>
           Select an entity to edit
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  const entity = bridge.getEntities().find((e) => e.id === primaryId);
-  const components = bridge.getComponents(primaryId);
+    const entity = bridge.getEntities().find((e) => e.id === primaryId);
+    const components = bridge.getComponents(primaryId);
 
-  if (!entity) {
+    if (!entity) {
+      return <div style={floatingStyles.empty}>Entity not found</div>;
+    }
+
+    if (Object.entries(components).length === 0) {
+      return <div style={floatingStyles.empty}>No components</div>;
+    }
+
+    return Object.entries(components).map(([type, data]) => (
+      <ComponentEditor
+        key={type}
+        entityId={primaryId}
+        componentType={type}
+        data={data as Record<string, unknown>}
+      />
+    ));
+  };
+
+  // 浮动模式：只渲染内容
+  if (isFloating) {
     return (
-      <div style={panelStyles.container}>
-        <div style={panelStyles.header}>
-          <span style={{ fontWeight: 600, fontSize: '12px', textTransform: 'uppercase' }}>
-            Inspector
-          </span>
-        </div>
-        <div style={panelStyles.empty}>Entity not found</div>
+      <div style={floatingStyles.container}>
+        {renderContent()}
       </div>
     );
   }
+
+  // 停靠模式
+  const entity = primaryId !== null ? bridge.getEntities().find((e) => e.id === primaryId) : null;
 
   return (
     <div style={panelStyles.container}>
       {/* Header */}
       <div style={panelStyles.header}>
         {header || (
-          <div>
-            <span style={{ fontWeight: 600, fontSize: '12px', textTransform: 'uppercase' }}>
-              Inspector
-            </span>
-            <span
-              style={{
-                marginLeft: '8px',
-                fontSize: '11px',
-                color: 'var(--color-text-muted)',
-              }}
-            >
-              {entity.name} (ID: {entity.id})
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <span style={{ fontWeight: 600, fontSize: '12px', textTransform: 'uppercase' }}>
+                {title}
+              </span>
+              {entity && (
+                <span
+                  style={{
+                    marginLeft: '8px',
+                    fontSize: '11px',
+                    color: 'var(--color-text-muted)',
+                  }}
+                >
+                  {entity.name} (ID: {entity.id})
+                </span>
+              )}
+            </div>
+            {onFloat && (
+              <button
+                onClick={onFloat}
+                style={{
+                  padding: '2px 6px',
+                  backgroundColor: 'transparent',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--color-text-secondary)',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                }}
+                title="Float"
+              >
+                ⧉
+              </button>
+            )}
           </div>
         )}
       </div>
 
       {/* Components */}
       <div style={panelStyles.content}>
-        {Object.entries(components).length === 0 ? (
-          <div style={panelStyles.empty}>No components</div>
-        ) : (
-          Object.entries(components).map(([type, data]) => (
-            <ComponentEditor
-              key={type}
-              entityId={primaryId}
-              componentType={type}
-              data={data as Record<string, unknown>}
-            />
-          ))
-        )}
+        {renderContent()}
       </div>
     </div>
   );
@@ -263,6 +288,20 @@ const panelStyles: Record<string, h.JSX.CSSProperties> = {
   },
   content: {
     flex: 1,
+    overflow: 'auto',
+    padding: '12px',
+  },
+  empty: {
+    padding: '20px',
+    textAlign: 'center',
+    color: 'var(--color-text-muted)',
+    fontSize: '12px',
+  },
+};
+
+const floatingStyles: Record<string, h.JSX.CSSProperties> = {
+  container: {
+    height: '100%',
     overflow: 'auto',
     padding: '12px',
   },

@@ -7,16 +7,16 @@ import { RectTool } from '../../tools/RectTool.js';
 import type { TilemapTool, TilePreview } from '../../tools/TilemapTool.js';
 import type { TilesetRef } from '../../types/editor.js';
 
-interface TilePaletteProps {
+interface TileSetsProps {
   tilesets: TilesetRef[];
   selectedTileId: number;
   onSelectTile: (tileId: number) => void;
 }
 
 /**
- * Tile 调色板 - 显示可选择的 tiles
+ * Tile Sets - 显示可选择的 tiles
  */
-function TilePalette({ tilesets, selectedTileId, onSelectTile }: TilePaletteProps) {
+function TileSets({ tilesets, selectedTileId, onSelectTile }: TileSetsProps) {
   // 计算 firstgid
   let firstGid = 1;
   const tilesetInfos: Array<{ tileset: TilesetRef; firstGid: number }> = [];
@@ -28,7 +28,7 @@ function TilePalette({ tilesets, selectedTileId, onSelectTile }: TilePaletteProp
 
   return (
     <div style={paletteStyles.container}>
-      <div style={paletteStyles.header}>Tile Palette</div>
+      <div style={paletteStyles.header}>Tile Sets</div>
       <div style={paletteStyles.grid}>
         {tilesetInfos.map(({ tileset, firstGid }) => (
           <div key={tileset.image} style={paletteStyles.tilesetGroup}>
@@ -61,6 +61,8 @@ function TilePalette({ tilesets, selectedTileId, onSelectTile }: TilePaletteProp
 interface TilemapEditorProps {
   /** 头部内容 */
   header?: ComponentChildren;
+  /** 简化模式 - 只显示 Tile Sets，不显示画布 */
+  compact?: boolean;
 }
 
 /**
@@ -72,7 +74,7 @@ interface TilemapEditorProps {
  * - 图层选择
  * - 画布预览
  */
-export function TilemapEditor({ header }: TilemapEditorProps) {
+export function TilemapEditor({ header, compact = false }: TilemapEditorProps) {
   const { bridge, history } = useEditor();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedTool, setSelectedTool] = useState<'brush' | 'eraser' | 'rect'>('brush');
@@ -208,69 +210,73 @@ export function TilemapEditor({ header }: TilemapEditorProps) {
       {header && <div style={editorStyles.header}>{header}</div>}
 
       <div style={editorStyles.content}>
-        {/* Toolbar */}
-        <div style={editorStyles.toolbar}>
-          <div style={editorStyles.toolGroup}>
-            <button
-              style={{
-                ...editorStyles.toolBtn,
-                ...(selectedTool === 'brush' ? editorStyles.toolBtnActive : {}),
-              }}
-              onClick={() => setSelectedTool('brush')}
-              title="Brush (B)"
-            >
-              🖌️ Brush
-            </button>
-            <button
-              style={{
-                ...editorStyles.toolBtn,
-                ...(selectedTool === 'eraser' ? editorStyles.toolBtnActive : {}),
-              }}
-              onClick={() => setSelectedTool('eraser')}
-              title="Eraser (E)"
-            >
-              🧼 Eraser
-            </button>
-            <button
-              style={{
-                ...editorStyles.toolBtn,
-                ...(selectedTool === 'rect' ? editorStyles.toolBtnActive : {}),
-              }}
-              onClick={() => setSelectedTool('rect')}
-              title="Rectangle (R)"
-            >
-              ▭ Rect
-            </button>
-          </div>
+        {/* Toolbar - 只在非紧凑模式下显示 */}
+        {!compact && (
+          <div style={editorStyles.toolbar}>
+            <div style={editorStyles.toolGroup}>
+              <button
+                style={{
+                  ...editorStyles.toolBtn,
+                  ...(selectedTool === 'brush' ? editorStyles.toolBtnActive : {}),
+                }}
+                onClick={() => setSelectedTool('brush')}
+                title="Brush (B)"
+              >
+                🖌️ Brush
+              </button>
+              <button
+                style={{
+                  ...editorStyles.toolBtn,
+                  ...(selectedTool === 'eraser' ? editorStyles.toolBtnActive : {}),
+                }}
+                onClick={() => setSelectedTool('eraser')}
+                title="Eraser (E)"
+              >
+                🧼 Eraser
+              </button>
+              <button
+                style={{
+                  ...editorStyles.toolBtn,
+                  ...(selectedTool === 'rect' ? editorStyles.toolBtnActive : {}),
+                }}
+                onClick={() => setSelectedTool('rect')}
+                title="Rectangle (R)"
+              >
+                ▭ Rect
+              </button>
+            </div>
 
-          <div style={editorStyles.layerSelect}>
-            <span>Layer:</span>
-            <select
-              value={selectedLayer}
-              onChange={(e) => setSelectedLayer(parseInt((e.target as HTMLSelectElement).value))}
-              style={editorStyles.select}
-            >
-              {tilemap.layers.map((layer, idx) => (
-                <option key={layer.name} value={idx}>{layer.name}</option>
-              ))}
-            </select>
+            <div style={editorStyles.layerSelect}>
+              <span>Layer:</span>
+              <select
+                value={selectedLayer}
+                onChange={(e) => setSelectedLayer(parseInt((e.target as HTMLSelectElement).value))}
+                style={editorStyles.select}
+              >
+                {tilemap.layers.map((layer, idx) => (
+                  <option key={layer.name} value={idx}>{layer.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
+        )}
 
         <div style={editorStyles.main}>
-          {/* Canvas */}
-          <div style={editorStyles.canvasWrapper}>
-            <canvas
-              ref={canvasRef}
-              style={editorStyles.canvas}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-            />
-          </div>
+          {/* Canvas - 只在非紧凑模式下显示 */}
+          {!compact && (
+            <div style={editorStyles.canvasWrapper}>
+              <canvas
+                ref={canvasRef}
+                style={editorStyles.canvas}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+              />
+            </div>
+          )}
 
-          {/* Palette */}
-          <TilePalette
+          {/* Tile Sets */}
+          <TileSets
             tilesets={tilemap.tilesets}
             selectedTileId={selectedTileId}
             onSelectTile={setSelectedTileId}
@@ -370,8 +376,7 @@ const editorStyles: Record<string, h.JSX.CSSProperties> = {
 
 const paletteStyles: Record<string, h.JSX.CSSProperties> = {
   container: {
-    width: '200px',
-    borderLeft: '1px solid var(--color-border)',
+    flex: 1,
     backgroundColor: 'var(--color-bg-secondary)',
     display: 'flex',
     flexDirection: 'column',

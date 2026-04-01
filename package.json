@@ -16,7 +16,11 @@
     "deploy": "npm run build && node scripts/deploy.mjs",
     "deploy:full": "npm run build && scp -r dist/* root@8.210.175.90:/var/www/iceriver.cc/",
     "commit": "bash git-commit.sh",
-    "cz": "bash git-commit.sh"
+    "cz": "bash git-commit.sh",
+    "test": "npm run test --workspace=@mote/map-editor",
+    "test:watch": "npm run test:watch --workspace=@mote/map-editor",
+    "test:coverage": "npm run test:coverage --workspace=@mote/map-editor",
+    "test:all": "npm test --workspaces"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

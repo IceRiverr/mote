@@ -66,6 +66,8 @@ TSConfig 别名（使 `import React` 自动指向 Preact）：
 }
 ```
 
+并且开发每个功能后，都使用vitest 进行自动化测试。
+
 ### 2.2 面板布局
 
 ```

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { BrushTool } from '../tools/BrushToolNew.js';
+import { BrushTool } from '../tools/BrushTool.js';
 import { MockEditorBridge } from '../core/EditorBridge.js';
 import { CommandHistory } from '../core/CommandHistory.js';
 import type { TilemapData } from '../types/editor.js';
@@ -108,7 +108,7 @@ describe('EraserTool', () => {
   };
 
   beforeEach(async () => {
-    const { EraserTool } = await import('../tools/EraserToolNew.js');
+    const { EraserTool } = await import('../tools/EraserTool.js');
     bridge = new MockEditorBridge();
     bridge.setTilemapData(JSON.parse(JSON.stringify(testTilemap)));
     history = new CommandHistory();
@@ -167,7 +167,7 @@ describe('RectTool', () => {
   };
 
   beforeEach(async () => {
-    const { RectTool } = await import('../tools/RectToolNew.js');
+    const { RectTool } = await import('../tools/RectTool.js');
     bridge = new MockEditorBridge();
     bridge.setTilemapData(JSON.parse(JSON.stringify(testTilemap)));
     history = new CommandHistory();

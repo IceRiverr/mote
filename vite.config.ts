@@ -145,7 +145,7 @@ export default defineConfig({
         tinyTown:   resolve(__dirname, 'games/tiny-town/index.html'),
         dungeon:    resolve(__dirname, 'games/dungeon/index.html'),
         breakout:   resolve(__dirname, 'games/breakout/index.html'),
-        mapEditor:  resolve(__dirname, 'packages/map-editor/index.html'),
+        // editor:     resolve(__dirname, 'packages/editor/index.html'), // FIXME: 需要重写 Editor.ts 以适配新工具架构
       },
     },
   },

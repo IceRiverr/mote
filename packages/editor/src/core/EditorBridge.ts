@@ -263,7 +263,7 @@ export class MockEditorBridge implements EditorBridge {
     return { path } as T;
   }
 
-  async getAssetList(directory: string): Promise<AssetInfo[]> {
+  async getAssetList(_directory: string): Promise<AssetInfo[]> {
     return [];
   }
 

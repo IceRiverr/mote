@@ -1,70 +1,35 @@
-// Mote Map Editor - Main Entry
+// Mote Editor - New Architecture Entry Point
 
-import { MapEditor } from './Editor.js';
+import { MockEditorBridge, type EditorBridge } from './core/EditorBridge.js';
+import { CommandHistory } from './core/CommandHistory.js';
+import { SelectionManager } from './core/SelectionManager.js';
+import { ProjectManager } from './core/ProjectManager.js';
 
-const editor = new MapEditor();
+// Export core modules for external use
+export {
+  MockEditorBridge,
+  CommandHistory,
+  SelectionManager,
+  ProjectManager,
+};
 
-// 绑定工具按钮
-document.querySelectorAll('.tool-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const tool = btn.getAttribute('data-tool')!;
-    editor.setTool(tool);
+// Export UI components
+export * from './ui/index.js';
 
-    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+// Export hooks
+export * from './hooks/useEditor.js';
 
-    const toolNames: Record<string, string> = {
-      brush: '画笔',
-      eraser: '橡皮',
-      fill: '填充',
-      rect: '矩形',
-    };
-    document.getElementById('currentTool')!.textContent = toolNames[tool];
-  });
-});
+// Export types
+export type * from './types/editor.js';
 
-// 键盘快捷键
-document.addEventListener('keydown', (e) => {
-  if (e.target instanceof HTMLInputElement) return;
+// Export tools
+export * from './tools/TilemapTool.js';
+export * from './tools/BrushTool.js';
+export * from './tools/EraserTool.js';
+export * from './tools/RectTool.js';
 
-  switch (e.key.toLowerCase()) {
-    case 'b': document.querySelector('[data-tool="brush"]')?.dispatchEvent(new Event('click')); break;
-    case 'e': document.querySelector('[data-tool="eraser"]')?.dispatchEvent(new Event('click')); break;
-    case 'f': document.querySelector('[data-tool="fill"]')?.dispatchEvent(new Event('click')); break;
-    case 'r': document.querySelector('[data-tool="rect"]')?.dispatchEvent(new Event('click')); break;
-    case 'g': editor.toggleGrid(); break;
-    case 'z':
-      if (e.ctrlKey) { e.preventDefault(); editor.undo(); }
-      break;
-    case 'y':
-      if (e.ctrlKey) { e.preventDefault(); editor.redo(); }
-      break;
-  }
-});
+// Export commands
+export * from './commands/SetTileCommand.js';
 
-// 顶部工具栏
-document.getElementById('btnNew')!.addEventListener('click', () => {
-  if (confirm('确定要新建地图吗？当前未保存的更改将丢失。')) editor.newMap();
-});
-document.getElementById('btnImportTileset')!.addEventListener('click', () => editor.openTilesetImporter());
-document.getElementById('btnImportFolder')!.addEventListener('click', () => editor.openFolderSpriteImporter());
-document.getElementById('btnImport')!.addEventListener('click', () => editor.importMap());
-document.getElementById('btnExport')!.addEventListener('click', () => editor.export());
-
-// 右侧导出按钮
-document.getElementById('btnExportTileset')!.addEventListener('click', () => editor.exportTileset());
-
-// 导出对话框
-document.getElementById('confirmExport')!.addEventListener('click', () => editor.confirmExport());
-document.getElementById('cancelExport')!.addEventListener('click', () => editor.cancelExport());
-document.getElementById('exportNameInput')!.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') editor.confirmExport();
-  else if (e.key === 'Escape') editor.cancelExport();
-});
-
-// 网格 / 缩放
-document.getElementById('btnGrid')!.addEventListener('click', () => editor.toggleGrid());
-document.getElementById('btnZoomIn')!.addEventListener('click', () => editor.zoomIn());
-document.getElementById('btnZoomOut')!.addEventListener('click', () => editor.zoomOut());
-
-editor.init();
+// TODO: Initialize the new editor UI when ready
+console.log('[Mote Editor] New architecture loaded');

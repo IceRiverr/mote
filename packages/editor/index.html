@@ -1,832 +1,118 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mote Map Editor</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Mote - 2D Web Game Editor">
+  <title>Mote Editor</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🎮%3C/text%3E%3C/svg%3E">
   
-  body {
-    background: #0a0a0f;
-    color: #e0e0e0;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  /* 顶部工具栏 */
-  .toolbar {
-    height: 48px;
-    background: #111118;
-    border-bottom: 1px solid #1e1e2e;
-    display: flex;
-    align-items: center;
-    padding: 0 16px;
-    gap: 8px;
-  }
-
-  .toolbar-section {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding-right: 16px;
-    border-right: 1px solid #1e1e2e;
-    margin-right: 8px;
-  }
-
-  .toolbar-section:last-child {
-    border-right: none;
-    margin-left: auto;
-  }
-
-  .btn {
-    padding: 6px 12px;
-    background: #1a1a24;
-    border: 1px solid #2a2a3a;
-    border-radius: 4px;
-    color: #888;
-    cursor: pointer;
-    font-size: 13px;
-    transition: all 0.15s;
-  }
-
-  .btn:hover {
-    background: #252532;
-    border-color: #3a3a4a;
-    color: #ccc;
-  }
-
-  .btn.active {
-    background: #6bb8ff22;
-    border-color: #6bb8ff;
-    color: #6bb8ff;
-  }
-
-  .btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  /* 图标按钮样式 */
-  .icon-btn {
-    padding: 8px 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #888;
-    transition: all 0.2s;
-  }
-
-  .icon-btn:hover {
-    color: #6bb8ff;
-    background: #6bb8ff15;
-    border-color: #6bb8ff44;
-  }
-
-  .icon-btn:active {
-    transform: scale(0.95);
-  }
-
-  .icon-btn svg {
-    stroke: currentColor;
-  }
-
-  select {
-    padding: 6px 12px;
-    background: #1a1a24;
-    border: 1px solid #2a2a3a;
-    border-radius: 4px;
-    color: #ccc;
-    cursor: pointer;
-  }
-
-  /* 主内容区 */
-  .main {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-  }
-
-  /* 左侧面板 */
-  .sidebar-left {
-    width: 200px;
-    background: #111118;
-    border-right: 1px solid #1e1e2e;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .panel-title {
-    padding: 12px 16px;
-    font-size: 12px;
-    font-weight: 600;
-    color: #666;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border-bottom: 1px solid #1e1e2e;
-  }
-
-  .tools {
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .tool-btn {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    color: #888;
-    cursor: pointer;
-    font-size: 13px;
-    transition: all 0.15s;
-  }
-
-  .tool-btn:hover {
-    background: #1a1a24;
-    color: #ccc;
-  }
-
-  .tool-btn.active {
-    background: #6bb8ff15;
-    border-color: #6bb8ff44;
-    color: #6bb8ff;
-  }
-
-  .tool-icon {
-    width: 18px;
-    height: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-  }
-
-  .palette {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-  }
-
-  .tileset-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px;
-    padding: 4px;
-  }
-
-  .tileset-cell {
-    width: 40px;
-    height: 40px;
-    border: 2px solid transparent;
-    border-radius: 3px;
-    cursor: pointer;
-    overflow: hidden;
-    position: relative;
-    box-sizing: border-box;
-  }
-
-  .tileset-cell:hover {
-    border-color: #6bb8ff88;
-  }
-
-  .tileset-cell.active {
-    border-color: #6bb8ff;
-    box-shadow: 0 0 0 1px #6bb8ff44;
-  }
-
-  /* 画布区域 */
-  .canvas-wrapper {
-    flex: 1;
-    position: relative;
-    background: #0a0a0f;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    padding: 20px;
-  }
-
-  #canvas {
-    border-radius: 8px;
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-  }
-
-  .canvas-info {
-    position: absolute;
-    bottom: 16px;
-    left: 16px;
-    padding: 8px 12px;
-    background: rgba(0, 0, 0, 0.8);
-    border-radius: 6px;
-    font-size: 12px;
-    color: #666;
-    font-family: monospace;
-  }
-
-  /* 右侧面板 */
-  .sidebar-right {
-    width: 220px;
-    background: #111118;
-    border-left: 1px solid #1e1e2e;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .properties {
-    padding: 16px;
-  }
-
-  .prop-group {
-    margin-bottom: 20px;
-  }
-
-  .prop-label {
-    font-size: 12px;
-    color: #666;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .prop-value {
-    font-size: 14px;
-    color: #ccc;
-    font-family: monospace;
-  }
-
-  .prop-input {
-    width: 100%;
-    padding: 8px 12px;
-    background: #1a1a24;
-    border: 1px solid #2a2a3a;
-    border-radius: 4px;
-    color: #ccc;
-    font-size: 13px;
-  }
-
-  .prop-input:focus {
-    outline: none;
-    border-color: #6bb8ff;
-  }
-
-  .btn-primary {
-    background: #6bb8ff22;
-    border-color: #6bb8ff;
-    color: #6bb8ff;
-  }
-
-  .btn-primary:hover {
-    background: #6bb8ff33;
-  }
-
-  /* 底部状态栏 */
-  .statusbar {
-    height: 28px;
-    background: #0d0d12;
-    border-top: 1px solid #1e1e2e;
-    display: flex;
-    align-items: center;
-    padding: 0 16px;
-    font-size: 12px;
-    color: #555;
-    gap: 16px;
-  }
-
-  .status-sep {
-    color: #333;
-  }
-
-  /* 配置选择弹窗 */
-  .config-modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-
-  .config-panel {
-    background: #111118;
-    border: 1px solid #1e1e2e;
-    border-radius: 12px;
-    padding: 32px;
-    min-width: 320px;
-  }
-
-  .config-title {
-    font-size: 18px;
-    font-weight: 500;
-    color: #e0e0e0;
-    margin-bottom: 24px;
-    text-align: center;
-  }
-
-  .hidden {
-    display: none !important;
-  }
-
-  /* 图集导入弹窗 */
-  .tileset-modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.85);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-
-  .tileset-modal {
-    background: #111118;
-    border: 1px solid #2a2a3a;
-    border-radius: 12px;
-    width: 680px;
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .tileset-modal-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid #1e1e2e;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .tileset-modal-header h2 {
-    font-size: 15px;
-    font-weight: 500;
-    color: #e0e0e0;
-  }
-
-  .tileset-modal-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .tileset-modal-footer {
-    padding: 14px 20px;
-    border-top: 1px solid #1e1e2e;
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-  }
-
-  .tileset-params {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 12px;
-  }
-
-  .tileset-param label {
-    display: block;
-    font-size: 11px;
-    color: #666;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 6px;
-  }
-
-  .tileset-preview-area {
-    background: #0a0a0f;
-    border: 1px solid #1e1e2e;
-    border-radius: 6px;
-    overflow: auto;
-    min-height: 200px;
-    max-height: 340px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding: 12px;
-  }
-
-  #tilesetPreviewCanvas {
-    image-rendering: pixelated;
-    cursor: crosshair;
-  }
-
-  .tileset-selection-info {
-    font-size: 12px;
-    color: #666;
-    font-family: monospace;
-  }
-
-  /* Toast 通知样式 */
-  .toast {
-    position: fixed;
-    top: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 2000;
-    animation: toastSlideIn 0.3s ease;
-  }
-
-  .toast-content {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 14px 24px;
-    background: #1a3a1a;
-    border: 1px solid #4a9a4a;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(74, 154, 74, 0.3);
-  }
-
-  .toast-icon {
-    font-size: 18px;
-  }
-
-  .toast-message {
-    font-size: 14px;
-    color: #8fd48f;
-    font-weight: 500;
-  }
-
-  @keyframes toastSlideIn {
-    from {
-      opacity: 0;
-      transform: translateX(-50%) translateY(-20px);
+  <!-- Preconnect to external domains if needed -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  
+  <style>
+    /* Critical CSS - Load immediately */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-    to {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
     }
-  }
-
-  @keyframes toastFadeOut {
-    from {
-      opacity: 1;
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #1e1e2e;
+      color: #e0e0e0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
-    to {
-      opacity: 0;
+    
+    #app {
+      width: 100%;
+      height: 100%;
     }
-  }
-
-  .toast.hiding {
-    animation: toastFadeOut 0.3s ease forwards;
-  }
-
-  /* 文件夹精灵导入样式 */
-  .folder-sprite-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 8px;
-    background: #1a1a24;
-    border: 2px solid transparent;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .folder-sprite-item:hover {
-    background: #252532;
-    border-color: #3a3a4a;
-  }
-
-  .folder-sprite-item.selected {
-    background: #6bb8ff22;
-    border-color: #6bb8ff;
-  }
-
-  .folder-sprite-item.disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  .folder-sprite-preview {
-    width: 64px;
-    height: 64px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 6px;
-    background: #0a0a0f;
-    border-radius: 4px;
-  }
-
-  .folder-sprite-preview img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    image-rendering: pixelated;
-  }
-
-  .folder-sprite-name {
-    font-size: 11px;
-    color: #888;
-    text-align: center;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .folder-sprite-item.selected .folder-sprite-name {
-    color: #6bb8ff;
-  }
-
-  .folder-sprite-size {
-    font-size: 10px;
-    color: #666;
-    margin-top: 2px;
-  }
-</style>
+    
+    /* Loading state */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      gap: 16px;
+    }
+    
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid rgba(107, 184, 255, 0.2);
+      border-top-color: #6bb8ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    
+    .loading-text {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Error state */
+    .error {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      gap: 16px;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .error-icon {
+      font-size: 48px;
+    }
+    
+    .error-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e0e0e0;
+    }
+    
+    .error-message {
+      font-size: 14px;
+      color: #666;
+      max-width: 400px;
+    }
+  </style>
 </head>
 <body>
-  <!-- 批量导入文件夹精灵弹窗 -->
-  <div id="folderSpriteModal" class="tileset-modal-overlay hidden">
-    <div class="tileset-modal" style="width: 800px;">
-      <div class="tileset-modal-header">
-        <h2>导入精灵</h2>
-        <button class="btn" id="btnFolderSpriteModalClose">✕</button>
-      </div>
-      <div class="tileset-modal-body">
-        <!-- 导入模式切换 -->
-        <div style="display:flex; gap:8px; margin-bottom:8px;">
-          <button class="btn active" id="btnFolderModePath" style="flex:1;">📁 服务器路径模式</button>
-          <button class="btn" id="btnFolderModeLocal" style="flex:1;">💻 本地文件夹模式</button>
-        </div>
-        
-        <!-- 服务器路径模式 -->
-        <div id="folderPathMode">
-          <div style="display:flex; gap:8px; align-items:flex-end; margin-bottom:8px;">
-            <div style="flex:1;">
-              <label style="display:block;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">文件夹路径</label>
-              <input type="text" class="prop-input" id="folderSpritePath" placeholder="/games/dungeon/assets/Sprites 或 D:\\..." style="width:100%;">
-            </div>
-            <button class="btn" id="btnFolderSpriteLoadPath">扫描</button>
-          </div>
-          <div style="font-size:11px;color:#666;margin-bottom:8px;">
-            示例: /games/dungeon/assets/kenney_scribble-dungeons/Sprites
-          </div>
-          <div style="font-size:11px;color:#6bb8ff;margin-bottom:8px;">
-            💡 支持本地路径自动转换: D:\dev\mote\games\dungeon\assets\...
-          </div>
-        </div>
-        
-        <!-- 本地文件夹模式（隐藏） -->
-        <div id="folderLocalMode" class="hidden">
-          <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-            <button class="btn" id="btnFolderSpriteSelectFolder">选择本地文件夹...</button>
-            <span id="folderSpriteLocalPath" style="font-size:12px;color:#888;">未选择文件夹</span>
-          </div>
-          <div style="font-size:11px;color:#ff6b6b;margin-bottom:8px;font-weight:bold;">
-            ⚠️ 重要：请选择 Sprites 的父文件夹，不要直接选择 Sprites 文件夹！
-          </div>
-          <div style="font-size:11px;color:#666;margin-bottom:8px;">
-            例如：选择 .../kenney_scribble-dungeons/ 而不是 .../kenney_scribble-dungeons/Sprites/
-          </div>
-        </div>
-
-        <!-- 基础路径设置（仅本地模式显示） -->
-        <div id="folderBasePathSection" class="hidden" style="margin-bottom:12px;">
-          <label style="display:block;font-size:11px;color:#ff6b6b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">⚠️ 导出时的基础路径（必须正确填写）</label>
-          <input type="text" class="prop-input" id="folderSpriteBasePath" placeholder="/games/dungeon/assets/Sprites" style="width:100%;" onchange="this.style.borderColor='';">
-          <div style="font-size:11px;color:#ff6b6b;margin-top:4px;">
-            浏览器限制无法自动获取完整路径。请手动修改为正确路径，格式：/games/游戏名/.../Sprites
-          </div>
-          <div style="font-size:11px;color:#6bb8ff;margin-top:4px;">
-            💡 提示：使用【服务器路径模式】可自动推断正确路径
-          </div>
-        </div>
-
-        <!-- 操作按钮 -->
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
-          <button class="btn" id="btnFolderSpriteSelectAll">全选</button>
-          <button class="btn" id="btnFolderSpriteSelectNone">取消选择</button>
-          <div class="tileset-selection-info" id="folderSpriteSelectionInfo" style="margin-left:auto;">已选 0 个</div>
-        </div>
-
-        <!-- 精灵预览区域 -->
-        <div class="tileset-preview-area" id="folderSpritePreviewArea" style="max-height: 380px;">
-          <div id="folderSpriteGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(80px, 1fr)); gap:8px; width:100%;">
-            <div style="color:#666; font-size:13px; text-align:center; padding:40px;">
-              请输入文件夹路径或选择本地文件夹
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="tileset-modal-footer">
-        <button class="btn" id="btnFolderSpriteCancel">取消</button>
-        <button class="btn btn-primary" id="btnFolderSpriteConfirm">导入选中精灵</button>
-      </div>
+  <div id="app">
+    <!-- Loading state shown until Preact app mounts -->
+    <div class="loading">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Loading Mote Editor...</div>
     </div>
   </div>
-
-  <!-- 图集导入弹窗 -->
-  <div id="tilesetModal" class="tileset-modal-overlay hidden">
-    <div class="tileset-modal">
-      <div class="tileset-modal-header">
-        <h2>从图集创建 Tileset</h2>
-        <button class="btn" id="btnTilesetModalClose">✕</button>
-      </div>
-      <div class="tileset-modal-body">
-        <!-- 图片路径输入 -->
-        <div style="display:flex; gap:8px; align-items:flex-end;">
-          <div style="flex:1;">
-            <label style="display:block;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">图片路径</label>
-            <input type="text" class="prop-input" id="tilesetImagePath" placeholder="/games/tiny-town/assets/kenney_tiny-town_tilemap.png" style="width:100%;">
-          </div>
-          <button class="btn" id="btnTilesetLoadPath">加载</button>
-        </div>
-        <div class="tileset-params">
-          <div class="tileset-param">
-            <label>Tile 大小 (px)</label>
-            <input type="number" class="prop-input" id="tilesetTileSize" value="16" min="1" max="256">
-          </div>
-          <div class="tileset-param">
-            <label>间距 (px)</label>
-            <input type="number" class="prop-input" id="tilesetSpacing" value="1" min="0" max="64">
-          </div>
-          <div class="tileset-param">
-            <label>边距 (px)</label>
-            <input type="number" class="prop-input" id="tilesetMargin" value="0" min="0" max="64">
-          </div>
-        </div>
-        <div style="display:flex; align-items:center; gap:12px;">
-          <button class="btn" id="btnTilesetSelectAll">全选</button>
-          <button class="btn" id="btnTilesetSelectNone">取消选择</button>
-          <label style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-left:auto;">缩放</label>
-          <input type="range" id="tilesetZoom" min="1" max="8" value="3" step="1" style="width:100px;accent-color:#6bb8ff;">
-          <span id="tilesetZoomLabel" style="font-size:12px;color:#888;min-width:28px;">3×</span>
-        </div>
-        <div class="tileset-preview-area">
-          <canvas id="tilesetPreviewCanvas"></canvas>
-        </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <div class="tileset-selection-info" id="tilesetSelectionInfo">点击图集中的 tile 来选择，已选 0 个</div>
-          <div id="tilesetHoverInfo" style="font-size:12px;color:#6bb8ff;font-family:monospace;margin-left:auto;"></div>
-        </div>
-      </div>
-      <div class="tileset-modal-footer">
-        <button class="btn" id="btnTilesetCancel">取消</button>
-        <button class="btn" id="btnTilesetLoadImage">选择图片...</button>
-        <button class="btn btn-primary" id="btnTilesetConfirm">加载选中 Tiles</button>
+  
+  <script type="module" src="./src/main.tsx"></script>
+  
+  <noscript>
+    <div class="error">
+      <div class="error-icon">⚠️</div>
+      <div class="error-title">JavaScript Required</div>
+      <div class="error-message">
+        Mote Editor requires JavaScript to run. Please enable JavaScript in your browser settings.
       </div>
     </div>
-  </div>
-
-  <!-- 导出名称输入弹窗 -->
-  <div id="exportModal" class="config-modal hidden">
-    <div class="config-panel" style="min-width: 360px;">
-      <div class="config-title">导出地图</div>
-      <div style="margin-bottom: 20px;">
-        <div class="prop-label" style="margin-bottom: 8px;">地图名称</div>
-        <input type="text" class="prop-input" id="exportNameInput" placeholder="untitled" style="width: 100%; font-size: 14px;">
-      </div>
-      <div style="display: flex; gap: 10px;">
-        <button class="btn" id="cancelExport" style="flex: 1;">取消</button>
-        <button class="btn btn-primary" id="confirmExport" style="flex: 1;">导出</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 导出成功提示 -->
-  <div id="exportSuccessToast" class="toast hidden">
-    <div class="toast-content">
-      <span class="toast-icon">✅</span>
-      <span class="toast-message" id="toastMessage">导出成功</span>
-    </div>
-  </div>
-
-  <!-- 主界面 -->
-  <div class="toolbar">
-    <!-- 图集操作组 -->
-    <div class="toolbar-section">
-      <span style="font-size:11px;color:#666;margin-right:4px;">🖼 图集</span>
-      <button class="btn" id="btnImportTileset">导入图集</button>
-      <button class="btn" id="btnImportFolder">导入精灵</button>
-      <button class="btn" id="btnExportTileset">导出图集</button>
-    </div>
-    <!-- 地图操作组 -->
-    <div class="toolbar-section">
-      <span style="font-size:11px;color:#666;margin-right:4px;">🗺 地图</span>
-      <button class="btn" id="btnNew">新建</button>
-      <button class="btn" id="btnImport">导入</button>
-      <button class="btn btn-primary" id="btnExport">导出</button>
-    </div>
-    <div class="toolbar-section">
-      <button class="btn icon-btn" id="btnUndo" title="撤销 (Ctrl+Z)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 7v6h6"></path>
-          <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
-        </svg>
-      </button>
-      <button class="btn icon-btn" id="btnRedo" title="重做 (Ctrl+Y)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 7v6h-6"></path>
-          <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path>
-        </svg>
-      </button>
-    </div>
-    <div class="toolbar-section">
-      <button class="btn" id="btnGrid" title="显示网格 (G)">网格</button>
-      <button class="btn" id="btnZoomOut">-</button>
-      <span id="zoomLevel" style="color: #666; font-size: 12px; min-width: 50px; text-align: center;">100%</span>
-      <button class="btn" id="btnZoomIn">+</button>
-    </div>
-    <div class="toolbar-section">
-      <select id="gameSelect">
-        <option value="">选择游戏...</option>
-      </select>
-      <a class="btn" href="/">🏠 首页</a>
-    </div>
-  </div>
-
-  <div class="main">
-    <div class="sidebar-left">
-      <div class="panel-title">工具</div>
-      <div class="tools">
-        <button class="tool-btn active" data-tool="brush">
-          <span class="tool-icon">🖱️</span>
-          <span>画笔 (B)</span>
-        </button>
-        <button class="tool-btn" data-tool="eraser">
-          <span class="tool-icon">⌫</span>
-          <span>橡皮 (E)</span>
-        </button>
-        <button class="tool-btn" data-tool="fill">
-          <span class="tool-icon">🪣</span>
-          <span>填充 (F)</span>
-        </button>
-        <button class="tool-btn" data-tool="rect">
-          <span class="tool-icon">▭</span>
-          <span>矩形 (R)</span>
-        </button>
-      </div>
-
-      <div class="panel-title">瓦片</div>
-      <div class="palette" id="palette">
-        <!-- 动态填充 -->
-      </div>
-    </div>
-
-    <div class="canvas-wrapper">
-      <canvas id="canvas" width="800" height="600"></canvas>
-      <div class="canvas-info" id="canvasInfo">
-        坐标: (0, 0) | 瓦片: VOID
-      </div>
-    </div>
-
-    <div class="sidebar-right">
-      <div class="panel-title">属性</div>
-      <div class="properties">
-        <div class="prop-group">
-          <div class="prop-label">地图名称</div>
-          <input type="text" class="prop-input" id="mapName" value="untitled">
-        </div>
-        <div class="prop-group">
-          <div class="prop-label">地图尺寸</div>
-          <div style="display: flex; gap: 8px;">
-            <input type="number" class="prop-input" id="mapWidth" value="16" min="4" max="128" style="width: 50%;">
-            <input type="number" class="prop-input" id="mapHeight" value="12" min="4" max="128" style="width: 50%;">
-          </div>
-        </div>
-        <div class="prop-group">
-          <div class="prop-label">瓦片大小</div>
-          <div class="prop-value" id="tileSize">64 px</div>
-        </div>
-        <div class="prop-group">
-          <div class="prop-label">当前工具</div>
-          <div class="prop-value" id="currentTool">画笔</div>
-        </div>
-        <div class="prop-group">
-          <div class="prop-label">选中瓦片</div>
-          <div class="prop-value" id="selectedTile">VOID</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="statusbar">
-    <span id="statusText">就绪</span>
-    <span class="status-sep">|</span>
-    <span id="saveStatus">未保存</span>
-    <span class="status-sep">|</span>
-    <span id="configName">未选择配置</span>
-  </div>
-
-  <script type="module" src="./src/main.ts"></script>
+  </noscript>
 </body>
 </html>

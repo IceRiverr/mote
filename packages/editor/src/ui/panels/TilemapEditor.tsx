@@ -1,9 +1,9 @@
 import { h, type ComponentChildren } from 'preact';
 import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
-import { useEditor, useSelection } from '../../hooks/useEditor.js';
-import { BrushTool } from '../../tools/BrushToolNew.js';
-import { EraserTool } from '../../tools/EraserToolNew.js';
-import { RectTool } from '../../tools/RectToolNew.js';
+import { useEditor } from '../../hooks/useEditor.js';
+import { BrushTool } from '../../tools/BrushTool.js';
+import { EraserTool } from '../../tools/EraserTool.js';
+import { RectTool } from '../../tools/RectTool.js';
 import type { TilemapTool, TilePreview } from '../../tools/TilemapTool.js';
 import type { TilesetRef } from '../../types/editor.js';
 

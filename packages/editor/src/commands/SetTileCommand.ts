@@ -84,8 +84,8 @@ export class ClearLayerCommand implements Command {
   constructor(
     private bridge: EditorBridge,
     private layerName: string,
-    private width: number,
-    private height: number,
+    _width: number,
+    _height: number,
   ) {
     this.description = `Clear layer "${layerName}"`;
   }

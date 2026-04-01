@@ -1,6 +1,14 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import type { ProjectConfig, FileEntry } from '../types/editor.js';
 
+// File System Access API type declarations
+declare global {
+  interface Window {
+    showDirectoryPicker(options?: { mode?: string }): Promise<FileSystemDirectoryHandle>;
+    showSaveFilePicker(options?: unknown): Promise<FileSystemFileHandle>;
+  }
+}
+
 /**
  * ProjectManager - 本地文件系统管理
  * 

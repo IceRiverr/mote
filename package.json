@@ -23,8 +23,11 @@
     "test:all": "npm test --workspaces"
   },
   "devDependencies": {
+    "@preact/preset-vite": "^2.10.5",
+    "@preact/signals": "^2.9.0",
     "@types/node": "^25.5.0",
     "@webgpu/types": "^0.1.69",
+    "preact": "^10.29.0",
     "ssh2-sftp-client": "^9.1.0",
     "typescript": "^6.0.2",
     "vite": "^8.0.2",

@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import preact from '@preact/preset-vite';
 import { resolve, dirname } from 'path';
 import fs from 'fs';
 import path from 'path';
@@ -132,6 +133,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    preact(),
     copyGameAssetsPlugin(),
     sharedAssetsPlugin(resolve(__dirname, 'shared/assets')),
   ],
@@ -145,7 +147,7 @@ export default defineConfig({
         tinyTown:   resolve(__dirname, 'games/tiny-town/index.html'),
         dungeon:    resolve(__dirname, 'games/dungeon/index.html'),
         breakout:   resolve(__dirname, 'games/breakout/index.html'),
-        // editor:     resolve(__dirname, 'packages/editor/index.html'), // FIXME: 需要重写 Editor.ts 以适配新工具架构
+        editor:     resolve(__dirname, 'packages/editor/index.html'),
       },
     },
   },

@@ -1,0 +1,437 @@
+:root {
+  /* Blender-inspired dark theme */
+  --bg-base:     #1d1d2e;    /* 最深背景（窗口底色） */
+  --bg-area:     #2d2d3d;    /* 区域背景 */
+  --bg-header:   #252535;    /* 头栏背景 */
+  --bg-input:    #383848;    /* 输入框背景 */
+  --bg-hover:    #404055;    /* hover 高亮 */
+  --bg-active:   #4a6fa5;    /* 选中/激活（蓝色） */
+
+  --text-primary:   #e0e0e0;
+  --text-secondary: #909090;
+  --text-disabled:  #606060;
+
+  --border:      #1a1a2a;
+  --border-light: #3a3a4a;
+  --border-hover: #5a5a6a;
+
+  --accent:      #5b9bd5;    /* 主强调色 */
+  --accent-warn: #e5a84b;    /* 警告色 */
+  --accent-error:#e05555;    /* 错误色 */
+
+  --font-size:   12px;
+  --font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --row-height:  22px;       /* 紧凑行高 */
+  --header-height: 26px;     /* 区域头栏高度 */
+  --gap:         2px;        /* 区域间缝隙 */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #app {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size);
+  color: var(--text-primary);
+  background: var(--bg-base);
+  line-height: 1.4;
+}
+
+/* === SplitPane === */
+.split-pane {
+  display: flex;
+  overflow: hidden;
+}
+
+.split-pane.horizontal {
+  flex-direction: row;
+}
+
+.split-pane.vertical {
+  flex-direction: column;
+}
+
+.split-pane__pane {
+  overflow: hidden;
+  position: relative;
+}
+
+.split-pane__divider {
+  background: var(--border);
+  position: relative;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.split-pane__divider:hover {
+  background: var(--accent);
+}
+
+.split-pane.horizontal .split-pane__divider {
+  width: var(--gap);
+  cursor: col-resize;
+}
+
+.split-pane.vertical .split-pane__divider {
+  height: var(--gap);
+  cursor: row-resize;
+}
+
+/* === Area Panel === */
+.area-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-area);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  height: 100%;
+  position: relative;
+}
+
+.area-panel__content {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+/* === Area Header === */
+.area-header {
+  height: var(--header-height);
+  background: var(--bg-header);
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.area-header__tools {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+/* === Editor Type Selector === */
+.editor-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-light);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.editor-selector:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+/* === Corner Handle === */
+.corner-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  z-index: 20;
+  cursor: crosshair;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.area-panel:hover .corner-handle {
+  opacity: 0.6;
+}
+
+.corner-handle:hover {
+  opacity: 1 !important;
+  background: var(--accent);
+}
+
+.corner-handle::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border: 1px solid currentColor;
+}
+
+.corner-handle.tl {
+  top: 2px;
+  left: 2px;
+}
+.corner-handle.tl::after {
+  top: 2px;
+  left: 2px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.corner-handle.tr {
+  top: 2px;
+  right: 2px;
+}
+.corner-handle.tr::after {
+  top: 2px;
+  right: 2px;
+  border-left: none;
+  border-bottom: none;
+}
+
+.corner-handle.bl {
+  bottom: 2px;
+  left: 2px;
+}
+.corner-handle.bl::after {
+  bottom: 2px;
+  left: 2px;
+  border-right: none;
+  border-top: none;
+}
+
+.corner-handle.br {
+  bottom: 2px;
+  right: 2px;
+}
+.corner-handle.br::after {
+  bottom: 2px;
+  right: 2px;
+  border-left: none;
+  border-top: none;
+}
+
+/* === Collapsible Section === */
+.collapsible-section {
+  border-bottom: 1px solid var(--border);
+}
+
+.collapsible-section__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg-header);
+  cursor: pointer;
+  user-select: none;
+  height: var(--row-height);
+}
+
+.collapsible-section__header:hover {
+  background: var(--bg-hover);
+}
+
+.collapsible-section__arrow {
+  font-size: 10px;
+  color: var(--text-secondary);
+  transition: transform 0.15s;
+  display: inline-block;
+}
+
+.collapsible-section__arrow.open {
+  transform: rotate(90deg);
+}
+
+.collapsible-section__title {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.collapsible-section__body {
+  padding: 8px;
+}
+
+/* === Tool Button === */
+.tool-button {
+  height: 20px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tool-button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.tool-button.active {
+  background: var(--bg-active);
+  color: #fff;
+}
+
+.tool-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* === Input === */
+input, select {
+  height: var(--row-height);
+  background: var(--bg-input);
+  border: 1px solid var(--border-light);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: var(--font-size);
+  padding: 0 6px;
+  font-family: inherit;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+input::placeholder {
+  color: var(--text-disabled);
+}
+
+/* === Property Row === */
+.property-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.property-row__label {
+  min-width: 60px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.property-row__value {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+}
+
+.property-row__value input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* === Tree View === */
+.tree-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tree-item:hover {
+  background: var(--bg-hover);
+}
+
+.tree-item.selected {
+  background: var(--bg-active);
+}
+
+.tree-item__arrow {
+  font-size: 10px;
+  color: var(--text-secondary);
+  width: 12px;
+  text-align: center;
+}
+
+.tree-item__icon {
+  font-size: 12px;
+}
+
+.tree-item__label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--bg-hover);
+}
+
+/* === Empty State === */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* === Global Menu Bar === */
+.global-menu-bar {
+  height: 28px;
+  background: var(--bg-base);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.global-menu-bar__brand {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.global-menu-bar__menus {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.global-menu-bar__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.menu-item {
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.menu-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}

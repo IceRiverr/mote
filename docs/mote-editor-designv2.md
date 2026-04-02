@@ -1,45 +1,37 @@
-从你截图看到的 Blender 界面，它有几个非常独特的设计哲学是值得 mote 借鉴的。我来逐一分析哪些能用、哪些不适合。
+# Mote Editor 设计文档 v2
+
+本文档描述 Mote 编辑器的架构设计和实现细节。编辑器采用 **Blender 风格的自由分割布局系统**，整个窗口是一棵可动态分割/合并的区域树。
 
 ---
 
-## Blender 的核心界面设计特点
+## 核心架构
 
-### 1. 区域（Area）自由分割
+### 1. 区域树（Area Tree）
 
-这是 Blender 最标志性的设计——整个窗口是一棵**区域树**，任何区域都可以：
-- 拖拽边缘**分割**成两个新区域
-- 拖拽合并**回收**相邻区域
-- 每个区域左上角的下拉菜单可以切换成**任意编辑器类型**
-
-截图里就能看到：右上角是 Outliner，右下角是 Properties，左边是 3D Viewport，这些都是可以自由换的。
-
-**适合 mote 吗：非常适合，而且是最值得做的特性。**
-
-```
-传统编辑器布局（固定）：
-┌──────┬────────────┬────────┐
-│ 固定  │   固定      │  固定   │  ← 面板类型写死
-└──────┴────────────┴────────┘
-
-Blender 风格（自由分割）：
-┌──────┬────────────┬────────┐
-│ Any  │   Any      │  Any   │  ← 每个区域可切换任意面板
-│Editor│  Editor    │ Editor │
-├──────┴────────────┤        │
-│      Any Editor   │        │  ← 随时拖拽分割/合并
-└───────────────────┴────────┘
-```
-
-实现方案：
+整个编辑器布局由一棵二叉树表示，每个节点可以是：
 
 ```typescript
-// 区域树结构
-type AreaNode =
-  | { type: "leaf"; editorType: EditorType; id: string }
-  | { type: "split"; direction: "horizontal" | "vertical";
-      ratio: number;  // 0~1, 分割比例
-      first: AreaNode; second: AreaNode };
+// packages/editor/src/core/area-tree.ts
 
+/** 区域节点 - 叶子节点（实际的面板） */
+interface LeafNode {
+  type: "leaf";
+  id: string;
+  editorType: EditorType;
+}
+
+/** 区域节点 - 分割节点（内部节点） */
+interface SplitNode {
+  type: "split";
+  direction: "horizontal" | "vertical";
+  ratio: number;  // 0~1, first 占的比例
+  first: AreaNode;
+  second: AreaNode;
+}
+
+type AreaNode = LeafNode | SplitNode;
+
+/** 支持的编辑器类型 */
 type EditorType =
   | "viewport"      // 2D 场景视口
   | "scene-tree"    // 实体树
@@ -47,151 +39,240 @@ type EditorType =
   | "asset-browser" // 资源浏览器
   | "tilemap"       // Tilemap 编辑器
   | "console"       // 控制台
-  | "code"          // 脚本预览
-  | "animation";    // 动画时间线
+  | "code";         // 脚本预览
+```
 
-// 渲染区域树
-function renderAreaTree(node: AreaNode): JSX.Element {
+### 2. 状态管理（LayoutState）
+
+使用 **Preact Signals** 进行响应式状态管理，支持自动持久化：
+
+```typescript
+// packages/editor/src/core/layout-state.ts
+
+export class LayoutState {
+  root: Signal<AreaNode>;           // 区域树根节点
+  activeEditorId: Signal<string | null>;
+  leafs: Signal<LeafNode[]>;        // 所有叶子节点（计算属性）
+  
+  // 核心操作
+  setEditorType(id, type)          // 切换编辑器类型
+  setRatio(node, ratio)            // 调整分割比例
+  split(id, direction, ratio)      // 分割区域
+  remove(id)                       // 合并区域（至少保留 1 个）
+  reset()                          // 重置为默认布局
+  
+  // 持久化
+  private saveToStorage()          // 自动保存到 localStorage
+  private loadFromStorage()        // 从 localStorage 恢复
+}
+
+// 全局单例
+export const layoutState = new LayoutState();
+```
+
+### 3. 默认布局
+
+```typescript
+// 经典的 3+1 面板布局
+// 左侧 Scene Tree (20%) | 中间 Viewport (55%) | 右侧 Inspector (25%)
+// 底部 Asset Browser (25%)
+
+function createDefaultLayout(): AreaNode {
+  const left = createLeaf("scene-tree");
+  const center = createLeaf("viewport");
+  const right = createLeaf("inspector");
+  const bottom = createLeaf("asset-browser");
+
+  // 先分割左右：左 20% | 中右 80%
+  const topRow = createSplit("horizontal", 0.2, left, 
+    createSplit("horizontal", 0.7, center, right)
+  );
+
+  // 上下分割：上 75% | 下 25%
+  return createSplit("vertical", 0.75, topRow, bottom);
+}
+```
+
+---
+
+## 组件系统
+
+### 递归渲染
+
+```typescript
+// packages/editor/src/components/AreaTreeRenderer.tsx
+
+export function AreaTreeRenderer({ node }: { node: AreaNode }) {
   if (node.type === "leaf") {
-    return (
-      <AreaPanel id={node.id} editorType={node.editorType}
-                 onChangeType={(t) => updateEditorType(node.id, t)} />
-    );
+    return <AreaPanel node={node} />;
   }
-  const isHorizontal = node.direction === "horizontal";
+
   return (
-    <SplitPane direction={node.direction} ratio={node.ratio}
-               onRatioChange={(r) => updateRatio(node, r)}>
-      {renderAreaTree(node.first)}
-      {renderAreaTree(node.second)}
+    <SplitPane node={node}>
+      <AreaTreeRenderer node={node.first} />
+      <AreaTreeRenderer node={node.second} />
     </SplitPane>
   );
 }
 ```
 
-每个 `AreaPanel` 左上角有一个下拉菜单，可以把这个区域切换成任意编辑器：
+### SplitPane - 可拖拽分割面板
 
 ```typescript
-function AreaPanel({ id, editorType, onChangeType }: AreaPanelProps) {
-  return (
-    <div class="area-panel">
-      <div class="area-header">
-        <select value={editorType}
-                onChange={(e) => onChangeType(e.currentTarget.value as EditorType)}>
-          <option value="viewport">🎮 Viewport</option>
-          <option value="scene-tree">🌳 Scene Tree</option>
-          <option value="inspector">🔧 Inspector</option>
-          <option value="asset-browser">📁 Assets</option>
-          <option value="tilemap">🗺️ Tilemap</option>
-          <option value="console">💬 Console</option>
-        </select>
-      </div>
-      <div class="area-content">
-        {renderEditor(editorType)}
-      </div>
-    </div>
-  );
+// packages/editor/src/components/SplitPane.tsx
+
+interface SplitPaneProps {
+  node: SplitNode;
+  children: [preact.ComponentChild, preact.ComponentChild];
 }
+
+// 特性：
+// - 水平/垂直分割方向
+// - 拖拽 divider 调整 ratio（限制 0.1~0.9）
+// - 拖拽时设置 pointer-events: none 避免干扰
 ```
 
-### 2. 每个区域角落拖拽分割/合并
-
-Blender 的分割操作是在**区域角落**拖拽触发的——向区域内拖拽分割、向外拖拽合并。
-
-```
-拖拽角落向右 → 水平分割
-┌─────────┐         ┌────┬────┐
-│         │   →     │    │    │
-│    A    │         │ A  │ A' │
-│         │         │    │    │
-└─────────┘         └────┴────┘
-
-拖拽角落向下 → 垂直分割
-┌─────────┐         ┌─────────┐
-│         │   →     │    A    │
-│    A    │         ├─────────┤
-│         │         │    A'   │
-└─────────┘         └─────────┘
-```
-
-实现要点：
+### AreaPanel - 区域面板
 
 ```typescript
-// 每个区域的四个角各放一个 8×8px 的拖拽热区
-function AreaCornerHandle({ corner, onSplit, onMerge }: CornerProps) {
-  const handleDrag = (e: PointerEvent) => {
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
+// packages/editor/src/components/AreaPanel.tsx
 
-    if (absDx < 20 && absDy < 20) return; // 还没拖够距离
-
-    if (absDx > absDy) {
-      // 水平拖拽
-      if (isInward(dx, corner)) onSplit("horizontal", 0.5);
-      else onMerge("horizontal");
-    } else {
-      // 垂直拖拽
-      if (isInward(dy, corner)) onSplit("vertical", 0.5);
-      else onMerge("vertical");
-    }
-  };
-
-  return <div class={`corner-handle corner-${corner}`}
-              onPointerDown={startDrag} />;
+interface AreaPanelProps {
+  node: LeafNode;
 }
+
+// 结构：
+// ┌─[AreaHeader]─────────────────┐
+// │                              │
+// │    [Editor Content]          │
+// │                              │
+// │ [CornerHandle x 4]           │
+// └──────────────────────────────┘
 ```
 
-### 3. Header Bar（区域头栏）
-
-截图中每个编辑器区域顶部都有一个**窄头栏**——左侧是编辑器类型切换，右侧是该编辑器特有的工具按钮。这比 Tab 切换更紧凑。
-
-```
-┌─[🎮 Viewport ▾]──[View][Select][Add]──────────────────┐
-│                                                         │
-│                    渲染内容                               │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
+### AreaHeader - 区域头栏
 
 ```typescript
-function AreaHeader({ editorType, children }: HeaderProps) {
-  return (
-    <div class="area-header" style={{ height: "26px", background: "#2d2d3d" }}>
-      <EditorTypeSelector current={editorType} />
-      <div class="header-tools">
-        {children}  {/* 每种编辑器类型的专属工具栏 */}
-      </div>
-    </div>
-  );
+// packages/editor/src/components/AreaHeader.tsx
+
+interface AreaHeaderProps {
+  editorType: EditorType;
+  onChangeType: (type: EditorType) => void;
 }
 
-// Viewport 的头栏
-function ViewportHeader() {
-  return (
-    <AreaHeader editorType="viewport">
-      <ToolButton icon="move" tooltip="Translate (W)" />
-      <ToolButton icon="scale" tooltip="Scale (E)" />
-      <Separator />
-      <ToolButton icon="grid" tooltip="Toggle Grid" />
-      <ToolButton icon="snap" tooltip="Snap to Grid" />
-    </AreaHeader>
-  );
-}
+// 结构：
+// ┌─[Editor Selector ▾]──[Tools]────┐
+// 
+// Editor Selector: 下拉菜单切换编辑器类型
+// Tools: 编辑器专属工具（如 Viewport 的 Move/Rotate/Scale 按钮）
 ```
 
-### 4. 暗色主题 + 紧凑间距
+### CornerHandle - 四角手柄
 
-Blender 的 UI 密度非常高：
-- 行高 ~20px
-- 字号 11-12px
-- 间距极小（2-4px padding）
-- 统一暗色背景（`#303030` 区域、`#2d2d2d` 头栏、`#1d1d1d` 边框）
+```typescript
+// packages/editor/src/components/CornerHandle.tsx
 
-**mote CSS 主题参考**：
+interface CornerHandleProps {
+  corner: "tl" | "tr" | "bl" | "br";  // top-left, top-right, bottom-left, bottom-right
+  areaId: string;
+}
+
+// 交互逻辑：
+// - 向内拖拽 → 分割区域（水平或垂直）
+// - 向外拖拽 → 合并区域（删除当前区域）
+// - 最小触发距离：20px
+```
+
+### CollapsibleSection - 可折叠分组
+
+```typescript
+// packages/editor/src/components/CollapsibleSection.tsx
+
+interface CollapsibleSectionProps {
+  title: string;
+  defaultOpen?: boolean;
+  children: preact.ComponentChild;
+}
+
+// 用于 Inspector 面板的属性分组
+// ▼ Transform    ← 点击折叠/展开
+// ▶ Sprite
+// ▼ Physics
+```
+
+---
+
+## 编辑器实现
+
+### 1. ViewportEditor - 场景视口
+
+```typescript
+// packages/editor/src/editors/ViewportEditor.tsx
+
+// 当前状态：占位实现
+// - Canvas 自适应父容器大小（ResizeObserver）
+// - 绘制网格背景（32px 网格）
+// - 占位文字提示
+
+// TODO: 集成 @mote/engine 进行实际渲染
+```
+
+### 2. SceneTreeEditor - 实体树
+
+```typescript
+// packages/editor/src/editors/SceneTreeEditor.tsx
+
+// 功能：
+// - 树形结构展示实体层级
+// - 支持展开/折叠文件夹
+// - 点击选中实体
+// - 缩进表示层级深度
+
+// 当前：使用 mock 数据
+// TODO: 对接引擎实体系统
+```
+
+### 3. InspectorEditor - 属性检查器
+
+```typescript
+// packages/editor/src/editors/InspectorEditor.tsx
+
+// 功能：
+// - Transform: Position(vec2), Rotation, Scale(vec2)
+// - Sprite: Sprite 名称, Visible, Color, Alpha
+// - Physics: Body Type, Mass, Friction, Restitution
+// - Scripts: 脚本列表 + Add Script 按钮
+
+// 使用 CollapsibleSection 组织
+// 当前：使用 mock 数据
+// TODO: 对接引擎组件系统
+```
+
+### 4. AssetBrowserEditor - 资源浏览器
+
+```typescript
+// packages/editor/src/editors/AssetBrowserEditor.tsx
+
+// 功能：
+// - 资源列表展示（图标 + 名称）
+// - 搜索过滤
+// - 点击选中
+// - 底部显示资源数量
+
+// 支持类型：folder, image, audio, script, data
+// 当前：使用 mock 数据
+// TODO: 对接实际文件系统
+```
+
+---
+
+## 样式主题
+
+### CSS 变量系统
 
 ```css
+/* packages/editor/src/index.css */
+
 :root {
   /* Blender-inspired dark theme */
   --bg-base:     #1d1d2e;    /* 最深背景（窗口底色） */
@@ -207,6 +288,7 @@ Blender 的 UI 密度非常高：
 
   --border:      #1a1a2a;
   --border-light: #3a3a4a;
+  --border-hover: #5a5a6a;
 
   --accent:      #5b9bd5;    /* 主强调色 */
   --accent-warn: #e5a84b;    /* 警告色 */
@@ -218,158 +300,142 @@ Blender 的 UI 密度非常高：
   --header-height: 26px;     /* 区域头栏高度 */
   --gap:         2px;        /* 区域间缝隙 */
 }
+```
 
+### 关键样式规则
+
+```css
 /* 全局紧凑样式 */
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: var(--font-family);
-  font-size: var(--font-size);
-  color: var(--text-primary);
-  background: var(--bg-base);
-  overflow: hidden;  /* 编辑器全屏，不要页面滚动条 */
-}
 
-.area-panel {
-  display: flex;
-  flex-direction: column;
+/* 分割面板 */
+.split-pane { display: flex; overflow: hidden; }
+.split-pane__divider { background: var(--border); }
+.split-pane__divider:hover { background: var(--accent); }
+
+/* 区域面板 */
+.area-panel { 
+  display: flex; 
+  flex-direction: column; 
   background: var(--bg-area);
   border: 1px solid var(--border);
-  overflow: hidden;
 }
 
-.area-header {
-  height: var(--header-height);
-  background: var(--bg-header);
-  display: flex;
-  align-items: center;
-  padding: 0 4px;
-  gap: 4px;
-  border-bottom: 1px solid var(--border);
-  user-select: none;
-  flex-shrink: 0;
+/* 四角手柄 */
+.corner-handle { 
+  position: absolute; 
+  width: 12px; 
+  height: 12px;
+  opacity: 0;  /* hover 时显示 */
 }
-
-/* Blender 风格的紧凑按钮 */
-.tool-button {
-  height: 20px;
-  padding: 0 6px;
-  border: none;
-  border-radius: 3px;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 11px;
-}
-.tool-button:hover { background: var(--bg-hover); color: var(--text-primary); }
-.tool-button.active { background: var(--bg-active); color: #fff; }
-
-/* 紧凑输入框 */
-input, select {
-  height: var(--row-height);
-  background: var(--bg-input);
-  border: 1px solid var(--border-light);
-  border-radius: 3px;
-  color: var(--text-primary);
-  font-size: var(--font-size);
-  padding: 0 6px;
-}
-```
-
-### 5. 属性面板的折叠分组
-
-Blender 的 Properties 面板用**可折叠的分组头**来组织属性，每个组件/modifier 都是一个可折叠块：
-
-```
-▼ Transform               ← 点击折叠/展开
-  Location   X [0.0] Y [0.0]
-  Rotation   X [0.0] Y [0.0]
-  Scale      X [1.0] Y [1.0]
-
-▶ Sprite                  ← 已折叠
-▼ Physics
-  Mass       [1.0]
-  Friction   [0.5]
-```
-
-```typescript
-function CollapsibleSection({ title, defaultOpen = true, children }: SectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div class="collapsible-section">
-      <div class="section-header" onClick={() => setOpen(!open)}>
-        <span class={`arrow ${open ? "open" : ""}`}>▶</span>
-        <span class="section-title">{title}</span>
-      </div>
-      {open && <div class="section-body">{children}</div>}
-    </div>
-  );
-}
-
-// Inspector 中渲染组件
-function InspectorPanel() {
-  const { selection, bridge } = useContext(EditorContext);
-  const entityId = selection.selected.value[0];
-  if (entityId == null) return <EmptyState text="No selection" />;
-
-  const components = bridge.getComponents(entityId);
-  return (
-    <div class="inspector">
-      {Object.entries(components).map(([type, data]) => (
-        <CollapsibleSection key={type} title={type}>
-          <ComponentFields entityId={entityId} type={type} data={data} />
-        </CollapsibleSection>
-      ))}
-    </div>
-  );
-}
+.area-panel:hover .corner-handle { opacity: 0.6; }
 ```
 
 ---
 
-## 哪些 Blender 特性不适合 mote
-
-| Blender 特性 | 不适合的原因 |
-|-------------|-------------|
-| **F 键切换编辑器类型** | Blender 有 15+ 种编辑器类型，mote 只有 6-7 种，下拉菜单就够 |
-| **Pie Menu（饼状菜单）** | 需要精确的鼠标方向判断，Web 端实现复杂且触屏不友好 |
-| **N/T 侧边栏** | 3D 场景需要大量属性面板，2D tilemap 编辑器面板数量有限，没必要 |
-| **多窗口弹出** | 浏览器中无法真正创建独立窗口（`window.open` 体验差），放弃 |
-| **节点编辑器** | Shader/Geometry Nodes 是 3D 特性，2D 引擎 MVP 不需要 |
-
----
-
-## mote 最终推荐的 Blender 风格布局
-
-综合以上分析，mote 编辑器应该采用：
+## 界面布局
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ [🎮 mote] [File ▾] [Edit ▾] [View ▾]     [▶ Play] [⏹ Stop] │  ← 全局菜单栏
+│ 🎮 mote    File  Edit  View  Window  Help        [Reset] [▶ Play] │  ← GlobalMenuBar
 ├─────────────────────────────────────────────────────────────┤
-│ ┌─[🌳 Scene Tree ▾]──┬─[🎮 Viewport ▾]──────────┬─[🔧 Inspector ▾]─┐ │
-│ │                     │                           │                  │ │
-│ │  ▶ Root             │                           │ ▼ Position       │ │
-│ │    ├─ Player        │      Canvas               │   X [100]       │ │
-│ │    ├─ Ground        │      (引擎渲染)             │   Y [200]       │ │
-│ │    ├─ Coin_1        │                           │ ▼ Sprite        │ │
-│ │    └─ Coin_2        │                           │   atlas: ...    │ │
-│ │                     │                           │   frame: ...    │ │
-│ │ 可拖拽角落分割 ◢     │ 可拖拽角落分割 ◢           │ 可拖拽角落分割 ◢ │ │
-│ ├─────────────────────┴───────────────────────────┤                  │ │
-│ │ [📁 Assets ▾]                                    │                  │ │
-│ │  tilesets/   sprites/   audio/                  │                  │ │
-│ │  ├─ grass.png   ├─ player.atlas.json            │                  │ │
-│ └─────────────────────────────────────────────────┴──────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────┘
+│ ┌─[🌳 Scene Tree ▾]──┬─[🎮 Viewport ▾]──[Move][Rotate][Scale]─┬─[🔧 Inspector ▾]─┐
+│ │                     │                                      │                  │
+│ │  ▶ Root             │      ┌──────────────────────┐        │ ▼ Transform      │
+│ │    ├─ Player        │      │                      │        │   X [100]       │
+│ │    ├─ Ground        │      │   Canvas (网格背景)   │        │   Y [200]       │
+│ │    ├─ Coin_1        │      │                      │        │ ▼ Sprite        │
+│ │    └─ Coin_2        │      │   Viewport - Engine  │        │   atlas: ...    │
+│ │                     │      │   integration WIP    │        │   frame: ...    │
+│ │                     │      │                      │        │ ▼ Physics       │
+│ │                     │      └──────────────────────┘        │   Mass [1.0]    │
+│ │                     │                                      │                  │
+│ │  ◢ 四角手柄          │              ◢ 四角手柄               │     ◢ 四角手柄    │
+│ ├─────────────────────┴──────────────────────────────────────┤                  │
+│ │ [📁 Assets ▾] [Search...                                   ]                  │
+│ │  📁 tilesets        📁 sprites      📁 audio                 │                  │
+│ │  🖼️ grass.png       🖼️ player.png   🔊 jump.wav              │                  │
+│ └────────────────────────────────────────────────────────────┴──────────────────┘
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-核心特征：
-1. **自由分割区域树** — 拖拽角落分割/合并
-2. **每个区域可切换编辑器类型** — 左上角下拉菜单
-3. **26px 紧凑头栏** — 类型选择 + 专属工具
-4. **暗色主题** — Blender 色系
-5. **折叠属性分组** — Inspector 面板
+---
 
-布局状态（区域树 JSON）存入 IndexedDB，下次打开编辑器时恢复用户自定义的布局。
+## 已实现功能
 
-这套设计既保留了 Blender 最精华的自由布局理念，又不过度复杂化——对于一个 2D tilemap 编辑器来说，这个复杂度刚好合适。
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| 区域树数据结构 | ✅ | `area-tree.ts` 完整实现 |
+| 响应式状态管理 | ✅ | Preact Signals + localStorage 持久化 |
+| 递归渲染 | ✅ | `AreaTreeRenderer` |
+| 分割拖拽 | ✅ | `SplitPane` 支持水平/垂直分割 |
+| 编辑器切换 | ✅ | `AreaHeader` 下拉菜单 |
+| 四角手柄分割/合并 | ✅ | `CornerHandle` 组件 |
+| Scene Tree UI | ✅ | 树形结构 + 展开/选中 |
+| Inspector UI | ✅ | 折叠分组 + 属性字段 |
+| Asset Browser UI | ✅ | 列表 + 搜索过滤 |
+| Viewport 占位 | 🟡 | Canvas + 网格背景，待集成引擎 |
+| 全局菜单栏 | ✅ | Reset Layout + Play 按钮 |
+| 暗色主题 | ✅ | CSS 变量系统 |
+
+---
+
+## 待办事项
+
+### 高优先级
+1. **Viewport 引擎集成** - 将 `@mote/engine` 渲染到 Canvas
+2. **实体系统对接** - Scene Tree 显示真实引擎实体
+3. **组件系统对接** - Inspector 编辑真实组件属性
+4. **资源系统对接** - Asset Browser 读取实际文件
+
+### 中优先级
+5. **菜单栏功能** - File/Edit/View 菜单实现
+6. **快捷键系统** - 键盘快捷键支持
+7. **撤销/重做** - 操作历史管理
+
+### 低优先级
+8. **多窗口支持** - Popout 面板（浏览器限制，可能放弃）
+9. **自定义主题** - 浅色主题选项
+10. **插件系统** - 扩展编辑器功能
+
+---
+
+## 技术栈
+
+- **框架**: Preact 10.25 + Preact Signals 1.3
+- **构建**: Vite 8 + @preact/preset-vite
+- **语言**: TypeScript 6.0
+- **依赖**: `@mote/engine`
+
+---
+
+## 文件清单
+
+```
+packages/editor/
+├── package.json
+├── vite.config.ts
+├── tsconfig.json
+└── src/
+    ├── index.ts              # 公共 API 导出
+    ├── main.tsx              # 入口点
+    ├── app.tsx               # 主应用组件
+    ├── index.css             # 全局样式
+    ├── core/
+    │   ├── area-tree.ts      # 区域树数据结构
+    │   └── layout-state.ts   # 布局状态管理
+    ├── components/
+    │   ├── AreaTreeRenderer.tsx
+    │   ├── AreaPanel.tsx
+    │   ├── AreaHeader.tsx
+    │   ├── SplitPane.tsx
+    │   ├── CornerHandle.tsx
+    │   ├── CollapsibleSection.tsx
+    │   └── GlobalMenuBar.tsx
+    └── editors/
+        ├── index.ts
+        ├── ViewportEditor.tsx
+        ├── SceneTreeEditor.tsx
+        ├── InspectorEditor.tsx
+        └── AssetBrowserEditor.tsx
+```

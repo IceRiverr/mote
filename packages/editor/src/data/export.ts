@@ -1,83 +1,39 @@
 import type { TileMap } from "./TileMap";
 import type { TileSet } from "./TileSet";
+import {
+  exportMapStandalone,
+  exportMapBundle,
+  tileSetToJson,
+  downloadJson,
+} from "./io";
 
-export interface ExportData {
-  version: "1.0";
-  type: "tilemap";
-  name: string;
-  width: number;
-  height: number;
-  tileWidth: number;
-  tileHeight: number;
-  tilesets: ExportTileSet[];
-  layers: ExportLayer[];
+export type { TileMapStandaloneJson, TileMapBundleJson } from "./io";
+
+/**
+ * Export map as standalone (references external tilesets).
+ */
+export function exportStandalone(map: TileMap, tilesets: TileSet[]) {
+  const data = exportMapStandalone(map, tilesets);
+  downloadJson(data, `${map.name}.mote.json`);
 }
 
-interface ExportTileSet {
-  name: string;
-  image: string;
-  tileWidth: number;
-  tileHeight: number;
-  columns: number;
-  rows: number;
-  firstGid: number;
-  tileCount: number;
-  margin: number;
-  spacing: number;
-}
-
-interface ExportLayer {
-  name: string;
-  type: "tilelayer";
-  visible: boolean;
-  opacity: number;
-  data: number[];
-}
-
-export function exportTileMap(
+/**
+ * Export map as self-contained bundle (all data inline).
+ */
+export function exportBundle(
   map: TileMap,
-  tilesets: Map<string, TileSet>
-): ExportData {
-  return {
-    version: "1.0",
-    type: "tilemap",
-    name: map.name,
-    width: map.width,
-    height: map.height,
-    tileWidth: map.tileWidth,
-    tileHeight: map.tileHeight,
-    tilesets: map.tilesets.map((ref) => {
-      const ts = tilesets.get(ref.tilesetId)!;
-      return {
-        name: ts.name,
-        image: ts.name + ".png",
-        tileWidth: ts.tileWidth,
-        tileHeight: ts.tileHeight,
-        columns: ts.columns,
-        rows: ts.rows,
-        firstGid: ref.firstGid,
-        tileCount: ts.tileCount,
-        margin: ts.margin,
-        spacing: ts.spacing,
-      };
-    }),
-    layers: map.layers.map((layer) => ({
-      name: layer.name,
-      type: "tilelayer",
-      visible: layer.visible,
-      opacity: layer.opacity,
-      data: Array.from(layer.data),
-    })),
-  };
+  tilesets: TileSet[],
+  images: Map<string, HTMLImageElement>,
+) {
+  const data = exportMapBundle(map, tilesets, images);
+  downloadJson(data, `${map.name}.mote-bundle.json`);
 }
 
-export function downloadJson(data: ExportData) {
-  const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${data.name}.weichen.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+/**
+ * Export a single tileset as standalone JSON.
+ */
+export function exportTileSet(ts: TileSet) {
+  const data = tileSetToJson(ts);
+  const safeName = ts.name.replace(/[^a-zA-Z0-9_\-]/g, "_");
+  downloadJson(data, `${safeName}.mote-tileset.json`);
 }

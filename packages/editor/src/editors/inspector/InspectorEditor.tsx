@@ -1,7 +1,6 @@
 import { registerEditor } from "../registry";
 import { MapPropsPanel } from "./panels/MapPropsPanel";
 import { LayersPanel } from "./panels/LayersPanel";
-import { TileSetsPanel } from "./panels/TileSetsPanel";
 import { ExportPanel } from "./panels/ExportPanel";
 
 function InspectorEditor({ areaId }: { areaId: string }) {
@@ -23,7 +22,6 @@ function InspectorEditor({ areaId }: { areaId: string }) {
       <div style={{ flex: 1, overflow: "auto", padding: 0 }}>
         <MapPropsPanel />
         <LayersPanel />
-        <TileSetsPanel />
         <ExportPanel />
       </div>
     </div>

@@ -1,4 +1,4 @@
-/* ---- Weichen Editor - Dark Theme ---- */
+/* ---- Mote Editor - Dark Theme ---- */
 :root {
   --bg-base: #1e1e1e;
   --bg-area: #252526;
@@ -53,6 +53,25 @@ input[type="text"]:focus, input[type="number"]:focus, select:focus {
   border-color: var(--accent);
 }
 
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
 button {
   background: var(--bg-input);
   border: 1px solid var(--border);
@@ -86,4 +105,9 @@ button:active {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }

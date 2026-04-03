@@ -15,11 +15,14 @@ import {
   brushWidth,
   brushHeight,
   hoverTile,
+  viewportZoom,
 } from "../../store/selection";
 import { resolveGid } from "../../data/TileMap";
 import { getTileSrcRect } from "../../data/TileSet";
 
-const camera = signal({ x: 0, y: 0, zoom: 1 });
+/** Camera: x,y = world coordinate at viewport top-left. zoom = scale factor. */
+const camera = signal({ x: 0, y: 0, zoom: 2 });
+const needsCenter = signal(true);
 
 export function ViewportCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -27,7 +30,31 @@ export function ViewportCanvas() {
   const isPainting = useRef(false);
   const paintedCells = useRef<Set<string>>(new Set());
 
-  // --- Resize ---
+  // --- Center the map in viewport ---
+  const centerMap = useCallback((fitToView = false) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const map = currentMap.value;
+    const vw = el.clientWidth;
+    const vh = el.clientHeight;
+    const mapPxW = map.width * map.tileWidth;
+    const mapPxH = map.height * map.tileHeight;
+
+    let zoom = camera.value.zoom;
+    if (fitToView) {
+      zoom = Math.min(vw / mapPxW, vh / mapPxH) * 0.9;
+      zoom = Math.max(0.25, zoom);
+    }
+
+    camera.value = {
+      x: (mapPxW * zoom - vw) / 2,
+      y: (mapPxH * zoom - vh) / 2,
+      zoom,
+    };
+    viewportZoom.value = zoom;
+  }, []);
+
+  // --- Resize handler ---
   useEffect(() => {
     const el = containerRef.current!;
     const canvas = canvasRef.current!;
@@ -37,10 +64,57 @@ export function ViewportCanvas() {
       canvas.height = el.clientHeight * dpr;
       canvas.style.width = el.clientWidth + "px";
       canvas.style.height = el.clientHeight + "px";
+      if (needsCenter.value) {
+        centerMap();
+        needsCenter.value = false;
+      }
       draw();
     });
     ro.observe(el);
     return () => ro.disconnect();
+  }, []);
+
+  // --- Keyboard: number keys 1-6 for integer zoom, Home for fit ---
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Ignore if focused on input
+      if (
+        (e.target as HTMLElement).tagName === "INPUT" ||
+        (e.target as HTMLElement).tagName === "SELECT"
+      )
+        return;
+
+      if (e.key === "Home") {
+        e.preventDefault();
+        centerMap(true);
+        draw();
+        return;
+      }
+
+      const num = parseInt(e.key);
+      if (num >= 1 && num <= 6) {
+        e.preventDefault();
+        // Snap to integer zoom, centered on viewport center
+        const el = containerRef.current;
+        if (!el) return;
+        const vw = el.clientWidth;
+        const vh = el.clientHeight;
+        const cam = camera.value;
+        // World point at viewport center
+        const worldCX = (vw / 2 + cam.x) / cam.zoom;
+        const worldCY = (vh / 2 + cam.y) / cam.zoom;
+        const newZoom = num;
+        camera.value = {
+          x: worldCX * newZoom - vw / 2,
+          y: worldCY * newZoom - vh / 2,
+          zoom: newZoom,
+        };
+        viewportZoom.value = newZoom;
+        draw();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
   // --- Redraw on state change ---
@@ -64,6 +138,9 @@ export function ViewportCanvas() {
     const h = canvas.height / dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
+
+    // Pixel-perfect rendering
+    ctx.imageSmoothingEnabled = false;
 
     const map = currentMap.value;
     const { x: camX, y: camY, zoom } = camera.value;
@@ -97,8 +174,14 @@ export function ViewportCanvas() {
           const src = getTileSrcRect(ts, resolved.localId);
           ctx.drawImage(
             img,
-            src.sx, src.sy, src.sw, src.sh,
-            x * tw, y * th, tw, th
+            src.sx,
+            src.sy,
+            src.sw,
+            src.sh,
+            x * tw,
+            y * th,
+            tw,
+            th
           );
         }
       }
@@ -145,12 +228,24 @@ export function ViewportCanvas() {
           const src = getTileSrcRect(ts, resolved.localId);
           ctx.drawImage(
             img,
-            src.sx, src.sy, src.sw, src.sh,
-            (hover.x + bx) * tw, (hover.y + by) * th, tw, th
+            src.sx,
+            src.sy,
+            src.sw,
+            src.sh,
+            (hover.x + bx) * tw,
+            (hover.y + by) * th,
+            tw,
+            th
           );
         }
       }
       ctx.globalAlpha = 1;
+    }
+
+    // Eraser preview
+    if (hover && activeTool.value === "eraser") {
+      ctx.fillStyle = "rgba(217, 74, 74, 0.3)";
+      ctx.fillRect(hover.x * tw, hover.y * th, tw, th);
     }
 
     // Hover highlight
@@ -179,63 +274,57 @@ export function ViewportCanvas() {
     []
   );
 
-  // --- Paint a single tile ---
-  const paintAt = useCallback(
-    (x: number, y: number) => {
-      const map = currentMap.value;
-      const layer = activeLayer.value;
-      if (!layer || layer.locked) return;
+  // --- Paint ---
+  const paintAt = useCallback((x: number, y: number) => {
+    const map = currentMap.value;
+    const layer = activeLayer.value;
+    if (!layer || layer.locked) return;
 
-      const tool = activeTool.value;
-      const idx = y * map.width + x;
+    const tool = activeTool.value;
+    const idx = y * map.width + x;
 
-      if (tool === "brush") {
-        const bt = brushTiles.value;
-        if (bt.length === 0) return;
-        const bw = brushWidth.value;
-        const bh = brushHeight.value;
-        for (let by = 0; by < bh; by++) {
-          for (let bx = 0; bx < bw; bx++) {
-            const tx = x + bx;
-            const ty = y + by;
-            if (tx >= map.width || ty >= map.height) continue;
-            layer.data[ty * map.width + tx] = bt[by * bw + bx];
-          }
-        }
-      } else if (tool === "eraser") {
-        layer.data[idx] = 0;
-      } else if (tool === "fill") {
-        floodFill(layer.data, map.width, map.height, x, y, bt());
-      } else if (tool === "eyedropper") {
-        const gid = layer.data[idx];
-        if (gid > 0) {
-          brushTiles.value = [gid];
-          brushWidth.value = 1;
-          brushHeight.value = 1;
-          activeTool.value = "brush";
+    if (tool === "brush") {
+      const bt = brushTiles.value;
+      if (bt.length === 0) return;
+      const bw = brushWidth.value;
+      const bh = brushHeight.value;
+      for (let by = 0; by < bh; by++) {
+        for (let bx = 0; bx < bw; bx++) {
+          const tx = x + bx;
+          const ty = y + by;
+          if (tx >= map.width || ty >= map.height) continue;
+          layer.data[ty * map.width + tx] = bt[by * bw + bx];
         }
       }
-      bumpMapVersion();
-    },
-    []
-  );
-
-  function bt() {
-    return brushTiles.value.length > 0 ? brushTiles.value[0] : 0;
-  }
+    } else if (tool === "eraser") {
+      layer.data[idx] = 0;
+    } else if (tool === "fill") {
+      const fillGid = brushTiles.value.length > 0 ? brushTiles.value[0] : 0;
+      floodFill(layer.data, map.width, map.height, x, y, fillGid);
+    } else if (tool === "eyedropper") {
+      const gid = layer.data[idx];
+      if (gid > 0) {
+        brushTiles.value = [gid];
+        brushWidth.value = 1;
+        brushHeight.value = 1;
+        activeTool.value = "brush";
+      }
+    }
+    bumpMapVersion();
+  }, []);
 
   // --- Pointer handlers ---
   const onPointerDown = (e: PointerEvent) => {
+    // Middle-click or Alt+click → pan
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
-      // Middle-click or Alt+click → pan
       const startCam = { ...camera.value };
       const startX = e.clientX;
       const startY = e.clientY;
-      const onMove = (e: PointerEvent) => {
+      const onMove = (ev: PointerEvent) => {
         camera.value = {
           ...startCam,
-          x: startCam.x - (e.clientX - startX),
-          y: startCam.y - (e.clientY - startY),
+          x: startCam.x - (ev.clientX - startX),
+          y: startCam.y - (ev.clientY - startY),
         };
       };
       const onUp = () => {
@@ -276,24 +365,50 @@ export function ViewportCanvas() {
     isPainting.current = false;
   };
 
+  // --- Mouse-position zoom ---
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.25, Math.min(8, camera.value.zoom * delta));
-    camera.value = { ...camera.value, zoom: newZoom };
+    const cam = camera.value;
+    const rect = canvasRef.current!.getBoundingClientRect();
+    // Mouse position relative to canvas
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    // World position under mouse
+    const worldX = (mouseX + cam.x) / cam.zoom;
+    const worldY = (mouseY + cam.y) / cam.zoom;
+    // New zoom
+    const factor = e.deltaY > 0 ? 0.9 : 1.1;
+    const newZoom = Math.max(0.25, Math.min(16, cam.zoom * factor));
+    // Adjust camera so world point stays under mouse
+    camera.value = {
+      x: worldX * newZoom - mouseX,
+      y: worldY * newZoom - mouseY,
+      zoom: newZoom,
+    };
+    viewportZoom.value = newZoom;
   };
 
   return (
     <div
       ref={containerRef}
-      style={{ width: "100%", height: "100%", cursor: "crosshair" }}
+      style={{
+        width: "100%",
+        height: "100%",
+        cursor: "crosshair",
+        imageRendering: "pixelated",
+      }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerLeave={() => { hoverTile.value = null; }}
+      onPointerLeave={() => {
+        hoverTile.value = null;
+      }}
       onWheel={onWheel}
     >
-      <canvas ref={canvasRef} style={{ display: "block" }} />
+      <canvas
+        ref={canvasRef}
+        style={{ display: "block", imageRendering: "pixelated" }}
+      />
     </div>
   );
 }

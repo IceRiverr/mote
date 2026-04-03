@@ -63,7 +63,6 @@ export function resolveGid(
   gid: number
 ): { tilesetId: string; localId: number } | null {
   if (gid <= 0) return null;
-  // find the tileset with the highest firstGid <= gid
   let best: TileSetRef | null = null;
   for (const ref of map.tilesets) {
     if (ref.firstGid <= gid && (!best || ref.firstGid > best.firstGid)) {

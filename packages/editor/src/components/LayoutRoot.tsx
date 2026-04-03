@@ -1,34 +1,35 @@
-import { useRef, useEffect } from "preact/hooks";
-import { containerSize, layoutTree, layoutComputed } from "../store/layout";
-import { collectAreas } from "../layout/tree";
-import { AreaView } from "./AreaView";
-import { SplitHandle } from "./SplitHandle";
+import { useEffect, useRef } from 'preact/hooks';
+import { containerSize, layoutComputed, layoutTree } from '../store/layout';
+import { AreaView } from './AreaView';
+import { SplitHandle } from './SplitHandle';
+import { collectAreas } from '../layout/tree';
 
 export function LayoutRoot() {
-  const ref = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const el = ref.current!;
+    const el = containerRef.current;
+    if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
-      containerSize.value = { width, height };
+      containerSize.value = { x: 0, y: 0, w: width, h: height };
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  const tree = layoutTree.value;
-  const { areas: rectMap, splits } = layoutComputed.value;
-  const areaNodes = collectAreas(tree);
+  const { areas, splits } = layoutComputed.value;
+  const areaNodes = collectAreas(layoutTree.value);
 
   return (
-    <div ref={ref} style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
-      {areaNodes.map((area) => {
-        const rect = rectMap.get(area.id);
-        return rect ? <AreaView key={area.id} area={area} rect={rect} /> : null;
+    <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+      {areaNodes.map((node) => {
+        const rect = areas.get(node.id);
+        if (!rect) return null;
+        return <AreaView key={node.id} areaId={node.id} editorType={node.editorType} rect={rect} />;
       })}
       {splits.map((s) => (
-        <SplitHandle key={s.id} info={s} />
+        <SplitHandle key={s.splitId} splitInfo={s} />
       ))}
     </div>
   );

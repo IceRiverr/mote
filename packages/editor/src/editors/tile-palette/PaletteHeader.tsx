@@ -5,9 +5,11 @@ import {
   currentMap,
   bumpMapVersion,
   lastImportedTilesetId,
+  importTileSetFromFiles,
 } from "../../store/project";
-import { activeTilesetId } from "../../store/selection";
+import { activeTilesetId, displayScale } from "../../store/selection";
 import { createTileSet } from "../../data/TileSet";
+import { popoverOpen } from "./TileSetPopover";
 
 let tsUid = 0;
 
@@ -19,15 +21,30 @@ export function PaletteHeader() {
   };
 
   const handleFile = (e: Event) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
+    const files = Array.from((e.target as HTMLInputElement).files ?? []);
+    if (files.length === 0) return;
+
+    // Check if it's a JSON tileset import
+    const jsonFile = files.find((f) => f.name.endsWith(".json"));
+    const imageFile = files.find((f) => !f.name.endsWith(".json"));
+
+    if (jsonFile && imageFile) {
+      // Import from .mote-tileset.json + image
+      importTileSetFromFiles(jsonFile, imageFile).catch(console.error);
+      (e.target as HTMLInputElement).value = "";
+      return;
+    }
+
+    // Regular image import
+    const file = files[0];
+    if (!file || !file.type.startsWith("image/")) return;
+
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
       const name = file.name.replace(/\.[^.]+$/, "");
       const id = `ts_${++tsUid}`;
 
-      // Import with defaults — user refines via Redo Panel / Inspector
       const ts = createTileSet(id, name, url, img.width, img.height, 16, 16, 0, 0);
       tilesets.value = [...tilesets.value, ts];
 
@@ -37,7 +54,7 @@ export function PaletteHeader() {
 
       activeTilesetId.value = id;
 
-      // Auto-add to current map's tileset refs
+      // Auto-add to current map
       const map = currentMap.value;
       const maxGid = map.tilesets.reduce((max, ref) => {
         const t = tilesets.value.find((t) => t.id === ref.tilesetId);
@@ -49,12 +66,17 @@ export function PaletteHeader() {
       };
       bumpMapVersion();
 
+      // Update display scale based on tile size
+      displayScale.value = Math.max(1, Math.round(32 / ts.tileWidth));
+
       // Trigger Redo Panel
       lastImportedTilesetId.value = id;
     };
     img.src = url;
     (e.target as HTMLInputElement).value = "";
   };
+
+  const hasActiveTileset = activeTilesetId.value !== null;
 
   return (
     <div
@@ -65,7 +87,7 @@ export function PaletteHeader() {
         display: "flex",
         alignItems: "center",
         padding: "0 8px",
-        gap: 8,
+        gap: 6,
         flexShrink: 0,
       }}
     >
@@ -83,11 +105,30 @@ export function PaletteHeader() {
           </option>
         ))}
       </select>
+
+      {/* Settings popover toggle */}
+      {hasActiveTileset && (
+        <button
+          onClick={() => { popoverOpen.value = !popoverOpen.value; }}
+          title="瓦片集属性"
+          style={{
+            background: popoverOpen.value ? "var(--accent)" : "transparent",
+            border: "none",
+            borderRadius: 3,
+            padding: "2px 5px",
+            cursor: "pointer",
+            fontSize: 13,
+            lineHeight: 1,
+          }}
+        >⚙</button>
+      )}
+
       <button onClick={handleImport}>导入</button>
       <input
         ref={fileRef}
         type="file"
-        accept=".png,.jpg,.jpeg,.webp"
+        accept=".png,.jpg,.jpeg,.webp,.json"
+        multiple
         style={{ display: "none" }}
         onChange={handleFile}
       />

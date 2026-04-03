@@ -1,70 +1,48 @@
-import type { LayoutNode, AreaNode, SplitNode, SplitDirection } from "./types";
+import { LayoutNode, AreaNode, SplitNode } from './types';
 
-let _uid = 0;
-export const uid = (prefix = "id") => `${prefix}_${++_uid}`;
+let nextId = 1;
+function genId(prefix: string) {
+  return `${prefix}_${nextId++}`;
+}
 
-/** Deep-map every node in the tree */
 export function mapNode(
-  node: LayoutNode,
-  fn: (n: LayoutNode) => LayoutNode
+  root: LayoutNode,
+  fn: (node: LayoutNode) => LayoutNode | null
 ): LayoutNode {
-  const mapped = fn(node);
-  if (mapped.type === "split") {
-    return {
-      ...mapped,
-      children: [
-        mapNode(mapped.children[0], fn),
-        mapNode(mapped.children[1], fn),
-      ],
-    } as SplitNode;
-  }
-  return mapped;
+  const result = fn(root);
+  if (result !== null) return result;
+  if (root.type === 'area') return root;
+  return {
+    ...root,
+    children: [
+      mapNode(root.children[0], fn),
+      mapNode(root.children[1], fn),
+    ],
+  } as SplitNode;
 }
 
-/** Find an area node by ID */
-export function findArea(
-  node: LayoutNode,
-  id: string
-): AreaNode | null {
-  if (node.type === "area") return node.id === id ? node : null;
-  return findArea(node.children[0], id) || findArea(node.children[1], id);
-}
-
-/** Collect all area nodes */
-export function collectAreas(node: LayoutNode): AreaNode[] {
-  if (node.type === "area") return [node];
-  return [
-    ...collectAreas(node.children[0]),
-    ...collectAreas(node.children[1]),
-  ];
-}
-
-/** Split an area into two */
 export function splitArea(
   root: LayoutNode,
-  targetId: string,
-  direction: SplitDirection,
+  areaId: string,
+  direction: 'horizontal' | 'vertical',
   ratio = 0.5
 ): LayoutNode {
   return mapNode(root, (node) => {
-    if (node.type !== "area" || node.id !== targetId) return node;
-    const newArea: AreaNode = {
-      id: uid("area"),
-      type: "area",
-      editorType: node.editorType,
-    };
-    const split: SplitNode = {
-      id: uid("split"),
-      type: "split",
-      direction,
-      ratio,
-      children: [{ ...node }, newArea],
-    };
-    return split;
+    if (node.type === 'area' && node.id === areaId) {
+      const newArea: AreaNode = { type: 'area', id: genId('area'), editorType: node.editorType };
+      const split: SplitNode = {
+        type: 'split',
+        id: genId('split'),
+        direction,
+        ratio,
+        children: [{ ...node }, newArea],
+      };
+      return split;
+    }
+    return null;
   });
 }
 
-/** Resize a split node */
 export function resizeSplit(
   root: LayoutNode,
   splitId: string,
@@ -72,19 +50,35 @@ export function resizeSplit(
 ): LayoutNode {
   const clamped = Math.max(0.1, Math.min(0.9, newRatio));
   return mapNode(root, (node) => {
-    if (node.id !== splitId || node.type !== "split") return node;
-    return { ...node, ratio: clamped };
+    if (node.type === 'split' && node.id === splitId) {
+      return { ...node, ratio: clamped };
+    }
+    return null;
   });
 }
 
-/** Change the editor type of an area */
 export function setEditorType(
   root: LayoutNode,
   areaId: string,
   editorType: string
 ): LayoutNode {
   return mapNode(root, (node) => {
-    if (node.type !== "area" || node.id !== areaId) return node;
-    return { ...node, editorType };
+    if (node.type === 'area' && node.id === areaId) {
+      return { ...node, editorType };
+    }
+    return null;
   });
+}
+
+export function collectAreas(root: LayoutNode): AreaNode[] {
+  if (root.type === 'area') return [root];
+  return [
+    ...collectAreas(root.children[0]),
+    ...collectAreas(root.children[1]),
+  ];
+}
+
+export function findArea(root: LayoutNode, areaId: string): AreaNode | null {
+  if (root.type === 'area') return root.id === areaId ? root : null;
+  return findArea(root.children[0], areaId) || findArea(root.children[1], areaId);
 }

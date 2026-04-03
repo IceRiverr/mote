@@ -5,10 +5,9 @@ import {
   brushTiles,
   brushWidth,
   brushHeight,
+  displayScale,
 } from "../../store/selection";
 import { getTileSrcRect } from "../../data/TileSet";
-
-const DISPLAY_TILE = 32; // display size per tile in palette
 
 export function PaletteCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -28,6 +27,10 @@ export function PaletteCanvas() {
     const ts = getTs();
     const img = ts ? tilesetImages.value.get(ts.id) : null;
 
+    const scale = displayScale.value;
+    const cellW = ts ? ts.tileWidth * scale : 32;
+    const cellH = ts ? ts.tileHeight * scale : 32;
+
     const dpr = window.devicePixelRatio || 1;
     const w = container.clientWidth;
     const h = container.clientHeight;
@@ -39,8 +42,11 @@ export function PaletteCanvas() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
+    // Pixel-perfect: disable smoothing
+    ctx.imageSmoothingEnabled = false;
+
     if (!ts || !img) {
-      ctx.fillStyle = "var(--text-secondary)";
+      ctx.fillStyle = "#888";
       ctx.font = "12px sans-serif";
       ctx.textAlign = "center";
       ctx.fillText("点击「导入」添加瓦片集", w / 2, h / 2);
@@ -48,7 +54,6 @@ export function PaletteCanvas() {
     }
 
     // Draw tiles
-    ctx.imageSmoothingEnabled = false;
     for (let r = 0; r < ts.rows; r++) {
       for (let c = 0; c < ts.columns; c++) {
         const localId = r * ts.columns + c;
@@ -56,7 +61,7 @@ export function PaletteCanvas() {
         ctx.drawImage(
           img,
           src.sx, src.sy, src.sw, src.sh,
-          c * DISPLAY_TILE, r * DISPLAY_TILE, DISPLAY_TILE, DISPLAY_TILE
+          c * cellW, r * cellH, cellW, cellH
         );
       }
     }
@@ -66,21 +71,20 @@ export function PaletteCanvas() {
     ctx.lineWidth = 1;
     for (let c = 0; c <= ts.columns; c++) {
       ctx.beginPath();
-      ctx.moveTo(c * DISPLAY_TILE, 0);
-      ctx.lineTo(c * DISPLAY_TILE, ts.rows * DISPLAY_TILE);
+      ctx.moveTo(c * cellW + 0.5, 0);
+      ctx.lineTo(c * cellW + 0.5, ts.rows * cellH);
       ctx.stroke();
     }
     for (let r = 0; r <= ts.rows; r++) {
       ctx.beginPath();
-      ctx.moveTo(0, r * DISPLAY_TILE);
-      ctx.lineTo(ts.columns * DISPLAY_TILE, r * DISPLAY_TILE);
+      ctx.moveTo(0, r * cellH + 0.5);
+      ctx.lineTo(ts.columns * cellW, r * cellH + 0.5);
       ctx.stroke();
     }
 
     // Selection highlight
     const bt = brushTiles.value;
     if (bt.length > 0) {
-      // Find the selected tile range in this tileset
       const map = currentMap.value;
       const ref = map.tilesets.find((r) => r.tilesetId === ts.id);
       if (ref) {
@@ -91,17 +95,24 @@ export function PaletteCanvas() {
           ctx.strokeStyle = "rgba(74,144,217,0.9)";
           ctx.lineWidth = 2;
           ctx.strokeRect(
-            startCol * DISPLAY_TILE,
-            startRow * DISPLAY_TILE,
-            brushWidth.value * DISPLAY_TILE,
-            brushHeight.value * DISPLAY_TILE
+            startCol * cellW,
+            startRow * cellH,
+            brushWidth.value * cellW,
+            brushHeight.value * cellH
+          );
+          ctx.fillStyle = "rgba(74,144,217,0.2)";
+          ctx.fillRect(
+            startCol * cellW,
+            startRow * cellH,
+            brushWidth.value * cellW,
+            brushHeight.value * cellH
           );
         }
       }
     }
   }, []);
 
-  // Redraw on relevant signal changes
+  // Redraw on signal changes
   useEffect(() => {
     draw();
   }, [
@@ -109,6 +120,7 @@ export function PaletteCanvas() {
     tilesets.value,
     tilesetImages.value,
     brushTiles.value,
+    displayScale.value,
   ]);
 
   // Resize
@@ -123,8 +135,11 @@ export function PaletteCanvas() {
     const rect = canvasRef.current!.getBoundingClientRect();
     const ts = getTs();
     if (!ts) return null;
-    const col = Math.floor((clientX - rect.left) / DISPLAY_TILE);
-    const row = Math.floor((clientY - rect.top) / DISPLAY_TILE);
+    const scale = displayScale.value;
+    const cellW = ts.tileWidth * scale;
+    const cellH = ts.tileHeight * scale;
+    const col = Math.floor((clientX - rect.left) / cellW);
+    const row = Math.floor((clientY - rect.top) / cellH);
     if (col < 0 || row < 0 || col >= ts.columns || row >= ts.rows) return null;
     return { col, row };
   };
@@ -175,11 +190,20 @@ export function PaletteCanvas() {
   return (
     <div
       ref={containerRef}
-      style={{ width: "100%", height: "100%", overflow: "auto", cursor: "pointer" }}
+      style={{
+        width: "100%",
+        height: "100%",
+        overflow: "auto",
+        cursor: "pointer",
+        imageRendering: "pixelated",
+      }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
     >
-      <canvas ref={canvasRef} style={{ display: "block" }} />
+      <canvas
+        ref={canvasRef}
+        style={{ display: "block", imageRendering: "pixelated" }}
+      />
     </div>
   );
 }

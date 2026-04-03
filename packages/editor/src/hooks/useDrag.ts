@@ -1,8 +1,8 @@
-import { useRef, useCallback } from "preact/hooks";
+import { useCallback, useRef } from 'preact/hooks';
 
 interface DragCallbacks {
   onStart?: (e: PointerEvent) => void;
-  onMove: (e: PointerEvent, delta: { dx: number; dy: number }) => void;
+  onMove?: (e: PointerEvent) => void;
   onEnd?: (e: PointerEvent) => void;
 }
 
@@ -12,26 +12,21 @@ export function useDrag(callbacks: DragCallbacks) {
 
   const onPointerDown = useCallback((e: PointerEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-    const startX = e.clientX;
-    const startY = e.clientY;
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
     cbRef.current.onStart?.(e);
 
-    const onMove = (e: PointerEvent) => {
-      cbRef.current.onMove(e, {
-        dx: e.clientX - startX,
-        dy: e.clientY - startY,
-      });
+    const onMove = (ev: PointerEvent) => {
+      cbRef.current.onMove?.(ev);
     };
-
-    const onUp = (e: PointerEvent) => {
-      cbRef.current.onEnd?.(e);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+    const onUp = (ev: PointerEvent) => {
+      target.releasePointerCapture(ev.pointerId);
+      target.removeEventListener('pointermove', onMove as EventListener);
+      target.removeEventListener('pointerup', onUp as EventListener);
+      cbRef.current.onEnd?.(ev);
     };
-
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    target.addEventListener('pointermove', onMove as EventListener);
+    target.addEventListener('pointerup', onUp as EventListener);
   }, []);
 
   return { onPointerDown };

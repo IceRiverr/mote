@@ -1,52 +1,47 @@
-import type { LayoutNode, Rect, RectMap, SplitInfo } from "./types";
+import { LayoutNode, Rect, RectMap, SplitInfo } from './types';
 
 export const HANDLE_SIZE = 4;
 
 export function computeRects(
   node: LayoutNode,
-  rect: Rect,
-  areas: RectMap = new Map(),
-  splits: SplitInfo[] = []
-): { areas: RectMap; splits: SplitInfo[] } {
-  if (node.type === "area") {
-    areas.set(node.id, rect);
-    return { areas, splits };
+  bounds: Rect,
+  areas: RectMap,
+  splits: SplitInfo[]
+): void {
+  if (node.type === 'area') {
+    areas.set(node.id, { ...bounds });
+    return;
   }
 
   const { direction, ratio, children, id } = node;
-  const half = HANDLE_SIZE / 2;
 
-  splits.push({ id, direction, ratio, rect });
+  if (direction === 'horizontal') {
+    const splitY = bounds.y + Math.round(bounds.h * ratio);
+    const topH = splitY - bounds.y - HANDLE_SIZE / 2;
+    const bottomY = splitY + HANDLE_SIZE / 2;
+    const bottomH = bounds.y + bounds.h - bottomY;
 
-  if (direction === "vertical") {
-    const splitX = rect.x + rect.width * ratio;
-    computeRects(
-      children[0],
-      { x: rect.x, y: rect.y, width: splitX - half - rect.x, height: rect.height },
-      areas,
-      splits
-    );
-    computeRects(
-      children[1],
-      { x: splitX + half, y: rect.y, width: rect.x + rect.width - splitX - half, height: rect.height },
-      areas,
-      splits
-    );
+    splits.push({
+      splitId: id,
+      direction: 'horizontal',
+      rect: { x: bounds.x, y: splitY - HANDLE_SIZE / 2, w: bounds.w, h: HANDLE_SIZE },
+    });
+
+    computeRects(children[0], { x: bounds.x, y: bounds.y, w: bounds.w, h: topH }, areas, splits);
+    computeRects(children[1], { x: bounds.x, y: bottomY, w: bounds.w, h: bottomH }, areas, splits);
   } else {
-    const splitY = rect.y + rect.height * ratio;
-    computeRects(
-      children[0],
-      { x: rect.x, y: rect.y, width: rect.width, height: splitY - half - rect.y },
-      areas,
-      splits
-    );
-    computeRects(
-      children[1],
-      { x: rect.x, y: splitY + half, width: rect.width, height: rect.y + rect.height - splitY - half },
-      areas,
-      splits
-    );
-  }
+    const splitX = bounds.x + Math.round(bounds.w * ratio);
+    const leftW = splitX - bounds.x - HANDLE_SIZE / 2;
+    const rightX = splitX + HANDLE_SIZE / 2;
+    const rightW = bounds.x + bounds.w - rightX;
 
-  return { areas, splits };
+    splits.push({
+      splitId: id,
+      direction: 'vertical',
+      rect: { x: splitX - HANDLE_SIZE / 2, y: bounds.y, w: HANDLE_SIZE, h: bounds.h },
+    });
+
+    computeRects(children[0], { x: bounds.x, y: bounds.y, w: leftW, h: bounds.h }, areas, splits);
+    computeRects(children[1], { x: rightX, y: bounds.y, w: rightW, h: bounds.h }, areas, splits);
+  }
 }

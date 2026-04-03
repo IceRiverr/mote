@@ -1,4 +1,3 @@
-import { useRef, useEffect, useCallback } from "preact/hooks";
 import { registerEditor } from "../registry";
 import { ViewportCanvas } from "./ViewportCanvas";
 import { ViewportHeader } from "./ViewportHeader";
@@ -18,7 +17,7 @@ function ViewportEditor({ areaId }: { areaId: string }) {
 
 registerEditor({
   id: "viewport",
-  name: "地图视口",
+  name: "Viewport",
   icon: "🗺",
   component: ViewportEditor,
 });

@@ -1,22 +1,22 @@
-import type { ComponentType } from "preact";
+import { ComponentType } from 'preact';
 
-interface EditorDef {
+export interface EditorDef {
   id: string;
   name: string;
   icon: string;
   component: ComponentType<{ areaId: string }>;
 }
 
-const registry = new Map<string, EditorDef>();
+const editors = new Map<string, EditorDef>();
 
 export function registerEditor(def: EditorDef) {
-  registry.set(def.id, def);
+  editors.set(def.id, def);
 }
 
 export function getEditor(id: string): EditorDef | undefined {
-  return registry.get(id);
+  return editors.get(id);
 }
 
 export function getAllEditors(): EditorDef[] {
-  return Array.from(registry.values());
+  return Array.from(editors.values());
 }

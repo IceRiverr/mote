@@ -1,3 +1,10 @@
+export interface TileData {
+  collision?: boolean;
+  tags?: string[];
+  animation?: { frames: number[]; duration: number };
+  properties?: Record<string, unknown>;
+}
+
 export interface TileSet {
   id: string;
   name: string;
@@ -11,6 +18,7 @@ export interface TileSet {
   columns: number;
   rows: number;
   tileCount: number;
+  tileData: Record<number, TileData>;
 }
 
 /** Calculate derived fields from image dimensions + tile config */
@@ -44,6 +52,7 @@ export function createTileSet(
     columns,
     rows,
     tileCount: columns * rows,
+    tileData: {},
   };
 }
 

@@ -16,6 +16,7 @@ import {
   brushHeight,
   hoverTile,
   viewportZoom,
+  viewportZoomLocked,
 } from "../../store/selection";
 import { resolveGid } from "../../data/TileMap";
 import { getTileSrcRect } from "../../data/TileSet";
@@ -23,6 +24,28 @@ import { getTileSrcRect } from "../../data/TileSet";
 /** Camera: x,y = world coordinate at viewport top-left. zoom = scale factor. */
 const camera = signal({ x: 0, y: 0, zoom: 2 });
 const needsCenter = signal(true);
+
+/** Set zoom preserving a world point at a screen position */
+function setZoomAt(
+  newZoom: number,
+  screenX: number,
+  screenY: number
+) {
+  const cam = camera.value;
+  const worldX = (screenX + cam.x) / cam.zoom;
+  const worldY = (screenY + cam.y) / cam.zoom;
+  camera.value = {
+    x: worldX * newZoom - screenX,
+    y: worldY * newZoom - screenY,
+    zoom: newZoom,
+  };
+  viewportZoom.value = newZoom;
+}
+
+/** Set zoom preserving viewport center */
+function setZoomCenter(newZoom: number, vw: number, vh: number) {
+  setZoomAt(newZoom, vw / 2, vh / 2);
+}
 
 export function ViewportCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -74,6 +97,21 @@ export function ViewportCanvas() {
     return () => ro.disconnect();
   }, []);
 
+  // --- Listen for external zoom set (from ViewportHeader input) ---
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && typeof detail.zoom === "number") {
+        const el = containerRef.current;
+        if (!el) return;
+        setZoomCenter(detail.zoom, el.clientWidth, el.clientHeight);
+        draw();
+      }
+    };
+    window.addEventListener("mote-set-viewport-zoom", handler);
+    return () => window.removeEventListener("mote-set-viewport-zoom", handler);
+  }, []);
+
   // --- Keyboard: number keys 1-6 for integer zoom, Home for fit ---
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -86,30 +124,21 @@ export function ViewportCanvas() {
 
       if (e.key === "Home") {
         e.preventDefault();
+        // Home always works even when locked (it's explicit user intent)
         centerMap(true);
         draw();
         return;
       }
 
+      // Number keys blocked when locked
+      if (viewportZoomLocked.value) return;
+
       const num = parseInt(e.key);
       if (num >= 1 && num <= 6) {
         e.preventDefault();
-        // Snap to integer zoom, centered on viewport center
         const el = containerRef.current;
         if (!el) return;
-        const vw = el.clientWidth;
-        const vh = el.clientHeight;
-        const cam = camera.value;
-        // World point at viewport center
-        const worldCX = (vw / 2 + cam.x) / cam.zoom;
-        const worldCY = (vh / 2 + cam.y) / cam.zoom;
-        const newZoom = num;
-        camera.value = {
-          x: worldCX * newZoom - vw / 2,
-          y: worldCY * newZoom - vh / 2,
-          zoom: newZoom,
-        };
-        viewportZoom.value = newZoom;
+        setZoomCenter(num, el.clientWidth, el.clientHeight);
         draw();
       }
     };
@@ -368,24 +397,16 @@ export function ViewportCanvas() {
   // --- Mouse-position zoom ---
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
+    // Blocked when locked
+    if (viewportZoomLocked.value) return;
+
     const cam = camera.value;
     const rect = canvasRef.current!.getBoundingClientRect();
-    // Mouse position relative to canvas
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-    // World position under mouse
-    const worldX = (mouseX + cam.x) / cam.zoom;
-    const worldY = (mouseY + cam.y) / cam.zoom;
-    // New zoom
     const factor = e.deltaY > 0 ? 0.9 : 1.1;
     const newZoom = Math.max(0.25, Math.min(16, cam.zoom * factor));
-    // Adjust camera so world point stays under mouse
-    camera.value = {
-      x: worldX * newZoom - mouseX,
-      y: worldY * newZoom - mouseY,
-      zoom: newZoom,
-    };
-    viewportZoom.value = newZoom;
+    setZoomAt(newZoom, mouseX, mouseY);
   };
 
   return (

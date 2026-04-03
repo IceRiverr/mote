@@ -3,24 +3,24 @@
 CODE EXPORT - Markdown Format
 ================================================================================
 Project: packages/editor
-Generated: 2026-04-03T01:09:29.614Z
-Total Files: 34
-Source Directory: src
+Generated: 2026-04-03T05:50:58.144Z
+Total Files: 40
+Source Directory: ./src
 ================================================================================
 -->
 
 # 📦 Code Export - packages/editor
 
-> 导出时间: `2026-04-03T01:09:29.614Z`
-> 文件数量: `34` 个
-> 源目录: `src`
+> 导出时间: `2026-04-03T05:50:58.144Z`
+> 文件数量: `40` 个
+> 源目录: `./src`
 
 ---
 
 ## 📁 文件清单
 
 ```
-src/
+./src/
 ├── App.tsx
 ├── components/
 │   ├── AreaView.tsx
@@ -31,28 +31,34 @@ src/
 │   └── Command.ts
 ├── data/
 │   ├── export.ts
+│   ├── io.ts
 │   ├── TileMap.ts
 │   └── TileSet.ts
 ├── editors/
 │   ├── inspector/
 │   │   ├── InspectorEditor.tsx
-│   │   └── panels/
-│   │       ├── ExportPanel.tsx
-│   │       ├── LayersPanel.tsx
-│   │       ├── MapPropsPanel.tsx
-│   │       ├── PanelShell.tsx
-│   │       └── TileSetsPanel.tsx
+│   │   ├── panels/
+│   │   │   ├── ExportPanel.tsx
+│   │   │   ├── LayersPanel.tsx
+│   │   │   ├── MapPropsPanel.tsx
+│   │   │   └── PanelShell.tsx
+│   │   └── register.ts
 │   ├── registry.ts
 │   ├── tile-palette/
 │   │   ├── PaletteCanvas.tsx
 │   │   ├── PaletteHeader.tsx
 │   │   ├── RedoPanel.tsx
-│   │   └── TilePaletteEditor.tsx
+│   │   ├── register.ts
+│   │   ├── TilePaletteEditor.tsx
+│   │   └── TileSetPopover.tsx
 │   └── viewport/
+│       ├── LayerPanel.tsx
+│       ├── register.ts
 │       ├── ViewportCanvas.tsx
 │       ├── ViewportEditor.tsx
 │       ├── ViewportFooter.tsx
-│       └── ViewportHeader.tsx
+│       ├── ViewportHeader.tsx
+│       └── ViewportToolbar.tsx
 ├── hooks/
 │   ├── useCanvas.ts
 │   └── useDrag.ts
@@ -81,6 +87,7 @@ src/
 - [components/SplitHandle.tsx](#components-splithandle-tsx)
 - [core/Command.ts](#core-command-ts)
 - [data/export.ts](#data-export-ts)
+- [data/io.ts](#data-io-ts)
 - [data/TileMap.ts](#data-tilemap-ts)
 - [data/TileSet.ts](#data-tileset-ts)
 - [editors/inspector/InspectorEditor.tsx](#editors-inspector-inspectoreditor-tsx)
@@ -88,16 +95,21 @@ src/
 - [editors/inspector/panels/LayersPanel.tsx](#editors-inspector-panels-layerspanel-tsx)
 - [editors/inspector/panels/MapPropsPanel.tsx](#editors-inspector-panels-mappropspanel-tsx)
 - [editors/inspector/panels/PanelShell.tsx](#editors-inspector-panels-panelshell-tsx)
-- [editors/inspector/panels/TileSetsPanel.tsx](#editors-inspector-panels-tilesetspanel-tsx)
+- [editors/inspector/register.ts](#editors-inspector-register-ts)
 - [editors/registry.ts](#editors-registry-ts)
 - [editors/tile-palette/PaletteCanvas.tsx](#editors-tile-palette-palettecanvas-tsx)
 - [editors/tile-palette/PaletteHeader.tsx](#editors-tile-palette-paletteheader-tsx)
 - [editors/tile-palette/RedoPanel.tsx](#editors-tile-palette-redopanel-tsx)
+- [editors/tile-palette/register.ts](#editors-tile-palette-register-ts)
 - [editors/tile-palette/TilePaletteEditor.tsx](#editors-tile-palette-tilepaletteeditor-tsx)
+- [editors/tile-palette/TileSetPopover.tsx](#editors-tile-palette-tilesetpopover-tsx)
+- [editors/viewport/LayerPanel.tsx](#editors-viewport-layerpanel-tsx)
+- [editors/viewport/register.ts](#editors-viewport-register-ts)
 - [editors/viewport/ViewportCanvas.tsx](#editors-viewport-viewportcanvas-tsx)
 - [editors/viewport/ViewportEditor.tsx](#editors-viewport-viewporteditor-tsx)
 - [editors/viewport/ViewportFooter.tsx](#editors-viewport-viewportfooter-tsx)
 - [editors/viewport/ViewportHeader.tsx](#editors-viewport-viewportheader-tsx)
+- [editors/viewport/ViewportToolbar.tsx](#editors-viewport-viewporttoolbar-tsx)
 - [hooks/useCanvas.ts](#hooks-usecanvas-ts)
 - [hooks/useDrag.ts](#hooks-usedrag-ts)
 - [index.css](#index-css)
@@ -114,41 +126,30 @@ src/
 ## 📄 App.tsx
 
 ```tsx
-import { LayoutRoot } from "./components/LayoutRoot";
+import './editors/tile-palette/register';
+import './editors/viewport/register';
+import './editors/inspector/register';
 
-// Register all editors (side effects)
-import "./editors/viewport/ViewportEditor";
-import "./editors/tile-palette/TilePaletteEditor";
-import "./editors/inspector/InspectorEditor";
+import { LayoutRoot } from './components/LayoutRoot';
 
 export function App() {
   return (
-    <div style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* Global top bar */}
-      <div
-        style={{
-          height: 36,
-          background: "#1a1a1a",
-          borderBottom: "1px solid var(--border)",
-          display: "flex",
-          alignItems: "center",
-          padding: "0 12px",
-          gap: 12,
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ fontWeight: 700, color: "var(--accent)", fontSize: 13, letterSpacing: 1 }}>
-          微尘 EDITOR
-        </span>
-        <span style={{ color: "var(--text-secondary)", fontSize: 11 }}>
-          Tilemap 工作区
-        </span>
-        <div style={{ flex: 1 }} />
-        <span style={{ color: "var(--text-secondary)", fontSize: 10 }}>v0.1.0</span>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
+      <div style={{
+        height: 32,
+        background: '#2a2a2a',
+        borderBottom: '1px solid #111',
+        display: 'flex',
+        alignItems: 'center',
+        paddingLeft: 12,
+        fontWeight: 600,
+        fontSize: 13,
+        color: '#aaa',
+        flexShrink: 0,
+      }}>
+        Mote Editor — 微尘
       </div>
-
-      {/* Layout area */}
-      <div style={{ flex: 1, position: "relative" }}>
+      <div style={{ flex: 1, position: 'relative' }}>
         <LayoutRoot />
       </div>
     </div>
@@ -160,40 +161,79 @@ export function App() {
 ## 📄 components/AreaView.tsx
 
 ```tsx
-import type { AreaNode, Rect } from "../layout/types";
-import { getEditor } from "../editors/registry";
+import { Rect } from '../layout/types';
+import { getEditor, getAllEditors } from '../editors/registry';
+import { setEditorType } from '../layout/tree';
+import { layoutTree } from '../store/layout';
 
 interface Props {
-  area: AreaNode;
+  areaId: string;
+  editorType: string;
   rect: Rect;
 }
 
-export function AreaView({ area, rect }: Props) {
-  const def = getEditor(area.editorType);
-  const Component = def?.component;
+export function AreaView({ areaId, editorType, rect }: Props) {
+  const editor = getEditor(editorType);
+  const allEditors = getAllEditors();
+
+  const handleSwitch = (e: Event) => {
+    const val = (e.target as HTMLSelectElement).value;
+    layoutTree.value = setEditorType(layoutTree.value, areaId, val);
+  };
+
+  const Comp = editor?.component;
 
   return (
     <div
       style={{
-        position: "absolute",
+        position: 'absolute',
         left: rect.x,
         top: rect.y,
-        width: rect.width,
-        height: rect.height,
-        background: "var(--bg-area)",
-        borderRadius: 0,
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
+        width: rect.w,
+        height: rect.h,
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#252525',
+        borderRight: '1px solid #111',
+        borderBottom: '1px solid #111',
+        overflow: 'hidden',
       }}
     >
-      {Component ? (
-        <Component areaId={area.id} />
-      ) : (
-        <div style={{ padding: 16, color: "var(--text-secondary)" }}>
-          Unknown: {area.editorType}
-        </div>
-      )}
+      {/* Area Header */}
+      <div style={{
+        height: 26,
+        background: '#2d2d2d',
+        borderBottom: '1px solid #1a1a1a',
+        display: 'flex',
+        alignItems: 'center',
+        paddingLeft: 6,
+        gap: 6,
+        flexShrink: 0,
+      }}>
+        <span style={{ fontSize: 12, opacity: 0.5 }}>{editor?.icon ?? '◻'}</span>
+        <select
+          value={editorType}
+          onChange={handleSwitch}
+          style={{
+            background: '#333',
+            color: '#ccc',
+            border: '1px solid #444',
+            borderRadius: 3,
+            fontSize: 11,
+            padding: '1px 4px',
+            outline: 'none',
+          }}
+        >
+          {allEditors.map((ed) => (
+            <option key={ed.id} value={ed.id}>{ed.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Editor Content */}
+      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        {Comp ? <Comp areaId={areaId} /> : <div style={{ padding: 12, color: '#666' }}>Unknown editor: {editorType}</div>}
+      </div>
     </div>
   );
 }
@@ -245,37 +285,38 @@ export function EditorSwitcher({ areaId, current }: Props) {
 ## 📄 components/LayoutRoot.tsx
 
 ```tsx
-import { useRef, useEffect } from "preact/hooks";
-import { containerSize, layoutTree, layoutComputed } from "../store/layout";
-import { collectAreas } from "../layout/tree";
-import { AreaView } from "./AreaView";
-import { SplitHandle } from "./SplitHandle";
+import { useEffect, useRef } from 'preact/hooks';
+import { containerSize, layoutComputed, layoutTree } from '../store/layout';
+import { AreaView } from './AreaView';
+import { SplitHandle } from './SplitHandle';
+import { collectAreas } from '../layout/tree';
 
 export function LayoutRoot() {
-  const ref = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const el = ref.current!;
+    const el = containerRef.current;
+    if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
-      containerSize.value = { width, height };
+      containerSize.value = { x: 0, y: 0, w: width, h: height };
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  const tree = layoutTree.value;
-  const { areas: rectMap, splits } = layoutComputed.value;
-  const areaNodes = collectAreas(tree);
+  const { areas, splits } = layoutComputed.value;
+  const areaNodes = collectAreas(layoutTree.value);
 
   return (
-    <div ref={ref} style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
-      {areaNodes.map((area) => {
-        const rect = rectMap.get(area.id);
-        return rect ? <AreaView key={area.id} area={area} rect={rect} /> : null;
+    <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+      {areaNodes.map((node) => {
+        const rect = areas.get(node.id);
+        if (!rect) return null;
+        return <AreaView key={node.id} areaId={node.id} editorType={node.editorType} rect={rect} />;
       })}
       {splits.map((s) => (
-        <SplitHandle key={s.id} info={s} />
+        <SplitHandle key={s.splitId} splitInfo={s} />
       ))}
     </div>
   );
@@ -286,69 +327,43 @@ export function LayoutRoot() {
 ## 📄 components/SplitHandle.tsx
 
 ```tsx
-import type { SplitInfo } from "../layout/types";
-import { layoutTree } from "../store/layout";
-import { resizeSplit } from "../layout/tree";
-import { useDrag } from "../hooks/useDrag";
-import { HANDLE_SIZE } from "../layout/rect";
-import { useRef } from "preact/hooks";
+import { SplitInfo } from '../layout/types';
+import { containerSize, layoutTree } from '../store/layout';
+import { resizeSplit } from '../layout/tree';
+import { useDrag } from '../hooks/useDrag';
 
 interface Props {
-  info: SplitInfo;
+  splitInfo: SplitInfo;
 }
 
-export function SplitHandle({ info }: Props) {
-  const { id, direction, ratio, rect } = info;
-  const isVertical = direction === "vertical";
-  const startRatio = useRef(ratio);
+export function SplitHandle({ splitInfo }: Props) {
+  const { splitId, direction, rect } = splitInfo;
 
   const { onPointerDown } = useDrag({
-    onStart: () => {
-      startRatio.current = ratio;
-      document.body.style.cursor = isVertical ? "col-resize" : "row-resize";
-    },
-    onMove: (_e, { dx, dy }) => {
-      const delta = isVertical ? dx : dy;
-      const total = isVertical ? rect.width : rect.height;
-      if (total === 0) return;
-      const newRatio = startRatio.current + delta / total;
-      layoutTree.value = resizeSplit(layoutTree.value, id, newRatio);
-    },
-    onEnd: () => {
-      document.body.style.cursor = "";
+    onMove(e) {
+      const bounds = containerSize.value;
+      let ratio: number;
+      if (direction === 'horizontal') {
+        ratio = (e.clientY - bounds.y) / bounds.h;
+      } else {
+        ratio = (e.clientX - bounds.x) / bounds.w;
+      }
+      layoutTree.value = resizeSplit(layoutTree.value, splitId, ratio);
     },
   });
 
-  const style = isVertical
-    ? {
-        left: rect.x + rect.width * ratio - HANDLE_SIZE / 2,
-        top: rect.y,
-        width: HANDLE_SIZE,
-        height: rect.height,
-        cursor: "col-resize" as const,
-      }
-    : {
-        left: rect.x,
-        top: rect.y + rect.height * ratio - HANDLE_SIZE / 2,
-        width: rect.width,
-        height: HANDLE_SIZE,
-        cursor: "row-resize" as const,
-      };
-
   return (
     <div
-      onPointerDown={onPointerDown}
+      onPointerDown={onPointerDown as any}
       style={{
-        position: "absolute",
-        ...style,
-        zIndex: 100,
-        background: "transparent",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.background = "var(--handle-hover)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.background = "transparent";
+        position: 'absolute',
+        left: rect.x,
+        top: rect.y,
+        width: rect.w,
+        height: rect.h,
+        cursor: direction === 'horizontal' ? 'row-resize' : 'col-resize',
+        background: '#111',
+        zIndex: 10,
       }}
     />
   );
@@ -368,38 +383,39 @@ export interface Command {
 export class CommandHistory {
   private undoStack: Command[] = [];
   private redoStack: Command[] = [];
-  private _onChange?: () => void;
-
-  constructor(onChange?: () => void) {
-    this._onChange = onChange;
-  }
 
   execute(cmd: Command) {
     cmd.execute();
     this.undoStack.push(cmd);
     this.redoStack = [];
-    this._onChange?.();
   }
 
-  undo() {
+  undo(): boolean {
     const cmd = this.undoStack.pop();
-    if (!cmd) return;
+    if (!cmd) return false;
     cmd.undo();
     this.redoStack.push(cmd);
-    this._onChange?.();
+    return true;
   }
 
-  redo() {
+  redo(): boolean {
     const cmd = this.redoStack.pop();
-    if (!cmd) return;
+    if (!cmd) return false;
     cmd.execute();
     this.undoStack.push(cmd);
-    this._onChange?.();
+    return true;
   }
 
   get canUndo() { return this.undoStack.length > 0; }
   get canRedo() { return this.redoStack.length > 0; }
+
+  clear() {
+    this.undoStack = [];
+    this.redoStack = [];
+  }
 }
+
+export const commandHistory = new CommandHistory();
 
 ```
 
@@ -408,86 +424,411 @@ export class CommandHistory {
 ```typescript
 import type { TileMap } from "./TileMap";
 import type { TileSet } from "./TileSet";
+import {
+  exportMapStandalone,
+  exportMapBundle,
+  tileSetToJson,
+  downloadJson,
+} from "./io";
 
-export interface ExportData {
+export type { TileMapStandaloneJson, TileMapBundleJson } from "./io";
+
+/**
+ * Export map as standalone (references external tilesets).
+ */
+export function exportStandalone(map: TileMap, tilesets: TileSet[]) {
+  const data = exportMapStandalone(map, tilesets);
+  downloadJson(data, `${map.name}.mote.json`);
+}
+
+/**
+ * Export map as self-contained bundle (all data inline).
+ */
+export function exportBundle(
+  map: TileMap,
+  tilesets: TileSet[],
+  images: Map<string, HTMLImageElement>,
+) {
+  const data = exportMapBundle(map, tilesets, images);
+  downloadJson(data, `${map.name}.mote-bundle.json`);
+}
+
+/**
+ * Export a single tileset as standalone JSON.
+ */
+export function exportTileSet(ts: TileSet) {
+  const data = tileSetToJson(ts);
+  const safeName = ts.name.replace(/[^a-zA-Z0-9_\-]/g, "_");
+  downloadJson(data, `${safeName}.mote-tileset.json`);
+}
+
+```
+
+## 📄 data/io.ts
+
+```typescript
+import type { TileSet, TileData } from "./TileSet";
+import type { TileMap, TileSetRef, TileLayer } from "./TileMap";
+import { createTileSet } from "./TileSet";
+
+// ============================================================
+// TileSet JSON format (.mote-tileset.json)
+// ============================================================
+
+export interface TileSetJson {
   version: "1.0";
-  type: "tilemap";
+  type: "mote-tileset";
+  id: string;
+  name: string;
+  image: string; // filename only
+  imageWidth: number;
+  imageHeight: number;
+  tileWidth: number;
+  tileHeight: number;
+  margin: number;
+  spacing: number;
+  columns: number;
+  rows: number;
+  tileCount: number;
+  tileData?: Record<number, TileData>;
+}
+
+export function tileSetToJson(ts: TileSet): TileSetJson {
+  const imageName = ts.name.replace(/[^a-zA-Z0-9_\-]/g, "_") + ".png";
+  return {
+    version: "1.0",
+    type: "mote-tileset",
+    id: ts.id,
+    name: ts.name,
+    image: imageName,
+    imageWidth: ts.imageWidth,
+    imageHeight: ts.imageHeight,
+    tileWidth: ts.tileWidth,
+    tileHeight: ts.tileHeight,
+    margin: ts.margin,
+    spacing: ts.spacing,
+    columns: ts.columns,
+    rows: ts.rows,
+    tileCount: ts.tileCount,
+    tileData: Object.keys(ts.tileData).length > 0 ? ts.tileData : undefined,
+  };
+}
+
+export function tileSetFromJson(
+  json: TileSetJson,
+  imageUrl: string,
+): TileSet {
+  const ts = createTileSet(
+    json.id,
+    json.name,
+    imageUrl,
+    json.imageWidth,
+    json.imageHeight,
+    json.tileWidth,
+    json.tileHeight,
+    json.margin,
+    json.spacing,
+  );
+  if (json.tileData) {
+    ts.tileData = json.tileData;
+  }
+  return ts;
+}
+
+// ============================================================
+// TileMap standalone export (.mote.json)
+// ============================================================
+
+export interface TileMapStandaloneJson {
+  version: "1.0";
+  type: "mote-tilemap";
+  id: string;
   name: string;
   width: number;
   height: number;
   tileWidth: number;
   tileHeight: number;
-  tilesets: ExportTileSet[];
+  tilesets: Array<{
+    source: string; // e.g. "kenney.mote-tileset.json"
+    firstGid: number;
+  }>;
   layers: ExportLayer[];
 }
 
-interface ExportTileSet {
-  name: string;
-  image: string;
-  tileWidth: number;
-  tileHeight: number;
-  columns: number;
-  rows: number;
-  firstGid: number;
-  tileCount: number;
-  margin: number;
-  spacing: number;
-}
-
 interface ExportLayer {
+  id: string;
   name: string;
   type: "tilelayer";
   visible: boolean;
   opacity: number;
+  locked: boolean;
   data: number[];
 }
 
-export function exportTileMap(
+export function exportMapStandalone(
   map: TileMap,
-  tilesets: Map<string, TileSet>
-): ExportData {
+  tilesets: TileSet[],
+): TileMapStandaloneJson {
+  const tsMap = new Map(tilesets.map((t) => [t.id, t]));
   return {
     version: "1.0",
-    type: "tilemap",
+    type: "mote-tilemap",
+    id: map.id,
     name: map.name,
     width: map.width,
     height: map.height,
     tileWidth: map.tileWidth,
     tileHeight: map.tileHeight,
     tilesets: map.tilesets.map((ref) => {
-      const ts = tilesets.get(ref.tilesetId)!;
+      const ts = tsMap.get(ref.tilesetId);
+      const name = ts ? ts.name.replace(/[^a-zA-Z0-9_\-]/g, "_") : ref.tilesetId;
       return {
-        name: ts.name,
-        image: ts.name + ".png",
-        tileWidth: ts.tileWidth,
-        tileHeight: ts.tileHeight,
-        columns: ts.columns,
-        rows: ts.rows,
+        source: `${name}.mote-tileset.json`,
         firstGid: ref.firstGid,
-        tileCount: ts.tileCount,
-        margin: ts.margin,
-        spacing: ts.spacing,
       };
     }),
-    layers: map.layers.map((layer) => ({
-      name: layer.name,
-      type: "tilelayer",
-      visible: layer.visible,
-      opacity: layer.opacity,
-      data: Array.from(layer.data),
+    layers: map.layers.map((l) => ({
+      id: l.id,
+      name: l.name,
+      type: "tilelayer" as const,
+      visible: l.visible,
+      opacity: l.opacity,
+      locked: l.locked,
+      data: Array.from(l.data),
     })),
   };
 }
 
-export function downloadJson(data: ExportData) {
+// ============================================================
+// TileMap bundle export (.mote-bundle.json) - self-contained
+// ============================================================
+
+export interface TileMapBundleJson {
+  version: "1.0";
+  type: "mote-tilemap-bundle";
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  tileWidth: number;
+  tileHeight: number;
+  tilesets: Array<{
+    id: string;
+    name: string;
+    imageData: string; // base64 data URL
+    imageWidth: number;
+    imageHeight: number;
+    tileWidth: number;
+    tileHeight: number;
+    margin: number;
+    spacing: number;
+    columns: number;
+    rows: number;
+    tileCount: number;
+    firstGid: number;
+    tileData?: Record<number, TileData>;
+  }>;
+  layers: ExportLayer[];
+}
+
+function imageToDataUrl(img: HTMLImageElement): string {
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(img, 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
+export function exportMapBundle(
+  map: TileMap,
+  tilesets: TileSet[],
+  images: Map<string, HTMLImageElement>,
+): TileMapBundleJson {
+  const tsMap = new Map(tilesets.map((t) => [t.id, t]));
+  return {
+    version: "1.0",
+    type: "mote-tilemap-bundle",
+    id: map.id,
+    name: map.name,
+    width: map.width,
+    height: map.height,
+    tileWidth: map.tileWidth,
+    tileHeight: map.tileHeight,
+    tilesets: map.tilesets.map((ref) => {
+      const ts = tsMap.get(ref.tilesetId)!;
+      const img = images.get(ref.tilesetId);
+      return {
+        id: ts.id,
+        name: ts.name,
+        imageData: img ? imageToDataUrl(img) : "",
+        imageWidth: ts.imageWidth,
+        imageHeight: ts.imageHeight,
+        tileWidth: ts.tileWidth,
+        tileHeight: ts.tileHeight,
+        margin: ts.margin,
+        spacing: ts.spacing,
+        columns: ts.columns,
+        rows: ts.rows,
+        tileCount: ts.tileCount,
+        firstGid: ref.firstGid,
+        tileData: Object.keys(ts.tileData).length > 0 ? ts.tileData : undefined,
+      };
+    }),
+    layers: map.layers.map((l) => ({
+      id: l.id,
+      name: l.name,
+      type: "tilelayer" as const,
+      visible: l.visible,
+      opacity: l.opacity,
+      locked: l.locked,
+      data: Array.from(l.data),
+    })),
+  };
+}
+
+// ============================================================
+// Import
+// ============================================================
+
+export function loadImageFromUrl(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+export function loadImageFromFile(file: File): Promise<{ url: string; img: HTMLImageElement }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => resolve({ url, img });
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+/** Import a bundle JSON — fully self-contained, returns everything needed */
+export async function importBundle(
+  json: TileMapBundleJson,
+): Promise<{
+  map: TileMap;
+  tilesets: TileSet[];
+  images: Map<string, HTMLImageElement>;
+}> {
+  const tilesets: TileSet[] = [];
+  const images = new Map<string, HTMLImageElement>();
+  const tilesetRefs: TileSetRef[] = [];
+
+  for (const tsData of json.tilesets) {
+    const img = await loadImageFromUrl(tsData.imageData);
+    const ts = createTileSet(
+      tsData.id, tsData.name, tsData.imageData,
+      tsData.imageWidth, tsData.imageHeight,
+      tsData.tileWidth, tsData.tileHeight,
+      tsData.margin, tsData.spacing,
+    );
+    if (tsData.tileData) ts.tileData = tsData.tileData;
+    tilesets.push(ts);
+    images.set(ts.id, img);
+    tilesetRefs.push({ tilesetId: ts.id, firstGid: tsData.firstGid });
+  }
+
+  const map: TileMap = {
+    id: json.id,
+    name: json.name,
+    width: json.width,
+    height: json.height,
+    tileWidth: json.tileWidth,
+    tileHeight: json.tileHeight,
+    tilesets: tilesetRefs,
+    layers: json.layers.map((l) => ({
+      id: l.id,
+      name: l.name,
+      visible: l.visible,
+      opacity: l.opacity,
+      locked: l.locked,
+      data: Array.from(l.data),
+    })),
+  };
+
+  return { map, tilesets, images };
+}
+
+/** Import a standalone map JSON — may need external tileset files */
+export function importStandaloneMap(
+  json: TileMapStandaloneJson,
+): {
+  map: TileMap;
+  missingTilesets: Array<{ source: string; firstGid: number }>;
+} {
+  const map: TileMap = {
+    id: json.id,
+    name: json.name,
+    width: json.width,
+    height: json.height,
+    tileWidth: json.tileWidth,
+    tileHeight: json.tileHeight,
+    tilesets: [], // will be filled as tilesets are loaded
+    layers: json.layers.map((l) => ({
+      id: l.id,
+      name: l.name,
+      visible: l.visible,
+      opacity: l.opacity,
+      locked: l.locked,
+      data: Array.from(l.data),
+    })),
+  };
+
+  return {
+    map,
+    missingTilesets: json.tilesets.map((ref) => ({
+      source: ref.source,
+      firstGid: ref.firstGid,
+    })),
+  };
+}
+
+// ============================================================
+// File utilities
+// ============================================================
+
+export function downloadJson(data: unknown, filename: string) {
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${data.name}.weichen.json`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export function readJsonFile(file: File): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        resolve(JSON.parse(reader.result as string));
+      } catch (e) {
+        reject(e);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+/** Detect import JSON type */
+export function detectJsonType(
+  json: any,
+): "mote-tileset" | "mote-tilemap" | "mote-tilemap-bundle" | "unknown" {
+  if (json?.type === "mote-tileset") return "mote-tileset";
+  if (json?.type === "mote-tilemap") return "mote-tilemap";
+  if (json?.type === "mote-tilemap-bundle") return "mote-tilemap-bundle";
+  return "unknown";
 }
 
 ```
@@ -560,7 +901,6 @@ export function resolveGid(
   gid: number
 ): { tilesetId: string; localId: number } | null {
   if (gid <= 0) return null;
-  // find the tileset with the highest firstGid <= gid
   let best: TileSetRef | null = null;
   for (const ref of map.tilesets) {
     if (ref.firstGid <= gid && (!best || ref.firstGid > best.firstGid)) {
@@ -576,6 +916,13 @@ export function resolveGid(
 ## 📄 data/TileSet.ts
 
 ```typescript
+export interface TileData {
+  collision?: boolean;
+  tags?: string[];
+  animation?: { frames: number[]; duration: number };
+  properties?: Record<string, unknown>;
+}
+
 export interface TileSet {
   id: string;
   name: string;
@@ -589,6 +936,7 @@ export interface TileSet {
   columns: number;
   rows: number;
   tileCount: number;
+  tileData: Record<number, TileData>;
 }
 
 /** Calculate derived fields from image dimensions + tile config */
@@ -622,6 +970,7 @@ export function createTileSet(
     columns,
     rows,
     tileCount: columns * rows,
+    tileData: {},
   };
 }
 
@@ -648,7 +997,6 @@ export function getTileSrcRect(
 import { registerEditor } from "../registry";
 import { MapPropsPanel } from "./panels/MapPropsPanel";
 import { LayersPanel } from "./panels/LayersPanel";
-import { TileSetsPanel } from "./panels/TileSetsPanel";
 import { ExportPanel } from "./panels/ExportPanel";
 
 function InspectorEditor({ areaId }: { areaId: string }) {
@@ -670,7 +1018,6 @@ function InspectorEditor({ areaId }: { areaId: string }) {
       <div style={{ flex: 1, overflow: "auto", padding: 0 }}>
         <MapPropsPanel />
         <LayersPanel />
-        <TileSetsPanel />
         <ExportPanel />
       </div>
     </div>
@@ -691,27 +1038,74 @@ export { InspectorEditor };
 ## 📄 editors/inspector/panels/ExportPanel.tsx
 
 ```tsx
-import { currentMap, tilesets } from "../../../store/project";
-import { exportTileMap, downloadJson } from "../../../data/export";
+import { useRef } from "preact/hooks";
+import { currentMap, tilesets, tilesetImages, importTileMapFromFile } from "../../../store/project";
+import { exportStandalone, exportBundle } from "../../../data/export";
 import { PanelShell } from "./PanelShell";
 
 export function ExportPanel() {
-  const handleExport = () => {
-    const map = currentMap.value;
-    const tsMap = new Map(tilesets.value.map((t) => [t.id, t]));
-    const data = exportTileMap(map, tsMap);
-    downloadJson(data);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleExportStandalone = () => {
+    exportStandalone(currentMap.value, tilesets.value);
+  };
+
+  const handleExportBundle = () => {
+    exportBundle(currentMap.value, tilesets.value, tilesetImages.value);
+  };
+
+  const handleImport = () => {
+    fileRef.current?.click();
+  };
+
+  const handleFile = async (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    try {
+      await importTileMapFromFile(file);
+    } catch (err) {
+      console.error("Import failed:", err);
+      alert("导入失败: " + (err as Error).message);
+    }
+    (e.target as HTMLInputElement).value = "";
   };
 
   return (
-    <PanelShell title="导出">
+    <PanelShell title="导入/导出">
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <div style={{ color: "var(--text-secondary)", fontSize: 11 }}>
-          导出为 .weichen.json 格式，可直接用于游戏引擎加载
+        <div style={{ color: "var(--text-secondary)", fontSize: 10, marginBottom: 2 }}>
+          导出为 .mote.json (引用外部 TileSet) 或 .mote-bundle.json (自包含)
         </div>
-        <button onClick={handleExport} style={{ width: "100%" }}>
-          导出地图数据
-        </button>
+
+        <div style={{ display: "flex", gap: 4 }}>
+          <button onClick={handleExportStandalone} style={{ flex: 1, fontSize: 10 }}>
+            导出 (引用)
+          </button>
+          <button onClick={handleExportBundle} style={{ flex: 1, fontSize: 10 }}>
+            导出 (打包)
+          </button>
+        </div>
+
+        <div style={{
+          borderTop: "1px solid var(--border)",
+          paddingTop: 6,
+          marginTop: 4,
+        }}>
+          <div style={{ color: "var(--text-secondary)", fontSize: 10, marginBottom: 4 }}>
+            导入 .mote.json 或 .mote-bundle.json 地图文件
+          </div>
+          <button onClick={handleImport} style={{ width: "100%", fontSize: 10 }}>
+            导入地图
+          </button>
+        </div>
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".json"
+          style={{ display: "none" }}
+          onChange={handleFile}
+        />
       </div>
     </PanelShell>
   );
@@ -728,11 +1122,13 @@ import {
   bumpMapVersion,
 } from "../../../store/project";
 import { PanelShell } from "./PanelShell";
+import { useState } from "preact/hooks";
 
 let layerUid = 10;
 
 export function LayersPanel() {
   const map = currentMap.value;
+  const selectedLayer = map.layers.find((l) => l.id === activeLayerId.value) ?? map.layers[0];
 
   const addLayer = () => {
     const id = `layer_${++layerUid}`;
@@ -784,9 +1180,82 @@ export function LayersPanel() {
     bumpMapVersion();
   };
 
+  const moveLayer = (id: string, dir: -1 | 1) => {
+    const idx = map.layers.findIndex((l) => l.id === id);
+    if (idx < 0) return;
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= map.layers.length) return;
+    const newLayers = [...map.layers];
+    [newLayers[idx], newLayers[newIdx]] = [newLayers[newIdx], newLayers[idx]];
+    currentMap.value = { ...map, layers: newLayers };
+    bumpMapVersion();
+  };
+
+  const renameLayer = (id: string, name: string) => {
+    currentMap.value = {
+      ...map,
+      layers: map.layers.map((l) =>
+        l.id === id ? { ...l, name } : l
+      ),
+    };
+  };
+
+  const setOpacity = (id: string, opacity: number) => {
+    currentMap.value = {
+      ...map,
+      layers: map.layers.map((l) =>
+        l.id === id ? { ...l, opacity } : l
+      ),
+    };
+    bumpMapVersion();
+  };
+
   return (
     <PanelShell title="图层">
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      {/* Toolbar */}
+      <div style={{ display: "flex", gap: 2, marginBottom: 4 }}>
+        <button onClick={addLayer} title="添加图层" style={{ flex: 1, fontSize: 11 }}>+</button>
+        <button
+          onClick={() => selectedLayer && moveLayer(selectedLayer.id, -1)}
+          title="上移"
+          style={{ flex: 1, fontSize: 11 }}
+        >↑</button>
+        <button
+          onClick={() => selectedLayer && moveLayer(selectedLayer.id, 1)}
+          title="下移"
+          style={{ flex: 1, fontSize: 11 }}
+        >↓</button>
+        <button
+          onClick={() => selectedLayer && removeLayer(selectedLayer.id)}
+          title="删除图层"
+          style={{ flex: 1, fontSize: 11, color: "var(--danger)" }}
+        >✕</button>
+      </div>
+
+      {/* Quick visibility bar */}
+      <div style={{ display: "flex", gap: 2, marginBottom: 6, flexWrap: "wrap" }}>
+        {map.layers.map((layer) => (
+          <div
+            key={layer.id}
+            onClick={() => toggleVisible(layer.id)}
+            title={`${layer.name} (${layer.visible ? "可见" : "隐藏"})`}
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: 2,
+              border: activeLayerId.value === layer.id
+                ? "2px solid var(--accent)"
+                : "1px solid var(--border)",
+              background: layer.visible ? "var(--accent)" : "var(--bg-input)",
+              opacity: layer.visible ? 1 : 0.3,
+              cursor: "pointer",
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Layer list */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
         {[...map.layers].reverse().map((layer) => (
           <div
             key={layer.id}
@@ -796,7 +1265,7 @@ export function LayersPanel() {
               alignItems: "center",
               height: 26,
               padding: "0 4px",
-              gap: 4,
+              gap: 3,
               background:
                 activeLayerId.value === layer.id
                   ? "var(--selection)"
@@ -814,13 +1283,11 @@ export function LayersPanel() {
                 padding: "0 2px",
                 cursor: "pointer",
                 opacity: layer.visible ? 1 : 0.3,
-                fontSize: 12,
-                width: 20,
+                fontSize: 11,
+                width: 18,
                 height: 20,
               }}
-            >
-              👁
-            </button>
+            >👁</button>
             <button
               title={layer.locked ? "解锁" : "锁定"}
               onClick={(e) => { e.stopPropagation(); toggleLock(layer.id); }}
@@ -830,38 +1297,80 @@ export function LayersPanel() {
                 padding: "0 2px",
                 cursor: "pointer",
                 opacity: layer.locked ? 1 : 0.3,
-                fontSize: 12,
-                width: 20,
+                fontSize: 11,
+                width: 18,
                 height: 20,
               }}
-            >
-              🔒
-            </button>
-            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11 }}>
+            >🔒</button>
+            <span style={{
+              flex: 1,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              fontSize: 11,
+            }}>
               {layer.name}
             </span>
-            <button
-              title="删除图层"
-              onClick={(e) => { e.stopPropagation(); removeLayer(layer.id); }}
-              style={{
-                border: "none",
-                background: "transparent",
-                padding: "0 2px",
-                cursor: "pointer",
-                color: "var(--danger)",
-                fontSize: 11,
-                width: 20,
-                height: 20,
-              }}
-            >
-              ✕
-            </button>
+            <span style={{
+              fontSize: 10,
+              color: "var(--text-secondary)",
+              minWidth: 24,
+              textAlign: "right",
+            }}>
+              {Math.round(layer.opacity * 100)}%
+            </span>
           </div>
         ))}
       </div>
-      <button onClick={addLayer} style={{ width: "100%", marginTop: 4 }}>
-        + 添加图层
-      </button>
+
+      {/* Selected layer properties */}
+      {selectedLayer && (
+        <div style={{
+          marginTop: 8,
+          paddingTop: 6,
+          borderTop: "1px solid var(--border)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}>
+          <div style={{ fontSize: 10, color: "var(--text-secondary)", fontWeight: 500, marginBottom: 2 }}>
+            图层属性
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 40, fontSize: 10, color: "var(--text-secondary)", textAlign: "right", flexShrink: 0 }}>名称</span>
+            <input
+              type="text"
+              value={selectedLayer.name}
+              onInput={(e) => renameLayer(selectedLayer.id, (e.target as HTMLInputElement).value)}
+              onClick={(e) => e.stopPropagation()}
+              style={{ flex: 1, minWidth: 0, fontSize: 11 }}
+            />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 40, fontSize: 10, color: "var(--text-secondary)", textAlign: "right", flexShrink: 0 }}>透明度</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={selectedLayer.opacity}
+              onInput={(e) => setOpacity(selectedLayer.id, parseFloat((e.target as HTMLInputElement).value))}
+              style={{ flex: 1 }}
+            />
+            <span style={{ fontSize: 10, color: "var(--text-secondary)", width: 30, textAlign: "right" }}>
+              {Math.round(selectedLayer.opacity * 100)}%
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 40, fontSize: 10, color: "var(--text-secondary)", textAlign: "right", flexShrink: 0 }}>锁定</span>
+            <input
+              type="checkbox"
+              checked={selectedLayer.locked}
+              onChange={() => toggleLock(selectedLayer.id)}
+            />
+          </div>
+        </div>
+      )}
     </PanelShell>
   );
 }
@@ -1014,239 +1523,37 @@ export function PanelShell({ title, defaultOpen = true, children }: Props) {
 
 ```
 
-## 📄 editors/inspector/panels/TileSetsPanel.tsx
+## 📄 editors/inspector/register.ts
 
-```tsx
-import {
-  tilesets,
-  updateTileSetParams,
-  removeTileSet,
-} from "../../../store/project";
-import { activeTilesetId } from "../../../store/selection";
-import { PanelShell } from "./PanelShell";
-
-export function TileSetsPanel() {
-  return (
-    <PanelShell title="瓦片集">
-      {tilesets.value.length === 0 ? (
-        <div
-          style={{
-            color: "var(--text-secondary)",
-            fontSize: 11,
-            padding: "4px 0",
-          }}
-        >
-          在左侧瓦片面板中点击「导入」添加瓦片集
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {tilesets.value.map((ts) => {
-            const isActive = activeTilesetId.value === ts.id;
-
-            return (
-              <div
-                key={ts.id}
-                style={{
-                  background: isActive ? "var(--selection)" : "var(--bg-base)",
-                  borderRadius: 4,
-                  padding: "6px 8px",
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  activeTilesetId.value = ts.id;
-                }}
-              >
-                {/* Name + delete */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    marginBottom: 6,
-                  }}
-                >
-                  <input
-                    type="text"
-                    value={ts.name}
-                    onInput={(e) =>
-                      updateTileSetParams(ts.id, {
-                        name: (e.target as HTMLInputElement).value,
-                      })
-                    }
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ flex: 1, minWidth: 0, fontSize: 11 }}
-                  />
-                  <button
-                    title="删除瓦片集"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeTileSet(ts.id);
-                    }}
-                    style={{
-                      border: "none",
-                      background: "transparent",
-                      color: "var(--danger)",
-                      cursor: "pointer",
-                      padding: "0 4px",
-                      fontSize: 11,
-                      marginLeft: 4,
-                    }}
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {/* Tile size */}
-                <Row label="瓦片">
-                  <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                    <input
-                      type="number"
-                      value={ts.tileWidth}
-                      min={1}
-                      max={512}
-                      style={{ width: 42 }}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) =>
-                        updateTileSetParams(ts.id, {
-                          tileWidth: Math.max(
-                            1,
-                            parseInt((e.target as HTMLInputElement).value) || 1
-                          ),
-                        })
-                      }
-                    />
-                    <span style={{ color: "var(--text-secondary)" }}>×</span>
-                    <input
-                      type="number"
-                      value={ts.tileHeight}
-                      min={1}
-                      max={512}
-                      style={{ width: 42 }}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) =>
-                        updateTileSetParams(ts.id, {
-                          tileHeight: Math.max(
-                            1,
-                            parseInt((e.target as HTMLInputElement).value) || 1
-                          ),
-                        })
-                      }
-                    />
-                    <span style={{ color: "var(--text-secondary)", fontSize: 10 }}>px</span>
-                  </div>
-                </Row>
-
-                {/* Margin */}
-                <Row label="边距">
-                  <input
-                    type="number"
-                    value={ts.margin}
-                    min={0}
-                    max={128}
-                    style={{ width: 42 }}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) =>
-                      updateTileSetParams(ts.id, {
-                        margin: Math.max(
-                          0,
-                          parseInt((e.target as HTMLInputElement).value) || 0
-                        ),
-                      })
-                    }
-                  />
-                </Row>
-
-                {/* Spacing */}
-                <Row label="间距">
-                  <input
-                    type="number"
-                    value={ts.spacing}
-                    min={0}
-                    max={128}
-                    style={{ width: 42 }}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) =>
-                      updateTileSetParams(ts.id, {
-                        spacing: Math.max(
-                          0,
-                          parseInt((e.target as HTMLInputElement).value) || 0
-                        ),
-                      })
-                    }
-                  />
-                </Row>
-
-                {/* Computed info */}
-                <div
-                  style={{
-                    marginTop: 4,
-                    color: "var(--text-secondary)",
-                    fontSize: 10,
-                  }}
-                >
-                  {ts.columns}×{ts.rows} = {ts.tileCount} 瓦片 ·
-                  原图 {ts.imageWidth}×{ts.imageHeight}px
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </PanelShell>
-  );
-}
-
-function Row({ label, children }: { label: string; children: any }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        marginBottom: 3,
-        gap: 6,
-      }}
-    >
-      <span
-        style={{
-          width: 30,
-          flexShrink: 0,
-          color: "var(--text-secondary)",
-          fontSize: 10,
-          textAlign: "right",
-        }}
-      >
-        {label}
-      </span>
-      <div style={{ flex: 1 }}>{children}</div>
-    </div>
-  );
-}
+```typescript
+import './InspectorEditor';
 
 ```
 
 ## 📄 editors/registry.ts
 
 ```typescript
-import type { ComponentType } from "preact";
+import { ComponentType } from 'preact';
 
-interface EditorDef {
+export interface EditorDef {
   id: string;
   name: string;
   icon: string;
   component: ComponentType<{ areaId: string }>;
 }
 
-const registry = new Map<string, EditorDef>();
+const editors = new Map<string, EditorDef>();
 
 export function registerEditor(def: EditorDef) {
-  registry.set(def.id, def);
+  editors.set(def.id, def);
 }
 
 export function getEditor(id: string): EditorDef | undefined {
-  return registry.get(id);
+  return editors.get(id);
 }
 
 export function getAllEditors(): EditorDef[] {
-  return Array.from(registry.values());
+  return Array.from(editors.values());
 }
 
 ```
@@ -1261,10 +1568,9 @@ import {
   brushTiles,
   brushWidth,
   brushHeight,
+  displayScale,
 } from "../../store/selection";
 import { getTileSrcRect } from "../../data/TileSet";
-
-const DISPLAY_TILE = 32; // display size per tile in palette
 
 export function PaletteCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1284,6 +1590,10 @@ export function PaletteCanvas() {
     const ts = getTs();
     const img = ts ? tilesetImages.value.get(ts.id) : null;
 
+    const scale = displayScale.value;
+    const cellW = ts ? ts.tileWidth * scale : 32;
+    const cellH = ts ? ts.tileHeight * scale : 32;
+
     const dpr = window.devicePixelRatio || 1;
     const w = container.clientWidth;
     const h = container.clientHeight;
@@ -1295,8 +1605,11 @@ export function PaletteCanvas() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
+    // Pixel-perfect: disable smoothing
+    ctx.imageSmoothingEnabled = false;
+
     if (!ts || !img) {
-      ctx.fillStyle = "var(--text-secondary)";
+      ctx.fillStyle = "#888";
       ctx.font = "12px sans-serif";
       ctx.textAlign = "center";
       ctx.fillText("点击「导入」添加瓦片集", w / 2, h / 2);
@@ -1304,7 +1617,6 @@ export function PaletteCanvas() {
     }
 
     // Draw tiles
-    ctx.imageSmoothingEnabled = false;
     for (let r = 0; r < ts.rows; r++) {
       for (let c = 0; c < ts.columns; c++) {
         const localId = r * ts.columns + c;
@@ -1312,7 +1624,7 @@ export function PaletteCanvas() {
         ctx.drawImage(
           img,
           src.sx, src.sy, src.sw, src.sh,
-          c * DISPLAY_TILE, r * DISPLAY_TILE, DISPLAY_TILE, DISPLAY_TILE
+          c * cellW, r * cellH, cellW, cellH
         );
       }
     }
@@ -1322,21 +1634,20 @@ export function PaletteCanvas() {
     ctx.lineWidth = 1;
     for (let c = 0; c <= ts.columns; c++) {
       ctx.beginPath();
-      ctx.moveTo(c * DISPLAY_TILE, 0);
-      ctx.lineTo(c * DISPLAY_TILE, ts.rows * DISPLAY_TILE);
+      ctx.moveTo(c * cellW + 0.5, 0);
+      ctx.lineTo(c * cellW + 0.5, ts.rows * cellH);
       ctx.stroke();
     }
     for (let r = 0; r <= ts.rows; r++) {
       ctx.beginPath();
-      ctx.moveTo(0, r * DISPLAY_TILE);
-      ctx.lineTo(ts.columns * DISPLAY_TILE, r * DISPLAY_TILE);
+      ctx.moveTo(0, r * cellH + 0.5);
+      ctx.lineTo(ts.columns * cellW, r * cellH + 0.5);
       ctx.stroke();
     }
 
     // Selection highlight
     const bt = brushTiles.value;
     if (bt.length > 0) {
-      // Find the selected tile range in this tileset
       const map = currentMap.value;
       const ref = map.tilesets.find((r) => r.tilesetId === ts.id);
       if (ref) {
@@ -1347,17 +1658,24 @@ export function PaletteCanvas() {
           ctx.strokeStyle = "rgba(74,144,217,0.9)";
           ctx.lineWidth = 2;
           ctx.strokeRect(
-            startCol * DISPLAY_TILE,
-            startRow * DISPLAY_TILE,
-            brushWidth.value * DISPLAY_TILE,
-            brushHeight.value * DISPLAY_TILE
+            startCol * cellW,
+            startRow * cellH,
+            brushWidth.value * cellW,
+            brushHeight.value * cellH
+          );
+          ctx.fillStyle = "rgba(74,144,217,0.2)";
+          ctx.fillRect(
+            startCol * cellW,
+            startRow * cellH,
+            brushWidth.value * cellW,
+            brushHeight.value * cellH
           );
         }
       }
     }
   }, []);
 
-  // Redraw on relevant signal changes
+  // Redraw on signal changes
   useEffect(() => {
     draw();
   }, [
@@ -1365,6 +1683,7 @@ export function PaletteCanvas() {
     tilesets.value,
     tilesetImages.value,
     brushTiles.value,
+    displayScale.value,
   ]);
 
   // Resize
@@ -1379,8 +1698,11 @@ export function PaletteCanvas() {
     const rect = canvasRef.current!.getBoundingClientRect();
     const ts = getTs();
     if (!ts) return null;
-    const col = Math.floor((clientX - rect.left) / DISPLAY_TILE);
-    const row = Math.floor((clientY - rect.top) / DISPLAY_TILE);
+    const scale = displayScale.value;
+    const cellW = ts.tileWidth * scale;
+    const cellH = ts.tileHeight * scale;
+    const col = Math.floor((clientX - rect.left) / cellW);
+    const row = Math.floor((clientY - rect.top) / cellH);
     if (col < 0 || row < 0 || col >= ts.columns || row >= ts.rows) return null;
     return { col, row };
   };
@@ -1431,11 +1753,20 @@ export function PaletteCanvas() {
   return (
     <div
       ref={containerRef}
-      style={{ width: "100%", height: "100%", overflow: "auto", cursor: "pointer" }}
+      style={{
+        width: "100%",
+        height: "100%",
+        overflow: "auto",
+        cursor: "pointer",
+        imageRendering: "pixelated",
+      }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
     >
-      <canvas ref={canvasRef} style={{ display: "block" }} />
+      <canvas
+        ref={canvasRef}
+        style={{ display: "block", imageRendering: "pixelated" }}
+      />
     </div>
   );
 }
@@ -1452,9 +1783,11 @@ import {
   currentMap,
   bumpMapVersion,
   lastImportedTilesetId,
+  importTileSetFromFiles,
 } from "../../store/project";
-import { activeTilesetId } from "../../store/selection";
+import { activeTilesetId, displayScale } from "../../store/selection";
 import { createTileSet } from "../../data/TileSet";
+import { popoverOpen } from "./TileSetPopover";
 
 let tsUid = 0;
 
@@ -1466,15 +1799,30 @@ export function PaletteHeader() {
   };
 
   const handleFile = (e: Event) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
+    const files = Array.from((e.target as HTMLInputElement).files ?? []);
+    if (files.length === 0) return;
+
+    // Check if it's a JSON tileset import
+    const jsonFile = files.find((f) => f.name.endsWith(".json"));
+    const imageFile = files.find((f) => !f.name.endsWith(".json"));
+
+    if (jsonFile && imageFile) {
+      // Import from .mote-tileset.json + image
+      importTileSetFromFiles(jsonFile, imageFile).catch(console.error);
+      (e.target as HTMLInputElement).value = "";
+      return;
+    }
+
+    // Regular image import
+    const file = files[0];
+    if (!file || !file.type.startsWith("image/")) return;
+
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
       const name = file.name.replace(/\.[^.]+$/, "");
       const id = `ts_${++tsUid}`;
 
-      // Import with defaults — user refines via Redo Panel / Inspector
       const ts = createTileSet(id, name, url, img.width, img.height, 16, 16, 0, 0);
       tilesets.value = [...tilesets.value, ts];
 
@@ -1484,7 +1832,7 @@ export function PaletteHeader() {
 
       activeTilesetId.value = id;
 
-      // Auto-add to current map's tileset refs
+      // Auto-add to current map
       const map = currentMap.value;
       const maxGid = map.tilesets.reduce((max, ref) => {
         const t = tilesets.value.find((t) => t.id === ref.tilesetId);
@@ -1496,12 +1844,17 @@ export function PaletteHeader() {
       };
       bumpMapVersion();
 
+      // Update display scale based on tile size
+      displayScale.value = Math.max(1, Math.round(32 / ts.tileWidth));
+
       // Trigger Redo Panel
       lastImportedTilesetId.value = id;
     };
     img.src = url;
     (e.target as HTMLInputElement).value = "";
   };
+
+  const hasActiveTileset = activeTilesetId.value !== null;
 
   return (
     <div
@@ -1512,7 +1865,7 @@ export function PaletteHeader() {
         display: "flex",
         alignItems: "center",
         padding: "0 8px",
-        gap: 8,
+        gap: 6,
         flexShrink: 0,
       }}
     >
@@ -1530,11 +1883,30 @@ export function PaletteHeader() {
           </option>
         ))}
       </select>
+
+      {/* Settings popover toggle */}
+      {hasActiveTileset && (
+        <button
+          onClick={() => { popoverOpen.value = !popoverOpen.value; }}
+          title="瓦片集属性"
+          style={{
+            background: popoverOpen.value ? "var(--accent)" : "transparent",
+            border: "none",
+            borderRadius: 3,
+            padding: "2px 5px",
+            cursor: "pointer",
+            fontSize: 13,
+            lineHeight: 1,
+          }}
+        >⚙</button>
+      )}
+
       <button onClick={handleImport}>导入</button>
       <input
         ref={fileRef}
         type="file"
-        accept=".png,.jpg,.jpeg,.webp"
+        accept=".png,.jpg,.jpeg,.webp,.json"
+        multiple
         style={{ display: "none" }}
         onChange={handleFile}
       />
@@ -1556,7 +1928,6 @@ import {
 
 /**
  * Redo Panel — Blender-style "Adjust Last Operation" panel.
- *
  * Appears at the bottom of TilePalette after a tileset import.
  * Non-modal: user can still interact with other Areas.
  * Dismisses on: click outside, Escape, or next import.
@@ -1566,7 +1937,6 @@ export function RedoPanel() {
   const ts = id ? tilesets.value.find((t) => t.id === id) ?? null : null;
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Dismiss on click outside this panel
   useEffect(() => {
     if (!id) return;
     const handler = (e: PointerEvent) => {
@@ -1574,7 +1944,6 @@ export function RedoPanel() {
         lastImportedTilesetId.value = null;
       }
     };
-    // Delay to avoid immediate dismiss from the import click
     const timer = setTimeout(() => {
       window.addEventListener("pointerdown", handler);
     }, 200);
@@ -1584,7 +1953,6 @@ export function RedoPanel() {
     };
   }, [id]);
 
-  // Dismiss on Escape
   useEffect(() => {
     if (!id) return;
     const handler = (e: KeyboardEvent) => {
@@ -1597,10 +1965,10 @@ export function RedoPanel() {
   if (!ts) return null;
 
   const set = (field: string, raw: string) => {
-    const v = Math.max(field === "name" ? 0 : (field.startsWith("tile") ? 1 : 0), parseInt(raw) || 0);
     if (field === "name") {
       updateTileSetParams(ts.id, { name: raw });
     } else {
+      const v = Math.max(field.startsWith("tile") ? 1 : 0, parseInt(raw) || 0);
       updateTileSetParams(ts.id, { [field]: v });
     }
   };
@@ -1621,79 +1989,39 @@ export function RedoPanel() {
         boxShadow: "0 -4px 12px rgba(0,0,0,0.3)",
       }}
     >
-      {/* Title row */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          marginBottom: 8,
-          gap: 6,
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 8, gap: 6 }}>
         <span style={{ color: "var(--accent)", fontSize: 10 }}>▶</span>
-        <span style={{ color: "var(--text-bright)", fontWeight: 500 }}>
-          导入瓦片集
-        </span>
+        <span style={{ color: "var(--text-bright)", fontWeight: 500 }}>导入瓦片集</span>
         <div style={{ flex: 1 }} />
         <span style={{ color: "var(--text-secondary)", fontSize: 10 }}>
           {ts.columns}×{ts.rows} = {ts.tileCount} 瓦片
         </span>
       </div>
 
-      {/* Fields */}
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         <Field label="名称">
-          <input
-            type="text"
-            value={ts.name}
+          <input type="text" value={ts.name}
             onInput={(e) => set("name", (e.target as HTMLInputElement).value)}
-            style={{ width: "100%" }}
-          />
+            style={{ width: "100%" }} />
         </Field>
-
         <div style={{ display: "flex", gap: 8 }}>
           <Field label="瓦片宽">
-            <input
-              type="number"
-              value={ts.tileWidth}
-              min={1}
-              max={512}
-              style={{ width: 52 }}
-              onChange={(e) => set("tileWidth", (e.target as HTMLInputElement).value)}
-            />
+            <input type="number" value={ts.tileWidth} min={1} max={512} style={{ width: 52 }}
+              onChange={(e) => set("tileWidth", (e.target as HTMLInputElement).value)} />
           </Field>
           <Field label="瓦片高">
-            <input
-              type="number"
-              value={ts.tileHeight}
-              min={1}
-              max={512}
-              style={{ width: 52 }}
-              onChange={(e) => set("tileHeight", (e.target as HTMLInputElement).value)}
-            />
+            <input type="number" value={ts.tileHeight} min={1} max={512} style={{ width: 52 }}
+              onChange={(e) => set("tileHeight", (e.target as HTMLInputElement).value)} />
           </Field>
         </div>
-
         <div style={{ display: "flex", gap: 8 }}>
           <Field label="外边距">
-            <input
-              type="number"
-              value={ts.margin}
-              min={0}
-              max={128}
-              style={{ width: 52 }}
-              onChange={(e) => set("margin", (e.target as HTMLInputElement).value)}
-            />
+            <input type="number" value={ts.margin} min={0} max={128} style={{ width: 52 }}
+              onChange={(e) => set("margin", (e.target as HTMLInputElement).value)} />
           </Field>
           <Field label="间距">
-            <input
-              type="number"
-              value={ts.spacing}
-              min={0}
-              max={128}
-              style={{ width: 52 }}
-              onChange={(e) => set("spacing", (e.target as HTMLInputElement).value)}
-            />
+            <input type="number" value={ts.spacing} min={0} max={128} style={{ width: 52 }}
+              onChange={(e) => set("spacing", (e.target as HTMLInputElement).value)} />
           </Field>
         </div>
       </div>
@@ -1720,6 +2048,21 @@ function Field({ label, children }: { label: string; children: any }) {
 
 ```
 
+## 📄 editors/tile-palette/register.ts
+
+```typescript
+import { registerEditor } from '../registry';
+import { TilePaletteEditor } from './TilePaletteEditor';
+
+registerEditor({
+  id: 'tile-palette',
+  name: 'Tile Palette',
+  icon: '🎨',
+  component: TilePaletteEditor,
+});
+
+```
+
 ## 📄 editors/tile-palette/TilePaletteEditor.tsx
 
 ```tsx
@@ -1727,27 +2070,356 @@ import { registerEditor } from "../registry";
 import { PaletteHeader } from "./PaletteHeader";
 import { PaletteCanvas } from "./PaletteCanvas";
 import { RedoPanel } from "./RedoPanel";
+import { TileSetPopover } from "./TileSetPopover";
 
 function TilePaletteEditor({ areaId }: { areaId: string }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
       <PaletteHeader />
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         <PaletteCanvas />
         <RedoPanel />
       </div>
+      <TileSetPopover />
     </div>
   );
 }
 
 registerEditor({
-  id: "tile_palette",
+  id: "tile-palette",
   name: "瓦片面板",
   icon: "🎨",
   component: TilePaletteEditor,
 });
 
 export { TilePaletteEditor };
+
+```
+
+## 📄 editors/tile-palette/TileSetPopover.tsx
+
+```tsx
+import { useEffect, useRef } from "preact/hooks";
+import { signal } from "@preact/signals";
+import {
+  tilesets,
+  updateTileSetParams,
+  removeTileSet,
+} from "../../store/project";
+import { activeTilesetId, displayScale } from "../../store/selection";
+import { exportTileSet } from "../../data/export";
+
+/** Controls whether the popover is visible */
+export const popoverOpen = signal(false);
+
+export function TileSetPopover() {
+  const tsId = activeTilesetId.value;
+  const ts = tsId ? tilesets.value.find((t) => t.id === tsId) ?? null : null;
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Dismiss on click outside
+  useEffect(() => {
+    if (!popoverOpen.value) return;
+    const handler = (e: PointerEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        popoverOpen.value = false;
+      }
+    };
+    const timer = setTimeout(() => {
+      window.addEventListener("pointerdown", handler);
+    }, 100);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("pointerdown", handler);
+    };
+  }, [popoverOpen.value]);
+
+  // Dismiss on Escape
+  useEffect(() => {
+    if (!popoverOpen.value) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") popoverOpen.value = false;
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [popoverOpen.value]);
+
+  if (!popoverOpen.value || !ts) return null;
+
+  const set = (field: string, raw: string) => {
+    if (field === "name") {
+      updateTileSetParams(ts.id, { name: raw });
+    } else {
+      const v = Math.max(field.startsWith("tile") ? 1 : 0, parseInt(raw) || 0);
+      updateTileSetParams(ts.id, { [field]: v });
+    }
+  };
+
+  return (
+    <div
+      ref={panelRef}
+      style={{
+        position: "absolute",
+        top: 34,
+        right: 4,
+        width: 220,
+        background: "#2a2a2a",
+        border: "1px solid var(--border)",
+        borderRadius: 6,
+        boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+        zIndex: 200,
+        fontSize: 11,
+        overflow: "hidden",
+      }}
+    >
+      {/* Header */}
+      <div style={{
+        padding: "6px 10px",
+        borderBottom: "1px solid var(--border)",
+        background: "var(--panel-header)",
+        fontWeight: 600,
+        color: "var(--text-bright)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}>
+        <span>瓦片集属性</span>
+        <button
+          onClick={() => { popoverOpen.value = false; }}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "var(--text-secondary)",
+            cursor: "pointer",
+            fontSize: 13,
+            padding: 0,
+            lineHeight: 1,
+          }}
+        >✕</button>
+      </div>
+
+      {/* Properties */}
+      <div style={{ padding: "8px 10px", display: "flex", flexDirection: "column", gap: 5 }}>
+        <Field label="名称">
+          <input
+            type="text"
+            value={ts.name}
+            onInput={(e) => set("name", (e.target as HTMLInputElement).value)}
+            style={{ width: "100%" }}
+          />
+        </Field>
+
+        <div style={{ display: "flex", gap: 6 }}>
+          <Field label="瓦片宽">
+            <input type="number" value={ts.tileWidth} min={1} max={512} style={{ width: 48 }}
+              onChange={(e) => set("tileWidth", (e.target as HTMLInputElement).value)} />
+          </Field>
+          <Field label="瓦片高">
+            <input type="number" value={ts.tileHeight} min={1} max={512} style={{ width: 48 }}
+              onChange={(e) => set("tileHeight", (e.target as HTMLInputElement).value)} />
+          </Field>
+        </div>
+
+        <div style={{ display: "flex", gap: 6 }}>
+          <Field label="外边距">
+            <input type="number" value={ts.margin} min={0} max={128} style={{ width: 48 }}
+              onChange={(e) => set("margin", (e.target as HTMLInputElement).value)} />
+          </Field>
+          <Field label="间距">
+            <input type="number" value={ts.spacing} min={0} max={128} style={{ width: 48 }}
+              onChange={(e) => set("spacing", (e.target as HTMLInputElement).value)} />
+          </Field>
+        </div>
+
+        {/* Display scale */}
+        <Field label="显示倍率">
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button
+              onClick={() => { displayScale.value = Math.max(1, displayScale.value - 1); }}
+              style={{ width: 22, height: 22, padding: 0 }}
+            >−</button>
+            <span style={{ minWidth: 20, textAlign: "center" }}>{displayScale.value}×</span>
+            <button
+              onClick={() => { displayScale.value = Math.min(8, displayScale.value + 1); }}
+              style={{ width: 22, height: 22, padding: 0 }}
+            >+</button>
+          </div>
+        </Field>
+
+        {/* Stats */}
+        <div style={{
+          borderTop: "1px solid var(--border)",
+          paddingTop: 6,
+          marginTop: 2,
+          color: "var(--text-secondary)",
+          fontSize: 10,
+        }}>
+          {ts.columns}×{ts.rows} = {ts.tileCount} 瓦片 · 原图 {ts.imageWidth}×{ts.imageHeight}px
+          {ts.tileCount === 0 && (
+            <div style={{ color: "var(--danger)", marginTop: 3 }}>
+              ⚠ 当前参数无法切出瓦片
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div style={{
+          display: "flex",
+          gap: 4,
+          borderTop: "1px solid var(--border)",
+          paddingTop: 6,
+          marginTop: 2,
+        }}>
+          <button
+            onClick={() => { exportTileSet(ts); }}
+            style={{ flex: 1, fontSize: 10 }}
+          >导出 TileSet</button>
+          <button
+            onClick={() => {
+              removeTileSet(ts.id);
+              popoverOpen.value = false;
+            }}
+            style={{
+              flex: 1,
+              fontSize: 10,
+              color: "var(--danger)",
+              borderColor: "var(--danger)",
+            }}
+          >删除</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: any }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <span style={{
+        width: 38,
+        flexShrink: 0,
+        color: "var(--text-secondary)",
+        fontSize: 10,
+        textAlign: "right",
+      }}>{label}</span>
+      {children}
+    </div>
+  );
+}
+
+```
+
+## 📄 editors/viewport/LayerPanel.tsx
+
+```tsx
+import { currentMap, activeLayerId, bumpMapVersion } from '../../store/project';
+import type { TileLayer } from '../../data/TileMap';
+
+let nextLayerId = 2;
+
+export function LayerPanel() {
+  const map = currentMap.value;
+
+  const addLayer = () => {
+    const id = `layer_${nextLayerId++}`;
+    const layer = {
+      id,
+      name: `Layer ${map.layers.length + 1}`,
+      visible: true,
+      opacity: 1,
+      locked: false,
+      data: new Array(map.width * map.height).fill(0),
+    };
+    currentMap.value = { ...map, layers: [...map.layers, layer as TileLayer] };
+    activeLayerId.value = id;
+    bumpMapVersion();
+  };
+
+  const toggleVisibility = (layerId: string) => {
+    currentMap.value = {
+      ...map,
+      layers: map.layers.map((l) =>
+        l.id === layerId ? { ...l, visible: !l.visible } : l
+      ),
+    };
+    bumpMapVersion();
+  };
+
+  return (
+    <div style={{
+      width: 140,
+      background: '#2a2a2a',
+      borderLeft: '1px solid #1a1a1a',
+      display: 'flex',
+      flexDirection: 'column',
+      flexShrink: 0,
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '4px 6px',
+        borderBottom: '1px solid #1a1a1a',
+      }}>
+        <span style={{ fontSize: 11, fontWeight: 600 }}>Layers</span>
+        <button
+          onClick={addLayer}
+          style={{
+            background: '#333',
+            color: '#ccc',
+            border: '1px solid #444',
+            borderRadius: 3,
+            fontSize: 11,
+            cursor: 'pointer',
+            padding: '0 6px',
+          }}
+        >+</button>
+      </div>
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        {[...map.layers].reverse().map((layer) => (
+          <div
+            key={layer.id}
+            onClick={() => { activeLayerId.value = layer.id; }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '3px 6px',
+              background: activeLayerId.value === layer.id ? '#3a3a4a' : 'transparent',
+              cursor: 'pointer',
+              fontSize: 11,
+            }}
+          >
+            <span
+              onClick={(e) => { e.stopPropagation(); toggleVisibility(layer.id); }}
+              style={{ cursor: 'pointer', opacity: layer.visible ? 1 : 0.3, fontSize: 10 }}
+            >
+              👁
+            </span>
+            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {layer.name}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+```
+
+## 📄 editors/viewport/register.ts
+
+```typescript
+import { registerEditor } from '../registry';
+import { ViewportEditor } from './ViewportEditor';
+
+registerEditor({
+  id: 'viewport',
+  name: 'Viewport',
+  icon: '🗺',
+  component: ViewportEditor,
+});
 
 ```
 
@@ -1771,11 +2443,14 @@ import {
   brushWidth,
   brushHeight,
   hoverTile,
+  viewportZoom,
 } from "../../store/selection";
 import { resolveGid } from "../../data/TileMap";
 import { getTileSrcRect } from "../../data/TileSet";
 
-const camera = signal({ x: 0, y: 0, zoom: 1 });
+/** Camera: x,y = world coordinate at viewport top-left. zoom = scale factor. */
+const camera = signal({ x: 0, y: 0, zoom: 2 });
+const needsCenter = signal(true);
 
 export function ViewportCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1783,7 +2458,31 @@ export function ViewportCanvas() {
   const isPainting = useRef(false);
   const paintedCells = useRef<Set<string>>(new Set());
 
-  // --- Resize ---
+  // --- Center the map in viewport ---
+  const centerMap = useCallback((fitToView = false) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const map = currentMap.value;
+    const vw = el.clientWidth;
+    const vh = el.clientHeight;
+    const mapPxW = map.width * map.tileWidth;
+    const mapPxH = map.height * map.tileHeight;
+
+    let zoom = camera.value.zoom;
+    if (fitToView) {
+      zoom = Math.min(vw / mapPxW, vh / mapPxH) * 0.9;
+      zoom = Math.max(0.25, zoom);
+    }
+
+    camera.value = {
+      x: (mapPxW * zoom - vw) / 2,
+      y: (mapPxH * zoom - vh) / 2,
+      zoom,
+    };
+    viewportZoom.value = zoom;
+  }, []);
+
+  // --- Resize handler ---
   useEffect(() => {
     const el = containerRef.current!;
     const canvas = canvasRef.current!;
@@ -1793,10 +2492,57 @@ export function ViewportCanvas() {
       canvas.height = el.clientHeight * dpr;
       canvas.style.width = el.clientWidth + "px";
       canvas.style.height = el.clientHeight + "px";
+      if (needsCenter.value) {
+        centerMap();
+        needsCenter.value = false;
+      }
       draw();
     });
     ro.observe(el);
     return () => ro.disconnect();
+  }, []);
+
+  // --- Keyboard: number keys 1-6 for integer zoom, Home for fit ---
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Ignore if focused on input
+      if (
+        (e.target as HTMLElement).tagName === "INPUT" ||
+        (e.target as HTMLElement).tagName === "SELECT"
+      )
+        return;
+
+      if (e.key === "Home") {
+        e.preventDefault();
+        centerMap(true);
+        draw();
+        return;
+      }
+
+      const num = parseInt(e.key);
+      if (num >= 1 && num <= 6) {
+        e.preventDefault();
+        // Snap to integer zoom, centered on viewport center
+        const el = containerRef.current;
+        if (!el) return;
+        const vw = el.clientWidth;
+        const vh = el.clientHeight;
+        const cam = camera.value;
+        // World point at viewport center
+        const worldCX = (vw / 2 + cam.x) / cam.zoom;
+        const worldCY = (vh / 2 + cam.y) / cam.zoom;
+        const newZoom = num;
+        camera.value = {
+          x: worldCX * newZoom - vw / 2,
+          y: worldCY * newZoom - vh / 2,
+          zoom: newZoom,
+        };
+        viewportZoom.value = newZoom;
+        draw();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
   // --- Redraw on state change ---
@@ -1820,6 +2566,9 @@ export function ViewportCanvas() {
     const h = canvas.height / dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
+
+    // Pixel-perfect rendering
+    ctx.imageSmoothingEnabled = false;
 
     const map = currentMap.value;
     const { x: camX, y: camY, zoom } = camera.value;
@@ -1853,8 +2602,14 @@ export function ViewportCanvas() {
           const src = getTileSrcRect(ts, resolved.localId);
           ctx.drawImage(
             img,
-            src.sx, src.sy, src.sw, src.sh,
-            x * tw, y * th, tw, th
+            src.sx,
+            src.sy,
+            src.sw,
+            src.sh,
+            x * tw,
+            y * th,
+            tw,
+            th
           );
         }
       }
@@ -1901,12 +2656,24 @@ export function ViewportCanvas() {
           const src = getTileSrcRect(ts, resolved.localId);
           ctx.drawImage(
             img,
-            src.sx, src.sy, src.sw, src.sh,
-            (hover.x + bx) * tw, (hover.y + by) * th, tw, th
+            src.sx,
+            src.sy,
+            src.sw,
+            src.sh,
+            (hover.x + bx) * tw,
+            (hover.y + by) * th,
+            tw,
+            th
           );
         }
       }
       ctx.globalAlpha = 1;
+    }
+
+    // Eraser preview
+    if (hover && activeTool.value === "eraser") {
+      ctx.fillStyle = "rgba(217, 74, 74, 0.3)";
+      ctx.fillRect(hover.x * tw, hover.y * th, tw, th);
     }
 
     // Hover highlight
@@ -1935,63 +2702,57 @@ export function ViewportCanvas() {
     []
   );
 
-  // --- Paint a single tile ---
-  const paintAt = useCallback(
-    (x: number, y: number) => {
-      const map = currentMap.value;
-      const layer = activeLayer.value;
-      if (!layer || layer.locked) return;
+  // --- Paint ---
+  const paintAt = useCallback((x: number, y: number) => {
+    const map = currentMap.value;
+    const layer = activeLayer.value;
+    if (!layer || layer.locked) return;
 
-      const tool = activeTool.value;
-      const idx = y * map.width + x;
+    const tool = activeTool.value;
+    const idx = y * map.width + x;
 
-      if (tool === "brush") {
-        const bt = brushTiles.value;
-        if (bt.length === 0) return;
-        const bw = brushWidth.value;
-        const bh = brushHeight.value;
-        for (let by = 0; by < bh; by++) {
-          for (let bx = 0; bx < bw; bx++) {
-            const tx = x + bx;
-            const ty = y + by;
-            if (tx >= map.width || ty >= map.height) continue;
-            layer.data[ty * map.width + tx] = bt[by * bw + bx];
-          }
-        }
-      } else if (tool === "eraser") {
-        layer.data[idx] = 0;
-      } else if (tool === "fill") {
-        floodFill(layer.data, map.width, map.height, x, y, bt());
-      } else if (tool === "eyedropper") {
-        const gid = layer.data[idx];
-        if (gid > 0) {
-          brushTiles.value = [gid];
-          brushWidth.value = 1;
-          brushHeight.value = 1;
-          activeTool.value = "brush";
+    if (tool === "brush") {
+      const bt = brushTiles.value;
+      if (bt.length === 0) return;
+      const bw = brushWidth.value;
+      const bh = brushHeight.value;
+      for (let by = 0; by < bh; by++) {
+        for (let bx = 0; bx < bw; bx++) {
+          const tx = x + bx;
+          const ty = y + by;
+          if (tx >= map.width || ty >= map.height) continue;
+          layer.data[ty * map.width + tx] = bt[by * bw + bx];
         }
       }
-      bumpMapVersion();
-    },
-    []
-  );
-
-  function bt() {
-    return brushTiles.value.length > 0 ? brushTiles.value[0] : 0;
-  }
+    } else if (tool === "eraser") {
+      layer.data[idx] = 0;
+    } else if (tool === "fill") {
+      const fillGid = brushTiles.value.length > 0 ? brushTiles.value[0] : 0;
+      floodFill(layer.data, map.width, map.height, x, y, fillGid);
+    } else if (tool === "eyedropper") {
+      const gid = layer.data[idx];
+      if (gid > 0) {
+        brushTiles.value = [gid];
+        brushWidth.value = 1;
+        brushHeight.value = 1;
+        activeTool.value = "brush";
+      }
+    }
+    bumpMapVersion();
+  }, []);
 
   // --- Pointer handlers ---
   const onPointerDown = (e: PointerEvent) => {
+    // Middle-click or Alt+click → pan
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
-      // Middle-click or Alt+click → pan
       const startCam = { ...camera.value };
       const startX = e.clientX;
       const startY = e.clientY;
-      const onMove = (e: PointerEvent) => {
+      const onMove = (ev: PointerEvent) => {
         camera.value = {
           ...startCam,
-          x: startCam.x - (e.clientX - startX),
-          y: startCam.y - (e.clientY - startY),
+          x: startCam.x - (ev.clientX - startX),
+          y: startCam.y - (ev.clientY - startY),
         };
       };
       const onUp = () => {
@@ -2032,24 +2793,50 @@ export function ViewportCanvas() {
     isPainting.current = false;
   };
 
+  // --- Mouse-position zoom ---
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.25, Math.min(8, camera.value.zoom * delta));
-    camera.value = { ...camera.value, zoom: newZoom };
+    const cam = camera.value;
+    const rect = canvasRef.current!.getBoundingClientRect();
+    // Mouse position relative to canvas
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    // World position under mouse
+    const worldX = (mouseX + cam.x) / cam.zoom;
+    const worldY = (mouseY + cam.y) / cam.zoom;
+    // New zoom
+    const factor = e.deltaY > 0 ? 0.9 : 1.1;
+    const newZoom = Math.max(0.25, Math.min(16, cam.zoom * factor));
+    // Adjust camera so world point stays under mouse
+    camera.value = {
+      x: worldX * newZoom - mouseX,
+      y: worldY * newZoom - mouseY,
+      zoom: newZoom,
+    };
+    viewportZoom.value = newZoom;
   };
 
   return (
     <div
       ref={containerRef}
-      style={{ width: "100%", height: "100%", cursor: "crosshair" }}
+      style={{
+        width: "100%",
+        height: "100%",
+        cursor: "crosshair",
+        imageRendering: "pixelated",
+      }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerLeave={() => { hoverTile.value = null; }}
+      onPointerLeave={() => {
+        hoverTile.value = null;
+      }}
       onWheel={onWheel}
     >
-      <canvas ref={canvasRef} style={{ display: "block" }} />
+      <canvas
+        ref={canvasRef}
+        style={{ display: "block", imageRendering: "pixelated" }}
+      />
     </div>
   );
 }
@@ -2081,7 +2868,6 @@ function floodFill(
 ## 📄 editors/viewport/ViewportEditor.tsx
 
 ```tsx
-import { useRef, useEffect, useCallback } from "preact/hooks";
 import { registerEditor } from "../registry";
 import { ViewportCanvas } from "./ViewportCanvas";
 import { ViewportHeader } from "./ViewportHeader";
@@ -2101,7 +2887,7 @@ function ViewportEditor({ areaId }: { areaId: string }) {
 
 registerEditor({
   id: "viewport",
-  name: "地图视口",
+  name: "Viewport",
   icon: "🗺",
   component: ViewportEditor,
 });
@@ -2113,12 +2899,14 @@ export { ViewportEditor };
 ## 📄 editors/viewport/ViewportFooter.tsx
 
 ```tsx
-import { hoverTile } from "../../store/selection";
+import { hoverTile, viewportZoom } from "../../store/selection";
 import { activeLayer } from "../../store/project";
 
 export function ViewportFooter() {
   const tile = hoverTile.value;
   const layer = activeLayer.value;
+  const zoom = viewportZoom.value;
+  const isInteger = Math.abs(zoom - Math.round(zoom)) < 0.01;
 
   return (
     <div
@@ -2135,10 +2923,12 @@ export function ViewportFooter() {
         fontSize: 11,
       }}
     >
-      <span>
-        坐标: {tile ? `${tile.x}, ${tile.y}` : "—"}
-      </span>
+      <span>坐标: {tile ? `${tile.x}, ${tile.y}` : "—"}</span>
       <span>图层: {layer?.name ?? "—"}</span>
+      <div style={{ flex: 1 }} />
+      <span style={{ fontSize: 10, opacity: 0.6 }}>
+        滚轮缩放 · 1-6整数 · Home居中
+      </span>
     </div>
   );
 }
@@ -2148,7 +2938,7 @@ export function ViewportFooter() {
 ## 📄 editors/viewport/ViewportHeader.tsx
 
 ```tsx
-import { activeTool, type ToolType } from "../../store/selection";
+import { activeTool, viewportZoom, type ToolType } from "../../store/selection";
 
 const tools: { id: ToolType; label: string; icon: string }[] = [
   { id: "brush", label: "笔刷", icon: "✏️" },
@@ -2158,6 +2948,9 @@ const tools: { id: ToolType; label: string; icon: string }[] = [
 ];
 
 export function ViewportHeader() {
+  const zoom = viewportZoom.value;
+  const isInteger = Math.abs(zoom - Math.round(zoom)) < 0.01;
+
   return (
     <div
       style={{
@@ -2175,12 +2968,12 @@ export function ViewportHeader() {
         <button
           key={t.id}
           title={t.label}
-          onClick={() => { activeTool.value = t.id; }}
+          onClick={() => {
+            activeTool.value = t.id;
+          }}
           style={{
             background:
-              activeTool.value === t.id
-                ? "var(--accent)"
-                : "transparent",
+              activeTool.value === t.id ? "var(--accent)" : "transparent",
             border: "none",
             borderRadius: 3,
             padding: "2px 8px",
@@ -2191,6 +2984,95 @@ export function ViewportHeader() {
           {t.icon}
         </button>
       ))}
+
+      <div style={{ flex: 1 }} />
+
+      {/* Zoom display */}
+      <span
+        style={{
+          fontSize: 11,
+          color: isInteger ? "var(--accent)" : "var(--text-secondary)",
+          fontWeight: isInteger ? 600 : 400,
+          marginRight: 4,
+          fontFamily: "monospace",
+        }}
+        title={
+          isInteger
+            ? "像素完美"
+            : "非整数缩放 (按 1-6 吸附整数)"
+        }
+      >
+        ×{zoom.toFixed(zoom === Math.floor(zoom) ? 0 : 1)}
+      </span>
+    </div>
+  );
+}
+
+```
+
+## 📄 editors/viewport/ViewportToolbar.tsx
+
+```tsx
+import { activeTool, ToolType } from '../../store/selection';
+import { exportStandalone } from '../../data/export';
+import { currentMap, tilesets } from '../../store/project';
+
+const tools: { id: ToolType; label: string; icon: string }[] = [
+  { id: 'brush', label: 'Brush', icon: '🖌' },
+  { id: 'eraser', label: 'Eraser', icon: '🧹' },
+  { id: 'fill', label: 'Fill', icon: '🪣' },
+  { id: 'eyedropper', label: 'Eyedropper', icon: '💉' },
+];
+
+export function ViewportToolbar() {
+  const handleExport = () => {
+    exportStandalone(currentMap.value, tilesets.value);
+  };
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 2,
+      padding: '3px 6px',
+      borderBottom: '1px solid #1a1a1a',
+      background: '#2a2a2a',
+      flexShrink: 0,
+    }}>
+      {tools.map((t) => (
+        <button
+          key={t.id}
+          onClick={() => { activeTool.value = t.id; }}
+          title={t.label}
+          style={{
+            background: activeTool.value === t.id ? '#4a6fa5' : '#333',
+            color: '#fff',
+            border: activeTool.value === t.id ? '1px solid #6a9fd5' : '1px solid #444',
+            borderRadius: 3,
+            padding: '2px 6px',
+            fontSize: 13,
+            cursor: 'pointer',
+            lineHeight: 1,
+          }}
+        >
+          {t.icon}
+        </button>
+      ))}
+      <div style={{ flex: 1 }} />
+      <button
+        onClick={handleExport}
+        style={{
+          background: '#3a7d4a',
+          color: '#fff',
+          border: 'none',
+          borderRadius: 3,
+          padding: '2px 10px',
+          fontSize: 11,
+          cursor: 'pointer',
+        }}
+      >
+        Export JSON
+      </button>
     </div>
   );
 }
@@ -2269,11 +3151,11 @@ export function useCanvas(
 ## 📄 hooks/useDrag.ts
 
 ```typescript
-import { useRef, useCallback } from "preact/hooks";
+import { useCallback, useRef } from 'preact/hooks';
 
 interface DragCallbacks {
   onStart?: (e: PointerEvent) => void;
-  onMove: (e: PointerEvent, delta: { dx: number; dy: number }) => void;
+  onMove?: (e: PointerEvent) => void;
   onEnd?: (e: PointerEvent) => void;
 }
 
@@ -2283,26 +3165,21 @@ export function useDrag(callbacks: DragCallbacks) {
 
   const onPointerDown = useCallback((e: PointerEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-    const startX = e.clientX;
-    const startY = e.clientY;
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
     cbRef.current.onStart?.(e);
 
-    const onMove = (e: PointerEvent) => {
-      cbRef.current.onMove(e, {
-        dx: e.clientX - startX,
-        dy: e.clientY - startY,
-      });
+    const onMove = (ev: PointerEvent) => {
+      cbRef.current.onMove?.(ev);
     };
-
-    const onUp = (e: PointerEvent) => {
-      cbRef.current.onEnd?.(e);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+    const onUp = (ev: PointerEvent) => {
+      target.releasePointerCapture(ev.pointerId);
+      target.removeEventListener('pointermove', onMove as EventListener);
+      target.removeEventListener('pointerup', onUp as EventListener);
+      cbRef.current.onEnd?.(ev);
     };
-
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    target.addEventListener('pointermove', onMove as EventListener);
+    target.addEventListener('pointerup', onUp as EventListener);
   }, []);
 
   return { onPointerDown };
@@ -2313,7 +3190,7 @@ export function useDrag(callbacks: DragCallbacks) {
 ## 📄 index.css
 
 ```css
-/* ---- Weichen Editor - Dark Theme ---- */
+/* ---- Mote Editor - Dark Theme ---- */
 :root {
   --bg-base: #1e1e1e;
   --bg-area: #252526;
@@ -2368,6 +3245,25 @@ input[type="text"]:focus, input[type="number"]:focus, select:focus {
   border-color: var(--accent);
 }
 
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
 button {
   background: var(--bg-input);
   border: 1px solid var(--border);
@@ -2403,62 +3299,62 @@ button:active {
   background: #555;
 }
 
+canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
 ```
 
 ## 📄 layout/rect.ts
 
 ```typescript
-import type { LayoutNode, Rect, RectMap, SplitInfo } from "./types";
+import { LayoutNode, Rect, RectMap, SplitInfo } from './types';
 
 export const HANDLE_SIZE = 4;
 
 export function computeRects(
   node: LayoutNode,
-  rect: Rect,
-  areas: RectMap = new Map(),
-  splits: SplitInfo[] = []
-): { areas: RectMap; splits: SplitInfo[] } {
-  if (node.type === "area") {
-    areas.set(node.id, rect);
-    return { areas, splits };
+  bounds: Rect,
+  areas: RectMap,
+  splits: SplitInfo[]
+): void {
+  if (node.type === 'area') {
+    areas.set(node.id, { ...bounds });
+    return;
   }
 
   const { direction, ratio, children, id } = node;
-  const half = HANDLE_SIZE / 2;
 
-  splits.push({ id, direction, ratio, rect });
+  if (direction === 'horizontal') {
+    const splitY = bounds.y + Math.round(bounds.h * ratio);
+    const topH = splitY - bounds.y - HANDLE_SIZE / 2;
+    const bottomY = splitY + HANDLE_SIZE / 2;
+    const bottomH = bounds.y + bounds.h - bottomY;
 
-  if (direction === "vertical") {
-    const splitX = rect.x + rect.width * ratio;
-    computeRects(
-      children[0],
-      { x: rect.x, y: rect.y, width: splitX - half - rect.x, height: rect.height },
-      areas,
-      splits
-    );
-    computeRects(
-      children[1],
-      { x: splitX + half, y: rect.y, width: rect.x + rect.width - splitX - half, height: rect.height },
-      areas,
-      splits
-    );
+    splits.push({
+      splitId: id,
+      direction: 'horizontal',
+      rect: { x: bounds.x, y: splitY - HANDLE_SIZE / 2, w: bounds.w, h: HANDLE_SIZE },
+    });
+
+    computeRects(children[0], { x: bounds.x, y: bounds.y, w: bounds.w, h: topH }, areas, splits);
+    computeRects(children[1], { x: bounds.x, y: bottomY, w: bounds.w, h: bottomH }, areas, splits);
   } else {
-    const splitY = rect.y + rect.height * ratio;
-    computeRects(
-      children[0],
-      { x: rect.x, y: rect.y, width: rect.width, height: splitY - half - rect.y },
-      areas,
-      splits
-    );
-    computeRects(
-      children[1],
-      { x: rect.x, y: splitY + half, width: rect.width, height: rect.y + rect.height - splitY - half },
-      areas,
-      splits
-    );
-  }
+    const splitX = bounds.x + Math.round(bounds.w * ratio);
+    const leftW = splitX - bounds.x - HANDLE_SIZE / 2;
+    const rightX = splitX + HANDLE_SIZE / 2;
+    const rightW = bounds.x + bounds.w - rightX;
 
-  return { areas, splits };
+    splits.push({
+      splitId: id,
+      direction: 'vertical',
+      rect: { x: splitX - HANDLE_SIZE / 2, y: bounds.y, w: HANDLE_SIZE, h: bounds.h },
+    });
+
+    computeRects(children[0], { x: bounds.x, y: bounds.y, w: leftW, h: bounds.h }, areas, splits);
+    computeRects(children[1], { x: rightX, y: bounds.y, w: rightW, h: bounds.h }, areas, splits);
+  }
 }
 
 ```
@@ -2466,73 +3362,51 @@ export function computeRects(
 ## 📄 layout/tree.ts
 
 ```typescript
-import type { LayoutNode, AreaNode, SplitNode, SplitDirection } from "./types";
+import { LayoutNode, AreaNode, SplitNode } from './types';
 
-let _uid = 0;
-export const uid = (prefix = "id") => `${prefix}_${++_uid}`;
+let nextId = 1;
+function genId(prefix: string) {
+  return `${prefix}_${nextId++}`;
+}
 
-/** Deep-map every node in the tree */
 export function mapNode(
-  node: LayoutNode,
-  fn: (n: LayoutNode) => LayoutNode
+  root: LayoutNode,
+  fn: (node: LayoutNode) => LayoutNode | null
 ): LayoutNode {
-  const mapped = fn(node);
-  if (mapped.type === "split") {
-    return {
-      ...mapped,
-      children: [
-        mapNode(mapped.children[0], fn),
-        mapNode(mapped.children[1], fn),
-      ],
-    } as SplitNode;
-  }
-  return mapped;
+  const result = fn(root);
+  if (result !== null) return result;
+  if (root.type === 'area') return root;
+  return {
+    ...root,
+    children: [
+      mapNode(root.children[0], fn),
+      mapNode(root.children[1], fn),
+    ],
+  } as SplitNode;
 }
 
-/** Find an area node by ID */
-export function findArea(
-  node: LayoutNode,
-  id: string
-): AreaNode | null {
-  if (node.type === "area") return node.id === id ? node : null;
-  return findArea(node.children[0], id) || findArea(node.children[1], id);
-}
-
-/** Collect all area nodes */
-export function collectAreas(node: LayoutNode): AreaNode[] {
-  if (node.type === "area") return [node];
-  return [
-    ...collectAreas(node.children[0]),
-    ...collectAreas(node.children[1]),
-  ];
-}
-
-/** Split an area into two */
 export function splitArea(
   root: LayoutNode,
-  targetId: string,
-  direction: SplitDirection,
+  areaId: string,
+  direction: 'horizontal' | 'vertical',
   ratio = 0.5
 ): LayoutNode {
   return mapNode(root, (node) => {
-    if (node.type !== "area" || node.id !== targetId) return node;
-    const newArea: AreaNode = {
-      id: uid("area"),
-      type: "area",
-      editorType: node.editorType,
-    };
-    const split: SplitNode = {
-      id: uid("split"),
-      type: "split",
-      direction,
-      ratio,
-      children: [{ ...node }, newArea],
-    };
-    return split;
+    if (node.type === 'area' && node.id === areaId) {
+      const newArea: AreaNode = { type: 'area', id: genId('area'), editorType: node.editorType };
+      const split: SplitNode = {
+        type: 'split',
+        id: genId('split'),
+        direction,
+        ratio,
+        children: [{ ...node }, newArea],
+      };
+      return split;
+    }
+    return null;
   });
 }
 
-/** Resize a split node */
 export function resizeSplit(
   root: LayoutNode,
   splitId: string,
@@ -2540,21 +3414,37 @@ export function resizeSplit(
 ): LayoutNode {
   const clamped = Math.max(0.1, Math.min(0.9, newRatio));
   return mapNode(root, (node) => {
-    if (node.id !== splitId || node.type !== "split") return node;
-    return { ...node, ratio: clamped };
+    if (node.type === 'split' && node.id === splitId) {
+      return { ...node, ratio: clamped };
+    }
+    return null;
   });
 }
 
-/** Change the editor type of an area */
 export function setEditorType(
   root: LayoutNode,
   areaId: string,
   editorType: string
 ): LayoutNode {
   return mapNode(root, (node) => {
-    if (node.type !== "area" || node.id !== areaId) return node;
-    return { ...node, editorType };
+    if (node.type === 'area' && node.id === areaId) {
+      return { ...node, editorType };
+    }
+    return null;
   });
+}
+
+export function collectAreas(root: LayoutNode): AreaNode[] {
+  if (root.type === 'area') return [root];
+  return [
+    ...collectAreas(root.children[0]),
+    ...collectAreas(root.children[1]),
+  ];
+}
+
+export function findArea(root: LayoutNode, areaId: string): AreaNode | null {
+  if (root.type === 'area') return root.id === areaId ? root : null;
+  return findArea(root.children[0], areaId) || findArea(root.children[1], areaId);
 }
 
 ```
@@ -2562,98 +3452,85 @@ export function setEditorType(
 ## 📄 layout/types.ts
 
 ```typescript
-export type SplitDirection = "horizontal" | "vertical";
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 export interface AreaNode {
+  type: 'area';
   id: string;
-  type: "area";
   editorType: string;
 }
 
 export interface SplitNode {
+  type: 'split';
   id: string;
-  type: "split";
-  direction: SplitDirection;
+  direction: 'horizontal' | 'vertical';
   ratio: number;
   children: [LayoutNode, LayoutNode];
 }
 
 export type LayoutNode = AreaNode | SplitNode;
 
-export interface Rect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+export interface SplitInfo {
+  splitId: string;
+  direction: 'horizontal' | 'vertical';
+  rect: Rect;
 }
 
 export type RectMap = Map<string, Rect>;
-
-/** Collected split info for rendering handles */
-export interface SplitInfo {
-  id: string;
-  direction: SplitDirection;
-  ratio: number;
-  rect: Rect; // the parent rect this split divides
-}
 
 ```
 
 ## 📄 main.tsx
 
 ```tsx
-import { render } from "preact";
-import { App } from "./App";
-import "./index.css";
+import './index.css';
+import { render } from 'preact';
+import { App } from './App';
 
-render(<App />, document.getElementById("app")!);
+render(<App />, document.getElementById('app')!);
 
 ```
 
 ## 📄 store/layout.ts
 
 ```typescript
-import { signal, computed } from "@preact/signals";
-import type { LayoutNode } from "../layout/types";
-import { computeRects, HANDLE_SIZE } from "../layout/rect";
+import { signal, computed } from '@preact/signals';
+import { LayoutNode, Rect, RectMap, SplitInfo } from '../layout/types';
+import { computeRects } from '../layout/rect';
 
-export const layoutTree = signal<LayoutNode>({
-  id: "split_root",
-  type: "split",
-  direction: "vertical",
-  ratio: 0.65,
+const defaultLayout: LayoutNode = {
+  type: 'split',
+  id: 'root_split',
+  direction: 'vertical',
+  ratio: 0.22,
   children: [
+    { type: 'area', id: 'area_palette', editorType: 'tile-palette' },
     {
-      id: "area_viewport",
-      type: "area",
-      editorType: "viewport",
-    },
-    {
-      id: "split_right",
-      type: "split",
-      direction: "horizontal",
-      ratio: 0.55,
+      type: 'split',
+      id: 'split_right',
+      direction: 'vertical',
+      ratio: 0.75,
       children: [
-        {
-          id: "area_palette",
-          type: "area",
-          editorType: "tile_palette",
-        },
-        {
-          id: "area_inspector",
-          type: "area",
-          editorType: "inspector",
-        },
+        { type: 'area', id: 'area_viewport', editorType: 'viewport' },
+        { type: 'area', id: 'area_inspector', editorType: 'inspector' },
       ],
     },
   ],
-});
+};
 
-export const containerSize = signal({ width: 1200, height: 800 });
+export const layoutTree = signal<LayoutNode>(defaultLayout);
+export const containerSize = signal<Rect>({ x: 0, y: 0, w: 1200, h: 800 });
 
-export const layoutComputed = computed(() => {
-  const { width, height } = containerSize.value;
-  return computeRects(layoutTree.value, { x: 0, y: 0, width, height });
+export const layoutComputed = computed<{ areas: RectMap; splits: SplitInfo[] }>(() => {
+  const areas: RectMap = new Map();
+  const splits: SplitInfo[] = [];
+  computeRects(layoutTree.value, containerSize.value, areas, splits);
+  return { areas, splits };
 });
 
 ```
@@ -2666,6 +3543,16 @@ import type { TileSet } from "../data/TileSet";
 import type { TileMap } from "../data/TileMap";
 import { createTileMap } from "../data/TileMap";
 import { createTileSet } from "../data/TileSet";
+import {
+  readJsonFile,
+  detectJsonType,
+  tileSetFromJson,
+  importBundle,
+  importStandaloneMap,
+  loadImageFromFile,
+} from "../data/io";
+import type { TileSetJson, TileMapBundleJson, TileMapStandaloneJson } from "../data/io";
+import { activeTilesetId, displayScale } from "./selection";
 
 // ---- TileSets ----
 export const tilesets = signal<TileSet[]>([]);
@@ -2720,6 +3607,8 @@ export function updateTileSetParams(
     params.margin ?? ts.margin,
     params.spacing ?? ts.spacing
   );
+  // Preserve tileData
+  newTs.tileData = ts.tileData;
 
   tilesets.value = tilesets.value.map((t) => (t.id === id ? newTs : t));
   bumpMapVersion();
@@ -2739,6 +3628,135 @@ export function removeTileSet(id: string) {
     tilesets: map.tilesets.filter((r) => r.tilesetId !== id),
   };
   bumpMapVersion();
+}
+
+// ---- Import TileSet from JSON file ----
+
+export async function importTileSetFromFiles(
+  jsonFile: File,
+  imageFile: File,
+): Promise<void> {
+  const raw = await readJsonFile(jsonFile);
+  const json = raw as TileSetJson;
+  if (json.type !== "mote-tileset") {
+    throw new Error("Invalid tileset file format");
+  }
+
+  const { url, img } = await loadImageFromFile(imageFile);
+  const ts = tileSetFromJson(json, url);
+
+  // Deduplicate ID
+  const existingIds = new Set(tilesets.value.map((t) => t.id));
+  if (existingIds.has(ts.id)) {
+    ts.id = `${ts.id}_${Date.now()}`;
+  }
+
+  tilesets.value = [...tilesets.value, ts];
+  const newImages = new Map(tilesetImages.value);
+  newImages.set(ts.id, img);
+  tilesetImages.value = newImages;
+
+  activeTilesetId.value = ts.id;
+
+  // Auto-add to current map
+  const map = currentMap.value;
+  const maxGid = map.tilesets.reduce((max, ref) => {
+    const t = tilesets.value.find((t) => t.id === ref.tilesetId);
+    return Math.max(max, ref.firstGid + (t?.tileCount ?? 0));
+  }, 1);
+  currentMap.value = {
+    ...map,
+    tilesets: [...map.tilesets, { tilesetId: ts.id, firstGid: maxGid }],
+  };
+
+  // Update display scale
+  displayScale.value = Math.max(1, Math.round(32 / ts.tileWidth));
+  bumpMapVersion();
+}
+
+// ---- Import TileMap ----
+
+export async function importTileMapFromFile(file: File): Promise<void> {
+  const raw = await readJsonFile(file);
+  const type = detectJsonType(raw);
+
+  if (type === "mote-tilemap-bundle") {
+    const result = await importBundle(raw as TileMapBundleJson);
+    currentMap.value = result.map;
+    tilesets.value = result.tilesets;
+    tilesetImages.value = result.images;
+    if (result.map.layers.length > 0) {
+      activeLayerId.value = result.map.layers[0].id;
+    }
+    if (result.tilesets.length > 0) {
+      activeTilesetId.value = result.tilesets[0].id;
+      displayScale.value = Math.max(1, Math.round(32 / result.tilesets[0].tileWidth));
+    }
+    bumpMapVersion();
+    return;
+  }
+
+  if (type === "mote-tilemap") {
+    const { map, missingTilesets } = importStandaloneMap(raw as TileMapStandaloneJson);
+    currentMap.value = map;
+    if (map.layers.length > 0) {
+      activeLayerId.value = map.layers[0].id;
+    }
+
+    if (missingTilesets.length > 0) {
+      // Prompt user to select tileset + image files
+      const input = document.createElement("input");
+      input.type = "file";
+      input.multiple = true;
+      input.accept = ".json,.png,.jpg,.jpeg,.webp";
+      input.onchange = async () => {
+        const files = Array.from(input.files ?? []);
+        const jsonFiles = files.filter((f) => f.name.endsWith(".json"));
+        const imageFiles = files.filter((f) => !f.name.endsWith(".json"));
+
+        for (const missing of missingTilesets) {
+          // Try to find matching JSON file
+          const tsJsonFile = jsonFiles.find((f) => f.name === missing.source);
+          if (!tsJsonFile) continue;
+
+          const tsRaw = await readJsonFile(tsJsonFile);
+          const tsJson = tsRaw as TileSetJson;
+          if (tsJson.type !== "mote-tileset") continue;
+
+          // Find matching image
+          const imgFile = imageFiles.find(
+            (f) => f.name === tsJson.image || f.name.startsWith(tsJson.name)
+          );
+          if (!imgFile) continue;
+
+          const { url, img } = await loadImageFromFile(imgFile);
+          const ts = tileSetFromJson(tsJson, url);
+          tilesets.value = [...tilesets.value, ts];
+          const newImages = new Map(tilesetImages.value);
+          newImages.set(ts.id, img);
+          tilesetImages.value = newImages;
+
+          // Add ref to map
+          const m = currentMap.value;
+          currentMap.value = {
+            ...m,
+            tilesets: [...m.tilesets, { tilesetId: ts.id, firstGid: missing.firstGid }],
+          };
+        }
+
+        if (tilesets.value.length > 0) {
+          activeTilesetId.value = tilesets.value[0].id;
+          displayScale.value = Math.max(1, Math.round(32 / tilesets.value[0].tileWidth));
+        }
+        bumpMapVersion();
+      };
+      input.click();
+    }
+    bumpMapVersion();
+    return;
+  }
+
+  throw new Error("Unknown file format");
 }
 
 ```
@@ -2762,6 +3780,17 @@ export const activeTilesetId = signal<string | null>(null);
 
 /** Hovered tile coord in the viewport */
 export const hoverTile = signal<{ x: number; y: number } | null>(null);
+
+/**
+ * Editor display scale (integer).
+ * Controls tile display size in TilePalette: displaySize = tileWidth * displayScale.
+ * Number keys 1-6 in Viewport snap zoom to this integer scale.
+ * Auto-calculated on tileset import: Math.max(1, Math.round(32 / tileWidth)).
+ */
+export const displayScale = signal(2);
+
+/** Current viewport zoom level (for display in footer) */
+export const viewportZoom = signal(1);
 
 ```
 

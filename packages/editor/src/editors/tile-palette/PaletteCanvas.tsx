@@ -28,8 +28,9 @@ export function PaletteCanvas() {
     const img = ts ? tilesetImages.value.get(ts.id) : null;
 
     const scale = displayScale.value;
-    const cellW = ts ? ts.tileWidth * scale : 32;
-    const cellH = ts ? ts.tileHeight * scale : 32;
+    // Support fractional scale (e.g. 0.25, 0.5)
+    const cellW = ts ? Math.max(1, Math.round(ts.tileWidth * scale)) : 32;
+    const cellH = ts ? Math.max(1, Math.round(ts.tileHeight * scale)) : 32;
 
     const dpr = window.devicePixelRatio || 1;
     const w = container.clientWidth;
@@ -60,8 +61,14 @@ export function PaletteCanvas() {
         const src = getTileSrcRect(ts, localId);
         ctx.drawImage(
           img,
-          src.sx, src.sy, src.sw, src.sh,
-          c * cellW, r * cellH, cellW, cellH
+          src.sx,
+          src.sy,
+          src.sw,
+          src.sh,
+          c * cellW,
+          r * cellH,
+          cellW,
+          cellH
         );
       }
     }
@@ -136,8 +143,8 @@ export function PaletteCanvas() {
     const ts = getTs();
     if (!ts) return null;
     const scale = displayScale.value;
-    const cellW = ts.tileWidth * scale;
-    const cellH = ts.tileHeight * scale;
+    const cellW = Math.max(1, Math.round(ts.tileWidth * scale));
+    const cellH = Math.max(1, Math.round(ts.tileHeight * scale));
     const col = Math.floor((clientX - rect.left) / cellW);
     const row = Math.floor((clientY - rect.top) / cellH);
     if (col < 0 || row < 0 || col >= ts.columns || row >= ts.rows) return null;

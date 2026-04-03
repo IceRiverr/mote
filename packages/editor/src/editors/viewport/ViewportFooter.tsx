@@ -1,11 +1,14 @@
-import { hoverTile, viewportZoom } from "../../store/selection";
+import {
+  hoverTile,
+  viewportZoom,
+  viewportZoomLocked,
+} from "../../store/selection";
 import { activeLayer } from "../../store/project";
 
 export function ViewportFooter() {
   const tile = hoverTile.value;
   const layer = activeLayer.value;
-  const zoom = viewportZoom.value;
-  const isInteger = Math.abs(zoom - Math.round(zoom)) < 0.01;
+  const locked = viewportZoomLocked.value;
 
   return (
     <div
@@ -16,17 +19,24 @@ export function ViewportFooter() {
         display: "flex",
         alignItems: "center",
         padding: "0 8px",
-        gap: 16,
-        flexShrink: 0,
+        fontSize: 10,
         color: "var(--text-secondary)",
-        fontSize: 11,
+        gap: 12,
+        flexShrink: 0,
       }}
     >
-      <span>坐标: {tile ? `${tile.x}, ${tile.y}` : "—"}</span>
-      <span>图层: {layer?.name ?? "—"}</span>
+      <span>
+        {tile ? `瓦片 (${tile.x}, ${tile.y})` : "—"}
+      </span>
+      {layer && (
+        <span>
+          图层: {layer.name}
+          {layer.locked ? " 🔒" : ""}
+        </span>
+      )}
       <div style={{ flex: 1 }} />
-      <span style={{ fontSize: 10, opacity: 0.6 }}>
-        滚轮缩放 · 1-6整数 · Home居中
+      <span style={{ opacity: 0.6 }}>
+        {locked ? "缩放已锁定" : "滚轮缩放 · 1-6整数 · Home居中"}
       </span>
     </div>
   );

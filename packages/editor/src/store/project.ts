@@ -11,8 +11,12 @@ import {
   importStandaloneMap,
   loadImageFromFile,
 } from "../data/io";
-import type { TileSetJson, TileMapBundleJson, TileMapStandaloneJson } from "../data/io";
-import { activeTilesetId, displayScale } from "./selection";
+import type {
+  TileSetJson,
+  TileMapBundleJson,
+  TileMapStandaloneJson,
+} from "../data/io";
+import { activeTilesetId, displayScale, displayScaleLocked } from "./selection";
 
 // ---- TileSets ----
 export const tilesets = signal<TileSet[]>([]);
@@ -90,11 +94,27 @@ export function removeTileSet(id: string) {
   bumpMapVersion();
 }
 
+// ---- Auto display scale calculation ----
+
+/** Calculate optimal display scale for a tile width. Skipped when locked. */
+function autoDisplayScale(tileWidth: number): void {
+  if (displayScaleLocked.value) return;
+  const raw = 32 / tileWidth;
+  // Snap to nearest step from DISPLAY_SCALE_STEPS
+  if (raw <= 0.25) {
+    displayScale.value = 0.25;
+  } else if (raw <= 0.5) {
+    displayScale.value = 0.5;
+  } else {
+    displayScale.value = Math.max(1, Math.round(raw));
+  }
+}
+
 // ---- Import TileSet from JSON file ----
 
 export async function importTileSetFromFiles(
   jsonFile: File,
-  imageFile: File,
+  imageFile: File
 ): Promise<void> {
   const raw = await readJsonFile(jsonFile);
   const json = raw as TileSetJson;
@@ -129,8 +149,8 @@ export async function importTileSetFromFiles(
     tilesets: [...map.tilesets, { tilesetId: ts.id, firstGid: maxGid }],
   };
 
-  // Update display scale
-  displayScale.value = Math.max(1, Math.round(32 / ts.tileWidth));
+  // Update display scale (respects lock)
+  autoDisplayScale(ts.tileWidth);
   bumpMapVersion();
 }
 
@@ -150,14 +170,16 @@ export async function importTileMapFromFile(file: File): Promise<void> {
     }
     if (result.tilesets.length > 0) {
       activeTilesetId.value = result.tilesets[0].id;
-      displayScale.value = Math.max(1, Math.round(32 / result.tilesets[0].tileWidth));
+      autoDisplayScale(result.tilesets[0].tileWidth);
     }
     bumpMapVersion();
     return;
   }
 
   if (type === "mote-tilemap") {
-    const { map, missingTilesets } = importStandaloneMap(raw as TileMapStandaloneJson);
+    const { map, missingTilesets } = importStandaloneMap(
+      raw as TileMapStandaloneJson
+    );
     currentMap.value = map;
     if (map.layers.length > 0) {
       activeLayerId.value = map.layers[0].id;
@@ -200,13 +222,16 @@ export async function importTileMapFromFile(file: File): Promise<void> {
           const m = currentMap.value;
           currentMap.value = {
             ...m,
-            tilesets: [...m.tilesets, { tilesetId: ts.id, firstGid: missing.firstGid }],
+            tilesets: [
+              ...m.tilesets,
+              { tilesetId: ts.id, firstGid: missing.firstGid },
+            ],
           };
         }
 
         if (tilesets.value.length > 0) {
           activeTilesetId.value = tilesets.value[0].id;
-          displayScale.value = Math.max(1, Math.round(32 / tilesets.value[0].tileWidth));
+          autoDisplayScale(tilesets.value[0].tileWidth);
         }
         bumpMapVersion();
       };

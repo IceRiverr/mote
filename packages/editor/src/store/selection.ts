@@ -16,12 +16,50 @@ export const activeTilesetId = signal<string | null>(null);
 export const hoverTile = signal<{ x: number; y: number } | null>(null);
 
 /**
- * Editor display scale (integer).
- * Controls tile display size in TilePalette: displaySize = tileWidth * displayScale.
- * Number keys 1-6 in Viewport snap zoom to this integer scale.
- * Auto-calculated on tileset import: Math.max(1, Math.round(32 / tileWidth)).
+ * Editor display scale for TilePalette.
+ * Supports fractional values like 0.25, 0.5, 1, 2, 4, 8.
+ * Controls tile display size: displaySize = tileWidth * displayScale.
+ * Auto-calculated on tileset import: Math.max(0.25, Math.round(32 / tileWidth)).
  */
 export const displayScale = signal(2);
 
-/** Current viewport zoom level (for display in footer) */
+/** Whether TilePalette display scale is locked (prevents auto-calculation on import) */
+export const displayScaleLocked = signal(false);
+
+/** Current viewport zoom level */
 export const viewportZoom = signal(1);
+
+/** Whether viewport zoom is locked (prevents scroll/keyboard zoom) */
+export const viewportZoomLocked = signal(false);
+
+/**
+ * Predefined scale steps for TilePalette.
+ * Includes fractional (1/4, 1/2) and integer (1-8) values.
+ */
+export const DISPLAY_SCALE_STEPS = [0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8];
+
+/** Format display scale as human-readable string: 0.25→"1/4", 0.5→"1/2", 2→"2" */
+export function formatDisplayScale(v: number): string {
+  if (v === 0.25) return "1/4";
+  if (v === 0.5) return "1/2";
+  return String(v);
+}
+
+/** Parse user input string to display scale number. Supports "1/4", "0.25", "2", etc. */
+export function parseDisplayScale(raw: string): number | null {
+  const s = raw.trim();
+  // Fraction format: "1/4", "1/2"
+  const fracMatch = s.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (fracMatch) {
+    const num = parseInt(fracMatch[1]);
+    const den = parseInt(fracMatch[2]);
+    if (den === 0) return null;
+    const val = num / den;
+    if (val >= 0.25 && val <= 8) return val;
+    return null;
+  }
+  // Decimal or integer
+  const val = parseFloat(s);
+  if (isNaN(val) || val < 0.25 || val > 8) return null;
+  return val;
+}

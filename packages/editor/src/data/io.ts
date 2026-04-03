@@ -327,7 +327,29 @@ export function importStandaloneMap(
 // ============================================================
 
 export function downloadJson(data: unknown, filename: string) {
-  const json = JSON.stringify(data, null, 2);
+  let json = JSON.stringify(data, null, 2);
+
+  // Format layer data arrays: one row per map width for readability
+  // Matches "data": [<numbers>] and reformats into rows
+  const obj = data as any;
+  if (obj && obj.width && obj.layers) {
+    const w = obj.width as number;
+    json = json.replace(
+      /"data":\s*\[([\s\S]*?)\]/g,
+      (_match: string, inner: string) => {
+        const nums = inner.replace(/\s+/g, " ").trim().split(/,\s*/);
+        const rows: string[] = [];
+        const maxLen = nums.reduce((m: number, n: string) => Math.max(m, n.length), 0);
+        for (let i = 0; i < nums.length; i += w) {
+          // Right-align numbers for readability (pad to max digit width)
+          const padded = nums.slice(i, i + w).map(n => n.padStart(maxLen, " "));
+          rows.push("        " + padded.join(", "));
+        }
+        return `"data": [\n${rows.join(",\n")}\n      ]`;
+      }
+    );
+  }
+
   const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

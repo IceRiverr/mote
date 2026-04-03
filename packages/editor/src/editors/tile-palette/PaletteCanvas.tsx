@@ -1,4 +1,5 @@
-import { useRef, useEffect, useCallback } from "preact/hooks";
+import { useRef, useEffect, useCallback, useState } from "preact/hooks";
+import { signal } from "@preact/signals";
 import { tilesets, tilesetImages, currentMap } from "../../store/project";
 import {
   activeTilesetId,
@@ -8,16 +9,38 @@ import {
   displayScale,
 } from "../../store/selection";
 import { getTileSrcRect } from "../../data/TileSet";
+import type { TileSet } from "../../data/TileSet";
+import { TileContextMenu } from "./TileContextMenu";
+
+/** Palette camera for pan support */
+const paletteCam = signal({ x: 0, y: 0 });
 
 export function PaletteCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const selStart = useRef<{ col: number; row: number } | null>(null);
   const selEnd = useRef<{ col: number; row: number } | null>(null);
+  const hoverCell = useRef<{ col: number; row: number } | null>(null);
 
-  const getTs = () => {
+  // Context menu state
+  const [ctxMenu, setCtxMenu] = useState<{
+    x: number;
+    y: number;
+    localId: number;
+    tilesetId: string;
+  } | null>(null);
+
+  const getTs = (): TileSet | null => {
     const id = activeTilesetId.value;
     return id ? tilesets.value.find((t) => t.id === id) ?? null : null;
+  };
+
+  const getCellSize = (ts: TileSet | null) => {
+    const scale = displayScale.value;
+    return {
+      cellW: ts ? Math.max(1, Math.round(ts.tileWidth * scale)) : 32,
+      cellH: ts ? Math.max(1, Math.round(ts.tileHeight * scale)) : 32,
+    };
   };
 
   const draw = useCallback(() => {
@@ -26,11 +49,8 @@ export function PaletteCanvas() {
     if (!canvas || !container) return;
     const ts = getTs();
     const img = ts ? tilesetImages.value.get(ts.id) : null;
-
-    const scale = displayScale.value;
-    // Support fractional scale (e.g. 0.25, 0.5)
-    const cellW = ts ? Math.max(1, Math.round(ts.tileWidth * scale)) : 32;
-    const cellH = ts ? Math.max(1, Math.round(ts.tileHeight * scale)) : 32;
+    const { cellW, cellH } = getCellSize(ts);
+    const cam = paletteCam.value;
 
     const dpr = window.devicePixelRatio || 1;
     const w = container.clientWidth;
@@ -42,8 +62,6 @@ export function PaletteCanvas() {
     const ctx = canvas.getContext("2d")!;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
-
-    // Pixel-perfect: disable smoothing
     ctx.imageSmoothingEnabled = false;
 
     if (!ts || !img) {
@@ -54,6 +72,9 @@ export function PaletteCanvas() {
       return;
     }
 
+    ctx.save();
+    ctx.translate(-cam.x, -cam.y);
+
     // Draw tiles
     for (let r = 0; r < ts.rows; r++) {
       for (let c = 0; c < ts.columns; c++) {
@@ -61,14 +82,8 @@ export function PaletteCanvas() {
         const src = getTileSrcRect(ts, localId);
         ctx.drawImage(
           img,
-          src.sx,
-          src.sy,
-          src.sw,
-          src.sh,
-          c * cellW,
-          r * cellH,
-          cellW,
-          cellH
+          src.sx, src.sy, src.sw, src.sh,
+          c * cellW, r * cellH, cellW, cellH
         );
       }
     }
@@ -89,6 +104,16 @@ export function PaletteCanvas() {
       ctx.stroke();
     }
 
+    // Hover highlight
+    const hover = hoverCell.current;
+    if (hover && hover.col >= 0 && hover.col < ts.columns && hover.row >= 0 && hover.row < ts.rows) {
+      ctx.fillStyle = "rgba(255,255,255,0.12)";
+      ctx.fillRect(hover.col * cellW, hover.row * cellH, cellW, cellH);
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(hover.col * cellW + 0.5, hover.row * cellH + 0.5, cellW - 1, cellH - 1);
+    }
+
     // Selection highlight
     const bt = brushTiles.value;
     if (bt.length > 0) {
@@ -102,20 +127,38 @@ export function PaletteCanvas() {
           ctx.strokeStyle = "rgba(74,144,217,0.9)";
           ctx.lineWidth = 2;
           ctx.strokeRect(
-            startCol * cellW,
-            startRow * cellH,
-            brushWidth.value * cellW,
-            brushHeight.value * cellH
+            startCol * cellW, startRow * cellH,
+            brushWidth.value * cellW, brushHeight.value * cellH
           );
           ctx.fillStyle = "rgba(74,144,217,0.2)";
           ctx.fillRect(
-            startCol * cellW,
-            startRow * cellH,
-            brushWidth.value * cellW,
-            brushHeight.value * cellH
+            startCol * cellW, startRow * cellH,
+            brushWidth.value * cellW, brushHeight.value * cellH
           );
         }
       }
+    }
+
+    ctx.restore();
+
+    // Bottom fade indicator (if content overflows)
+    const totalH = ts.rows * cellH - cam.y;
+    if (totalH > h) {
+      const grad = ctx.createLinearGradient(0, h - 24, 0, h);
+      grad.addColorStop(0, "rgba(30,30,30,0)");
+      grad.addColorStop(1, "rgba(30,30,30,0.8)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, h - 24, w, 24);
+    }
+
+    // Right fade indicator (if content overflows horizontally)
+    const totalW = ts.columns * cellW - cam.x;
+    if (totalW > w) {
+      const grad = ctx.createLinearGradient(w - 24, 0, w, 0);
+      grad.addColorStop(0, "rgba(30,30,30,0)");
+      grad.addColorStop(1, "rgba(30,30,30,0.8)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(w - 24, 0, 24, h);
     }
   }, []);
 
@@ -128,6 +171,7 @@ export function PaletteCanvas() {
     tilesetImages.value,
     brushTiles.value,
     displayScale.value,
+    paletteCam.value,
   ]);
 
   // Resize
@@ -138,15 +182,19 @@ export function PaletteCanvas() {
     return () => ro.disconnect();
   }, []);
 
+  // Reset camera when tileset changes
+  useEffect(() => {
+    paletteCam.value = { x: 0, y: 0 };
+  }, [activeTilesetId.value]);
+
   const screenToCell = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
     const ts = getTs();
     if (!ts) return null;
-    const scale = displayScale.value;
-    const cellW = Math.max(1, Math.round(ts.tileWidth * scale));
-    const cellH = Math.max(1, Math.round(ts.tileHeight * scale));
-    const col = Math.floor((clientX - rect.left) / cellW);
-    const row = Math.floor((clientY - rect.top) / cellH);
+    const { cellW, cellH } = getCellSize(ts);
+    const cam = paletteCam.value;
+    const col = Math.floor((clientX - rect.left + cam.x) / cellW);
+    const row = Math.floor((clientY - rect.top + cam.y) / cellH);
     if (col < 0 || row < 0 || col >= ts.columns || row >= ts.rows) return null;
     return { col, row };
   };
@@ -178,20 +226,92 @@ export function PaletteCanvas() {
   };
 
   const onPointerDown = (e: PointerEvent) => {
-    if (e.button !== 0) return;
-    const cell = screenToCell(e.clientX, e.clientY);
-    if (!cell) return;
-    selStart.current = cell;
-    selEnd.current = cell;
-    commitSelection();
+    // Close context menu on any click
+    if (ctxMenu) {
+      setCtxMenu(null);
+      return;
+    }
+
+    // Middle-click or Alt+click → pan
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+      e.preventDefault();
+      const startCam = { ...paletteCam.value };
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const onMove = (ev: PointerEvent) => {
+        paletteCam.value = {
+          x: Math.max(0, startCam.x - (ev.clientX - startX)),
+          y: Math.max(0, startCam.y - (ev.clientY - startY)),
+        };
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+      return;
+    }
+
+    // Left click → select
+    if (e.button === 0) {
+      const cell = screenToCell(e.clientX, e.clientY);
+      if (!cell) return;
+      selStart.current = cell;
+      selEnd.current = cell;
+      commitSelection();
+    }
   };
 
   const onPointerMove = (e: PointerEvent) => {
-    if (!(e.buttons & 1)) return;
+    // Update hover
     const cell = screenToCell(e.clientX, e.clientY);
-    if (!cell || !selStart.current) return;
-    selEnd.current = cell;
-    commitSelection();
+    const prev = hoverCell.current;
+    if (cell?.col !== prev?.col || cell?.row !== prev?.row) {
+      hoverCell.current = cell;
+      draw();
+    }
+
+    // Drag select
+    if (e.buttons & 1 && !(e.altKey)) {
+      if (!cell || !selStart.current) return;
+      selEnd.current = cell;
+      commitSelection();
+    }
+  };
+
+  const onPointerLeave = () => {
+    if (hoverCell.current) {
+      hoverCell.current = null;
+      draw();
+    }
+  };
+
+  // Right-click → context menu
+  const onContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    const cell = screenToCell(e.clientX, e.clientY);
+    const ts = getTs();
+    if (!cell || !ts) return;
+    const localId = cell.row * ts.columns + cell.col;
+    const rect = containerRef.current!.getBoundingClientRect();
+    setCtxMenu({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+      localId,
+      tilesetId: ts.id,
+    });
+  };
+
+  // Scroll → vertical scroll (shift+scroll → horizontal)
+  const onWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    const cam = paletteCam.value;
+    if (e.shiftKey) {
+      paletteCam.value = { ...cam, x: Math.max(0, cam.x + e.deltaY) };
+    } else {
+      paletteCam.value = { ...cam, y: Math.max(0, cam.y + e.deltaY) };
+    }
   };
 
   return (
@@ -200,17 +320,30 @@ export function PaletteCanvas() {
       style={{
         width: "100%",
         height: "100%",
-        overflow: "auto",
+        overflow: "hidden",
         cursor: "pointer",
         imageRendering: "pixelated",
+        position: "relative",
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
+      onContextMenu={onContextMenu}
+      onWheel={onWheel}
     >
       <canvas
         ref={canvasRef}
         style={{ display: "block", imageRendering: "pixelated" }}
       />
+      {ctxMenu && (
+        <TileContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          localId={ctxMenu.localId}
+          tilesetId={ctxMenu.tilesetId}
+          onClose={() => setCtxMenu(null)}
+        />
+      )}
     </div>
   );
 }

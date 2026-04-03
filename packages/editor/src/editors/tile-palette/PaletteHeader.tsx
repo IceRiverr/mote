@@ -7,7 +7,12 @@ import {
   lastImportedTilesetId,
   importTileSetFromFiles,
 } from "../../store/project";
-import { activeTilesetId, displayScale } from "../../store/selection";
+import {
+  activeTilesetId,
+  displayScale,
+  displayScaleLocked,
+  formatDisplayScale,
+} from "../../store/selection";
 import { createTileSet } from "../../data/TileSet";
 import { popoverOpen } from "./TileSetPopover";
 
@@ -15,6 +20,9 @@ let tsUid = 0;
 
 export function PaletteHeader() {
   const fileRef = useRef<HTMLInputElement>(null);
+  const ts = activeTilesetId.value
+    ? tilesets.value.find((t) => t.id === activeTilesetId.value) ?? null
+    : null;
 
   const handleImport = () => {
     fileRef.current?.click();
@@ -29,7 +37,6 @@ export function PaletteHeader() {
     const imageFile = files.find((f) => !f.name.endsWith(".json"));
 
     if (jsonFile && imageFile) {
-      // Import from .mote-tileset.json + image
       importTileSetFromFiles(jsonFile, imageFile).catch(console.error);
       (e.target as HTMLInputElement).value = "";
       return;
@@ -54,7 +61,6 @@ export function PaletteHeader() {
 
       activeTilesetId.value = id;
 
-      // Auto-add to current map
       const map = currentMap.value;
       const maxGid = map.tilesets.reduce((max, ref) => {
         const t = tilesets.value.find((t) => t.id === ref.tilesetId);
@@ -66,10 +72,10 @@ export function PaletteHeader() {
       };
       bumpMapVersion();
 
-      // Update display scale based on tile size
-      displayScale.value = Math.max(1, Math.round(32 / ts.tileWidth));
+      if (!displayScaleLocked.value) {
+        displayScale.value = Math.max(1, Math.round(32 / ts.tileWidth));
+      }
 
-      // Trigger Redo Panel
       lastImportedTilesetId.value = id;
     };
     img.src = url;
@@ -106,10 +112,27 @@ export function PaletteHeader() {
         ))}
       </select>
 
+      {/* Tile size + display scale info */}
+      {ts && (
+        <span
+          style={{
+            fontSize: 10,
+            color: "var(--text-secondary)",
+            whiteSpace: "nowrap",
+            fontFamily: "monospace",
+          }}
+          title={`原始瓦片 ${ts.tileWidth}×${ts.tileHeight}px · 显示比例 ${formatDisplayScale(displayScale.value)}`}
+        >
+          {ts.tileWidth}×{ts.tileHeight} @{formatDisplayScale(displayScale.value)}
+        </span>
+      )}
+
       {/* Settings popover toggle */}
       {hasActiveTileset && (
         <button
-          onClick={() => { popoverOpen.value = !popoverOpen.value; }}
+          onClick={() => {
+            popoverOpen.value = !popoverOpen.value;
+          }}
           title="瓦片集属性"
           style={{
             background: popoverOpen.value ? "var(--accent)" : "transparent",
@@ -120,7 +143,9 @@ export function PaletteHeader() {
             fontSize: 13,
             lineHeight: 1,
           }}
-        >⚙</button>
+        >
+          ⚙
+        </button>
       )}
 
       <button onClick={handleImport}>导入</button>

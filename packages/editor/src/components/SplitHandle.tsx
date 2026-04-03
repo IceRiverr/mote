@@ -1,5 +1,6 @@
+import { useRef } from 'preact/hooks';
 import { SplitInfo } from '../layout/types';
-import { containerSize, layoutTree } from '../store/layout';
+import { layoutTree } from '../store/layout';
 import { resizeSplit } from '../layout/tree';
 import { useDrag } from '../hooks/useDrag';
 
@@ -8,16 +9,24 @@ interface Props {
 }
 
 export function SplitHandle({ splitInfo }: Props) {
-  const { splitId, direction, rect } = splitInfo;
+  const { splitId, direction, rect, parentBounds } = splitInfo;
+  const handleRef = useRef<HTMLDivElement>(null);
 
   const { onPointerDown } = useDrag({
     onMove(e) {
-      const bounds = containerSize.value;
+      // Get the layout container (grandparent of the handle)
+      const container = handleRef.current?.parentElement;
+      if (!container) return;
+      const containerRect = container.getBoundingClientRect();
+
+      // Convert clientX/Y to layout-local coordinates, then compute ratio
       let ratio: number;
       if (direction === 'horizontal') {
-        ratio = (e.clientY - bounds.y) / bounds.h;
+        const localY = e.clientY - containerRect.top;
+        ratio = (localY - parentBounds.y) / parentBounds.h;
       } else {
-        ratio = (e.clientX - bounds.x) / bounds.w;
+        const localX = e.clientX - containerRect.left;
+        ratio = (localX - parentBounds.x) / parentBounds.w;
       }
       layoutTree.value = resizeSplit(layoutTree.value, splitId, ratio);
     },
@@ -25,6 +34,7 @@ export function SplitHandle({ splitInfo }: Props) {
 
   return (
     <div
+      ref={handleRef}
       onPointerDown={onPointerDown as any}
       style={{
         position: 'absolute',

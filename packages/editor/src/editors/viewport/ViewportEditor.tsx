@@ -1,13 +1,19 @@
 import { registerEditor } from "../registry";
-import { ViewportCanvas } from "./ViewportCanvas";
 import { ViewportHeader } from "./ViewportHeader";
+import { ViewportCanvas } from "./ViewportCanvas";
 import { ViewportFooter } from "./ViewportFooter";
 
 function ViewportEditor({ areaId }: { areaId: string }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+      }}
+    >
       <ViewportHeader />
-      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+      <div style={{ flex: 1, overflow: "hidden" }}>
         <ViewportCanvas />
       </div>
       <ViewportFooter />
@@ -17,7 +23,7 @@ function ViewportEditor({ areaId }: { areaId: string }) {
 
 registerEditor({
   id: "viewport",
-  name: "Viewport",
+  name: "视口",
   icon: "🗺",
   component: ViewportEditor,
 });

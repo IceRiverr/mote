@@ -1,9 +1,2 @@
-import { registerEditor } from '../registry';
-import { ViewportEditor } from './ViewportEditor';
-
-registerEditor({
-  id: 'viewport',
-  name: 'Viewport',
-  icon: '🗺',
-  component: ViewportEditor,
-});
+// Side-effect import: triggers registerEditor inside ViewportEditor
+import './ViewportEditor';

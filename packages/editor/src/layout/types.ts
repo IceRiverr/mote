@@ -25,6 +25,8 @@ export interface SplitInfo {
   splitId: string;
   direction: 'horizontal' | 'vertical';
   rect: Rect;
+  /** Parent bounds — needed to calculate ratio correctly for nested splits */
+  parentBounds: Rect;
 }
 
 export type RectMap = Map<string, Rect>;

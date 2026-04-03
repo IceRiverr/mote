@@ -25,6 +25,7 @@ export function computeRects(
       splitId: id,
       direction: 'horizontal',
       rect: { x: bounds.x, y: splitY - HANDLE_SIZE / 2, w: bounds.w, h: HANDLE_SIZE },
+      parentBounds: { ...bounds },
     });
 
     computeRects(children[0], { x: bounds.x, y: bounds.y, w: bounds.w, h: topH }, areas, splits);
@@ -39,6 +40,7 @@ export function computeRects(
       splitId: id,
       direction: 'vertical',
       rect: { x: splitX - HANDLE_SIZE / 2, y: bounds.y, w: HANDLE_SIZE, h: bounds.h },
+      parentBounds: { ...bounds },
     });
 
     computeRects(children[0], { x: bounds.x, y: bounds.y, w: leftW, h: bounds.h }, areas, splits);

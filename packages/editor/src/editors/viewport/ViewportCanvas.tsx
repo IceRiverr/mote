@@ -374,6 +374,9 @@ export function ViewportCanvas() {
     }
 
     if (e.button === 0) {
+      // Select tool: do nothing on click (no painting)
+      if (activeTool.value === "select") return;
+
       isPainting.current = true;
       paintedCells.current.clear();
 
@@ -444,7 +447,7 @@ export function ViewportCanvas() {
       style={{
         width: "100%",
         height: "100%",
-        cursor: "crosshair",
+        cursor: activeTool.value === "select" ? "default" : "crosshair",
         imageRendering: "pixelated",
       }}
       onPointerDown={onPointerDown}

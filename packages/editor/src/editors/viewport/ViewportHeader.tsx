@@ -6,11 +6,12 @@ import {
   type ToolType,
 } from "../../store/selection";
 
-const tools: { id: ToolType; label: string; icon: string }[] = [
-  { id: "brush", label: "笔刷", icon: "✏️" },
-  { id: "eraser", label: "橡皮", icon: "🧹" },
-  { id: "fill", label: "填充", icon: "🪣" },
-  { id: "eyedropper", label: "吸管", icon: "💉" },
+const tools: { id: ToolType; label: string; icon: string; shortcut: string }[] = [
+  { id: "select", label: "选择", icon: "↖", shortcut: "V" },
+  { id: "brush", label: "笔刷", icon: "✏️", shortcut: "B" },
+  { id: "eraser", label: "橡皮", icon: "🧹", shortcut: "E" },
+  { id: "fill", label: "填充", icon: "🪣", shortcut: "G" },
+  { id: "eyedropper", label: "吸管", icon: "💉", shortcut: "I" },
 ];
 
 export function ViewportHeader() {
@@ -30,7 +31,6 @@ export function ViewportHeader() {
     setEditing(false);
     const v = parseFloat(editValue);
     if (!isNaN(v) && v >= 0.25 && v <= 16) {
-      // Dispatch a custom event so ViewportCanvas can handle the zoom change
       window.dispatchEvent(
         new CustomEvent("mote-set-viewport-zoom", { detail: { zoom: v } })
       );
@@ -59,7 +59,7 @@ export function ViewportHeader() {
       {tools.map((t) => (
         <button
           key={t.id}
-          title={t.label}
+          title={`${t.label} (${t.shortcut})`}
           onClick={() => {
             activeTool.value = t.id;
           }}
@@ -70,7 +70,8 @@ export function ViewportHeader() {
             borderRadius: 3,
             padding: "2px 8px",
             cursor: "pointer",
-            fontSize: 14,
+            fontSize: t.id === "select" ? 16 : 14,
+            fontWeight: t.id === "select" ? 700 : 400,
           }}
         >
           {t.icon}
@@ -132,7 +133,8 @@ export function ViewportHeader() {
             textAlign: "center",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+            (e.currentTarget as HTMLElement).style.borderColor =
+              "var(--border)";
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLElement).style.borderColor = "transparent";
@@ -150,7 +152,9 @@ export function ViewportHeader() {
         title={locked ? "解锁缩放" : "锁定缩放"}
         style={{
           background: locked ? "var(--accent)" : "transparent",
-          border: locked ? "1px solid var(--accent)" : "1px solid var(--border)",
+          border: locked
+            ? "1px solid var(--accent)"
+            : "1px solid var(--border)",
           borderRadius: 3,
           padding: "1px 5px",
           cursor: "pointer",

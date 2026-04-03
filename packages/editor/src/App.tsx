@@ -5,6 +5,15 @@ import "./editors/inspector/register";
 import { useEffect } from "preact/hooks";
 import { LayoutRoot } from "./components/LayoutRoot";
 import { undo, redo } from "./store/history";
+import { activeTool, type ToolType } from "./store/selection";
+
+const TOOL_SHORTCUTS: Record<string, ToolType> = {
+  v: "select",
+  b: "brush",
+  e: "eraser",
+  g: "fill",
+  i: "eyedropper",
+};
 
 export function App() {
   // Global keyboard shortcuts
@@ -33,6 +42,16 @@ export function App() {
         e.preventDefault();
         redo();
         return;
+      }
+
+      // Tool shortcuts (single key, no modifiers)
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        const tool = TOOL_SHORTCUTS[e.key.toLowerCase()];
+        if (tool) {
+          e.preventDefault();
+          activeTool.value = tool;
+          return;
+        }
       }
     };
 

@@ -1,6 +1,6 @@
 import { signal } from "@preact/signals";
 
-export type ToolType = "brush" | "eraser" | "fill" | "eyedropper";
+export type ToolType = "select" | "brush" | "eraser" | "fill" | "eyedropper";
 
 export const activeTool = signal<ToolType>("brush");
 

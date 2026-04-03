@@ -11,6 +11,7 @@ import {
   activeTilesetId,
   displayScale,
   displayScaleLocked,
+  DISPLAY_SCALE_STEPS,
   formatDisplayScale,
 } from "../../store/selection";
 import { createTileSet } from "../../data/TileSet";
@@ -32,7 +33,6 @@ export function PaletteHeader() {
     const files = Array.from((e.target as HTMLInputElement).files ?? []);
     if (files.length === 0) return;
 
-    // Check if it's a JSON tileset import
     const jsonFile = files.find((f) => f.name.endsWith(".json"));
     const imageFile = files.find((f) => !f.name.endsWith(".json"));
 
@@ -42,7 +42,6 @@ export function PaletteHeader() {
       return;
     }
 
-    // Regular image import
     const file = files[0];
     if (!file || !file.type.startsWith("image/")) return;
 
@@ -52,8 +51,8 @@ export function PaletteHeader() {
       const name = file.name.replace(/\.[^.]+$/, "");
       const id = `ts_${++tsUid}`;
 
-      const ts = createTileSet(id, name, url, img.width, img.height, 16, 16, 0, 0);
-      tilesets.value = [...tilesets.value, ts];
+      const tsNew = createTileSet(id, name, url, img.width, img.height, 16, 16, 0, 0);
+      tilesets.value = [...tilesets.value, tsNew];
 
       const newImages = new Map(tilesetImages.value);
       newImages.set(id, img);
@@ -73,7 +72,7 @@ export function PaletteHeader() {
       bumpMapVersion();
 
       if (!displayScaleLocked.value) {
-        displayScale.value = Math.max(1, Math.round(32 / ts.tileWidth));
+        displayScale.value = Math.max(1, Math.round(32 / tsNew.tileWidth));
       }
 
       lastImportedTilesetId.value = id;
@@ -83,6 +82,20 @@ export function PaletteHeader() {
   };
 
   const hasActiveTileset = activeTilesetId.value !== null;
+  const scale = displayScale.value;
+
+  const stepScale = (dir: -1 | 1) => {
+    const idx = DISPLAY_SCALE_STEPS.indexOf(scale);
+    let nextIdx: number;
+    if (idx === -1) {
+      nextIdx = DISPLAY_SCALE_STEPS.findIndex((s) => s > scale);
+      if (dir === -1) nextIdx = Math.max(0, nextIdx - 1);
+      if (nextIdx === -1) nextIdx = DISPLAY_SCALE_STEPS.length - 1;
+    } else {
+      nextIdx = Math.max(0, Math.min(DISPLAY_SCALE_STEPS.length - 1, idx + dir));
+    }
+    displayScale.value = DISPLAY_SCALE_STEPS[nextIdx];
+  };
 
   return (
     <div
@@ -93,10 +106,11 @@ export function PaletteHeader() {
         display: "flex",
         alignItems: "center",
         padding: "0 8px",
-        gap: 6,
+        gap: 4,
         flexShrink: 0,
       }}
     >
+      {/* TileSet selector */}
       <select
         value={activeTilesetId.value ?? ""}
         onChange={(e) => {
@@ -105,14 +119,14 @@ export function PaletteHeader() {
         style={{ flex: 1, minWidth: 0 }}
       >
         {tilesets.value.length === 0 && <option value="">（无瓦片集）</option>}
-        {tilesets.value.map((ts) => (
-          <option key={ts.id} value={ts.id}>
-            {ts.name} ({ts.columns}×{ts.rows})
+        {tilesets.value.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name} ({t.columns}×{t.rows})
           </option>
         ))}
       </select>
 
-      {/* Tile size + display scale info */}
+      {/* Tile size + scale info */}
       {ts && (
         <span
           style={{
@@ -121,18 +135,15 @@ export function PaletteHeader() {
             whiteSpace: "nowrap",
             fontFamily: "monospace",
           }}
-          title={`原始瓦片 ${ts.tileWidth}×${ts.tileHeight}px · 显示比例 ${formatDisplayScale(displayScale.value)}`}
         >
-          {ts.tileWidth}×{ts.tileHeight} @{formatDisplayScale(displayScale.value)}
+          {ts.tileWidth}×{ts.tileHeight}
         </span>
       )}
 
       {/* Settings popover toggle */}
       {hasActiveTileset && (
         <button
-          onClick={() => {
-            popoverOpen.value = !popoverOpen.value;
-          }}
+          onClick={() => { popoverOpen.value = !popoverOpen.value; }}
           title="瓦片集属性"
           style={{
             background: popoverOpen.value ? "var(--accent)" : "transparent",
@@ -143,11 +154,35 @@ export function PaletteHeader() {
             fontSize: 13,
             lineHeight: 1,
           }}
-        >
-          ⚙
-        </button>
+        >⚙</button>
       )}
 
+      {/* Inline scale control */}
+      <div style={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <button
+          onClick={() => stepScale(-1)}
+          style={{ width: 18, height: 20, padding: 0, fontSize: 11 }}
+          title="缩小显示比例"
+        >−</button>
+        <span
+          style={{
+            minWidth: 20,
+            textAlign: "center",
+            fontSize: 10,
+            fontFamily: "monospace",
+            color: "var(--text-bright)",
+          }}
+        >
+          {formatDisplayScale(scale)}
+        </span>
+        <button
+          onClick={() => stepScale(1)}
+          style={{ width: 18, height: 20, padding: 0, fontSize: 11 }}
+          title="放大显示比例"
+        >+</button>
+      </div>
+
+      {/* Import */}
       <button onClick={handleImport}>导入</button>
       <input
         ref={fileRef}

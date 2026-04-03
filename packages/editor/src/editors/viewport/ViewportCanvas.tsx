@@ -22,7 +22,7 @@ import { resolveGid } from "../../data/TileMap";
 import { getTileSrcRect } from "../../data/TileSet";
 
 /** Camera: x,y = world coordinate at viewport top-left. zoom = scale factor. */
-const camera = signal({ x: 0, y: 0, zoom: 2 });
+const camera = signal({ x: 0, y: 0, zoom: 1 });
 const needsCenter = signal(true);
 
 /** Set zoom preserving a world point at a screen position */
@@ -186,7 +186,7 @@ export function ViewportCanvas() {
     for (const layer of map.layers) {
       if (!layer.visible) continue;
       const isActive = layer.id === activeLayerId.value;
-      ctx.globalAlpha = layer.opacity * (isActive ? 1 : 0.4);
+      ctx.globalAlpha = layer.opacity;
 
       for (let y = 0; y < map.height; y++) {
         for (let x = 0; x < map.width; x++) {

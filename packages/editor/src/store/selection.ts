@@ -19,9 +19,8 @@ export const hoverTile = signal<{ x: number; y: number } | null>(null);
  * Editor display scale for TilePalette.
  * Supports fractional values like 0.25, 0.5, 1, 2, 4, 8.
  * Controls tile display size: displaySize = tileWidth * displayScale.
- * Auto-calculated on tileset import: Math.max(0.25, Math.round(32 / tileWidth)).
  */
-export const displayScale = signal(2);
+export const displayScale = signal(1);
 
 /** Whether TilePalette display scale is locked (prevents auto-calculation on import) */
 export const displayScaleLocked = signal(false);
@@ -48,7 +47,6 @@ export function formatDisplayScale(v: number): string {
 /** Parse user input string to display scale number. Supports "1/4", "0.25", "2", etc. */
 export function parseDisplayScale(raw: string): number | null {
   const s = raw.trim();
-  // Fraction format: "1/4", "1/2"
   const fracMatch = s.match(/^(\d+)\s*\/\s*(\d+)$/);
   if (fracMatch) {
     const num = parseInt(fracMatch[1]);
@@ -58,7 +56,6 @@ export function parseDisplayScale(raw: string): number | null {
     if (val >= 0.25 && val <= 8) return val;
     return null;
   }
-  // Decimal or integer
   const val = parseFloat(s);
   if (isNaN(val) || val < 0.25 || val > 8) return null;
   return val;

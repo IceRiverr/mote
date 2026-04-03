@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { tilesets, tilesetImages, currentMap } from "../../store/project";
 import {
+  activeTool,
   activeTilesetId,
   brushTiles,
   brushWidth,
@@ -223,6 +224,8 @@ export function PaletteCanvas() {
     brushTiles.value = tiles;
     brushWidth.value = bw;
     brushHeight.value = bh;
+    // Auto-switch to brush when selecting tiles
+    activeTool.value = "brush";
   };
 
   const onPointerDown = (e: PointerEvent) => {

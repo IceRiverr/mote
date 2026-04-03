@@ -1,6 +1,7 @@
 import { registerEditor } from "../registry";
 import { PaletteHeader } from "./PaletteHeader";
 import { PaletteCanvas } from "./PaletteCanvas";
+import { RedoPanel } from "./RedoPanel";
 
 function TilePaletteEditor({ areaId }: { areaId: string }) {
   return (
@@ -8,6 +9,7 @@ function TilePaletteEditor({ areaId }: { areaId: string }) {
       <PaletteHeader />
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         <PaletteCanvas />
+        <RedoPanel />
       </div>
     </div>
   );

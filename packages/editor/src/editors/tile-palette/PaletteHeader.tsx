@@ -1,5 +1,11 @@
 import { useRef } from "preact/hooks";
-import { tilesets, tilesetImages, currentMap, bumpMapVersion } from "../../store/project";
+import {
+  tilesets,
+  tilesetImages,
+  currentMap,
+  bumpMapVersion,
+  lastImportedTilesetId,
+} from "../../store/project";
 import { activeTilesetId } from "../../store/selection";
 import { createTileSet } from "../../data/TileSet";
 
@@ -20,8 +26,9 @@ export function PaletteHeader() {
     img.onload = () => {
       const name = file.name.replace(/\.[^.]+$/, "");
       const id = `ts_${++tsUid}`;
-      // Default: detect 16x16 tiles, user can change later
-      const ts = createTileSet(id, name, url, img.width, img.height, 16, 16);
+
+      // Import with defaults — user refines via Redo Panel / Inspector
+      const ts = createTileSet(id, name, url, img.width, img.height, 16, 16, 0, 0);
       tilesets.value = [...tilesets.value, ts];
 
       const newImages = new Map(tilesetImages.value);
@@ -32,21 +39,20 @@ export function PaletteHeader() {
 
       // Auto-add to current map's tileset refs
       const map = currentMap.value;
-      const maxGid = map.tilesets.reduce(
-        (max, ref) => {
-          const t = tilesets.value.find((t) => t.id === ref.tilesetId);
-          return Math.max(max, ref.firstGid + (t?.tileCount ?? 0));
-        },
-        1
-      );
+      const maxGid = map.tilesets.reduce((max, ref) => {
+        const t = tilesets.value.find((t) => t.id === ref.tilesetId);
+        return Math.max(max, ref.firstGid + (t?.tileCount ?? 0));
+      }, 1);
       currentMap.value = {
         ...map,
         tilesets: [...map.tilesets, { tilesetId: id, firstGid: maxGid }],
       };
       bumpMapVersion();
+
+      // Trigger Redo Panel
+      lastImportedTilesetId.value = id;
     };
     img.src = url;
-    // Reset input so same file can be re-imported
     (e.target as HTMLInputElement).value = "";
   };
 
@@ -70,9 +76,7 @@ export function PaletteHeader() {
         }}
         style={{ flex: 1, minWidth: 0 }}
       >
-        {tilesets.value.length === 0 && (
-          <option value="">（无瓦片集）</option>
-        )}
+        {tilesets.value.length === 0 && <option value="">（无瓦片集）</option>}
         {tilesets.value.map((ts) => (
           <option key={ts.id} value={ts.id}>
             {ts.name} ({ts.columns}×{ts.rows})

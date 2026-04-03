@@ -18,6 +18,8 @@ import {
   viewportZoom,
   viewportZoomLocked,
 } from "../../store/selection";
+import { executeCommand } from "../../store/history";
+import { PaintTilesCommand } from "../../commands/paint";
 import { resolveGid } from "../../data/TileMap";
 import { getTileSrcRect } from "../../data/TileSet";
 
@@ -26,11 +28,7 @@ const camera = signal({ x: 0, y: 0, zoom: 1 });
 const needsCenter = signal(true);
 
 /** Set zoom preserving a world point at a screen position */
-function setZoomAt(
-  newZoom: number,
-  screenX: number,
-  screenY: number
-) {
+function setZoomAt(newZoom: number, screenX: number, screenY: number) {
   const cam = camera.value;
   const worldX = (screenX + cam.x) / cam.zoom;
   const worldY = (screenY + cam.y) / cam.zoom;
@@ -52,6 +50,8 @@ export function ViewportCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isPainting = useRef(false);
   const paintedCells = useRef<Set<string>>(new Set());
+  /** Current stroke command, created on mouse-down, committed on mouse-up */
+  const strokeCmd = useRef<PaintTilesCommand | null>(null);
 
   // --- Center the map in viewport ---
   const centerMap = useCallback((fitToView = false) => {
@@ -109,13 +109,13 @@ export function ViewportCanvas() {
       }
     };
     window.addEventListener("mote-set-viewport-zoom", handler);
-    return () => window.removeEventListener("mote-set-viewport-zoom", handler);
+    return () =>
+      window.removeEventListener("mote-set-viewport-zoom", handler);
   }, []);
 
   // --- Keyboard: number keys 1-6 for integer zoom, Home for fit ---
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Ignore if focused on input
       if (
         (e.target as HTMLElement).tagName === "INPUT" ||
         (e.target as HTMLElement).tagName === "SELECT"
@@ -124,13 +124,11 @@ export function ViewportCanvas() {
 
       if (e.key === "Home") {
         e.preventDefault();
-        // Home always works even when locked (it's explicit user intent)
         centerMap(true);
         draw();
         return;
       }
 
-      // Number keys blocked when locked
       if (viewportZoomLocked.value) return;
 
       const num = parseInt(e.key);
@@ -168,7 +166,6 @@ export function ViewportCanvas() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
-    // Pixel-perfect rendering
     ctx.imageSmoothingEnabled = false;
 
     const map = currentMap.value;
@@ -185,7 +182,6 @@ export function ViewportCanvas() {
 
     for (const layer of map.layers) {
       if (!layer.visible) continue;
-      const isActive = layer.id === activeLayerId.value;
       ctx.globalAlpha = layer.opacity;
 
       for (let y = 0; y < map.height; y++) {
@@ -303,14 +299,14 @@ export function ViewportCanvas() {
     []
   );
 
-  // --- Paint ---
+  // --- Paint (mutate data in-place + record into strokeCmd) ---
   const paintAt = useCallback((x: number, y: number) => {
     const map = currentMap.value;
     const layer = activeLayer.value;
     if (!layer || layer.locked) return;
 
     const tool = activeTool.value;
-    const idx = y * map.width + x;
+    const cmd = strokeCmd.current;
 
     if (tool === "brush") {
       const bt = brushTiles.value;
@@ -322,15 +318,27 @@ export function ViewportCanvas() {
           const tx = x + bx;
           const ty = y + by;
           if (tx >= map.width || ty >= map.height) continue;
-          layer.data[ty * map.width + tx] = bt[by * bw + bx];
+          const idx = ty * map.width + tx;
+          const oldGid = layer.data[idx];
+          const newGid = bt[by * bw + bx];
+          if (oldGid !== newGid) {
+            layer.data[idx] = newGid;
+            cmd?.record(idx, oldGid, newGid);
+          }
         }
       }
     } else if (tool === "eraser") {
-      layer.data[idx] = 0;
+      const idx = y * map.width + x;
+      const oldGid = layer.data[idx];
+      if (oldGid !== 0) {
+        layer.data[idx] = 0;
+        cmd?.record(idx, oldGid, 0);
+      }
     } else if (tool === "fill") {
       const fillGid = brushTiles.value.length > 0 ? brushTiles.value[0] : 0;
-      floodFill(layer.data, map.width, map.height, x, y, fillGid);
+      floodFillWithRecord(layer.data, map.width, map.height, x, y, fillGid, cmd);
     } else if (tool === "eyedropper") {
+      const idx = y * map.width + x;
       const gid = layer.data[idx];
       if (gid > 0) {
         brushTiles.value = [gid];
@@ -368,6 +376,19 @@ export function ViewportCanvas() {
     if (e.button === 0) {
       isPainting.current = true;
       paintedCells.current.clear();
+
+      // Create a new stroke command
+      const tool = activeTool.value;
+      const label =
+        tool === "brush"
+          ? "绘制 tile"
+          : tool === "eraser"
+          ? "擦除 tile"
+          : tool === "fill"
+          ? "填充 tile"
+          : "吸取 tile";
+      strokeCmd.current = new PaintTilesCommand(activeLayerId.value, label);
+
       const tile = screenToTile(e.clientX, e.clientY);
       if (tile) {
         const key = `${tile.x},${tile.y}`;
@@ -391,13 +412,21 @@ export function ViewportCanvas() {
   };
 
   const onPointerUp = () => {
-    isPainting.current = false;
+    if (isPainting.current) {
+      isPainting.current = false;
+      // Commit the stroke command if there were actual changes
+      const cmd = strokeCmd.current;
+      if (cmd && cmd.hasChanges()) {
+        // Data is already mutated in-place; executeCommand will just push to stack
+        executeCommand(cmd);
+      }
+      strokeCmd.current = null;
+    }
   };
 
   // --- Mouse-position zoom ---
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
-    // Blocked when locked
     if (viewportZoomLocked.value) return;
 
     const cam = camera.value;
@@ -434,14 +463,15 @@ export function ViewportCanvas() {
   );
 }
 
-/** Simple flood fill */
-function floodFill(
+/** Flood fill that also records changes into a PaintTilesCommand */
+function floodFillWithRecord(
   data: number[],
   w: number,
   h: number,
   sx: number,
   sy: number,
-  newGid: number
+  newGid: number,
+  cmd: PaintTilesCommand | null
 ) {
   const target = data[sy * w + sx];
   if (target === newGid) return;
@@ -451,7 +481,9 @@ function floodFill(
     if (x < 0 || y < 0 || x >= w || y >= h) continue;
     const idx = y * w + x;
     if (data[idx] !== target) continue;
+    const oldGid = data[idx];
     data[idx] = newGid;
+    cmd?.record(idx, oldGid, newGid);
     stack.push([x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]);
   }
 }

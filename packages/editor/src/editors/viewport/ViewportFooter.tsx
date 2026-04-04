@@ -1,6 +1,7 @@
 import {
   hoverTile,
   viewportZoomLocked,
+  showGrid,
 } from "../../store/selection";
 import { activeLayer } from "../../store/project";
 import { canUndo, canRedo, undoLabel, redoLabel, undo, redo } from "../../store/history";
@@ -9,6 +10,7 @@ export function ViewportFooter() {
   const tile = hoverTile.value;
   const layer = activeLayer.value;
   const locked = viewportZoomLocked.value;
+  const gridOn = showGrid.value;
 
   return (
     <div
@@ -72,6 +74,29 @@ export function ViewportFooter() {
           ↷
         </button>
       </div>
+
+      {/* Grid toggle */}
+      <button
+        onClick={() => { showGrid.value = !showGrid.value; }}
+        title={gridOn ? "Hide grid" : "Show grid"}
+        style={{
+          fontSize: 10,
+          padding: "0 5px",
+          height: 16,
+          border: "1px solid var(--border)",
+          borderRadius: 2,
+          background: gridOn ? "rgba(74, 144, 217, 0.25)" : "transparent",
+          color: gridOn ? "var(--text)" : "var(--text-secondary)",
+          cursor: "pointer",
+          opacity: gridOn ? 1 : 0.5,
+          display: "flex",
+          alignItems: "center",
+          gap: 3,
+        }}
+      >
+        <span style={{ fontFamily: "monospace", fontWeight: "bold" }}>#</span>
+        <span>{gridOn ? "Grid: On" : "Grid: Off"}</span>
+      </button>
 
       <div style={{ flex: 1 }} />
       <span style={{ opacity: 0.6 }}>

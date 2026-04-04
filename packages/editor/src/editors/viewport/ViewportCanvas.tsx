@@ -17,15 +17,29 @@ import {
   hoverTile,
   viewportZoom,
   viewportZoomLocked,
+  showGrid,
+  gridColor,
 } from "../../store/selection";
+import { tileSelection } from "../../store/tileSelection";
 import { executeCommand } from "../../store/history";
 import { PaintTilesCommand } from "../../commands/paint";
+import { MoveSelectionCommand } from "../../commands/selection";
 import { resolveGid } from "../../data/TileMap";
 import { getTileSrcRect } from "../../data/TileSet";
 
 /** Camera: x,y = world coordinate at viewport top-left. zoom = scale factor. */
 const camera = signal({ x: 0, y: 0, zoom: 1 });
 const needsCenter = signal(true);
+
+// --- Selection drag state (module-level so draw() can access) ---
+
+/** Box-select drag: start and current tile coords */
+const selectDragStart = signal<{ x: number; y: number } | null>(null);
+const selectDragEnd = signal<{ x: number; y: number } | null>(null);
+
+/** Move-selection drag state */
+const moveDragOrigin = signal<{ x: number; y: number } | null>(null);
+const moveDragOffset = signal<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
 
 /** Set zoom preserving a world point at a screen position */
 function setZoomAt(newZoom: number, screenX: number, screenY: number) {
@@ -52,6 +66,13 @@ export function ViewportCanvas() {
   const paintedCells = useRef<Set<string>>(new Set());
   /** Current stroke command, created on mouse-down, committed on mouse-up */
   const strokeCmd = useRef<PaintTilesCommand | null>(null);
+
+  /** Whether we are currently box-selecting */
+  const isBoxSelecting = useRef(false);
+  /** Whether we are currently move-dragging a selection */
+  const isMovingSelection = useRef(false);
+  /** Whether tiles have been cut from layer during current move drag */
+  const hasCutTiles = useRef(false);
 
   // --- Center the map in viewport ---
   const centerMap = useCallback((fitToView = false) => {
@@ -87,8 +108,8 @@ export function ViewportCanvas() {
       canvas.height = el.clientHeight * dpr;
       canvas.style.width = el.clientWidth + "px";
       canvas.style.height = el.clientHeight + "px";
-      if (needsCenter.value) {
-        centerMap();
+      if (needsCenter.value && el.clientWidth > 0 && el.clientHeight > 0) {
+        centerMap(true);
         needsCenter.value = false;
       }
       draw();
@@ -129,6 +150,31 @@ export function ViewportCanvas() {
         return;
       }
 
+      // Escape clears selection
+      if (e.key === "Escape" && tileSelection.value) {
+        // If floating, drop tiles back to original position (discard move)
+        if (tileSelection.value.tiles) {
+          const sel = tileSelection.value;
+          const map = currentMap.value;
+          const layer = map.layers.find((l) => l.id === sel.layerId);
+          if (layer) {
+            for (let r = 0; r < sel.h; r++) {
+              for (let c = 0; c < sel.w; c++) {
+                const tx = sel.x + c;
+                const ty = sel.y + r;
+                if (tx >= 0 && tx < map.width && ty >= 0 && ty < map.height) {
+                  layer.data[ty * map.width + tx] = sel.tiles![r * sel.w + c];
+                }
+              }
+            }
+            bumpMapVersion();
+          }
+        }
+        tileSelection.value = null;
+        draw();
+        return;
+      }
+
       if (viewportZoomLocked.value) return;
 
       const num = parseInt(e.key);
@@ -154,6 +200,12 @@ export function ViewportCanvas() {
     activeTool.value,
     activeLayerId.value,
     brushTiles.value,
+    tileSelection.value,
+    selectDragStart.value,
+    selectDragEnd.value,
+    moveDragOffset.value,
+    showGrid.value,
+    gridColor.value,
   ]);
 
   const draw = useCallback(() => {
@@ -215,19 +267,21 @@ export function ViewportCanvas() {
     ctx.globalAlpha = 1;
 
     // Grid
-    ctx.strokeStyle = "rgba(255,255,255,0.08)";
-    ctx.lineWidth = 1;
-    for (let x = 0; x <= map.width; x++) {
-      ctx.beginPath();
-      ctx.moveTo(x * tw, 0);
-      ctx.lineTo(x * tw, map.height * th);
-      ctx.stroke();
-    }
-    for (let y = 0; y <= map.height; y++) {
-      ctx.beginPath();
-      ctx.moveTo(0, y * th);
-      ctx.lineTo(map.width * tw, y * th);
-      ctx.stroke();
+    if (showGrid.value) {
+      ctx.strokeStyle = gridColor.value;
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= map.width; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * tw, 0);
+        ctx.lineTo(x * tw, map.height * th);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= map.height; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * th);
+        ctx.lineTo(map.width * tw, y * th);
+        ctx.stroke();
+      }
     }
 
     // Map border
@@ -280,10 +334,83 @@ export function ViewportCanvas() {
       ctx.strokeRect(hover.x * tw, hover.y * th, tw, th);
     }
 
+    // --- Selection visual feedback ---
+
+    // Box-select drag preview (dashed rect while dragging)
+    const ds = selectDragStart.value;
+    const de = selectDragEnd.value;
+    if (ds && de) {
+      const rx = Math.min(ds.x, de.x);
+      const ry = Math.min(ds.y, de.y);
+      const rw = Math.abs(de.x - ds.x) + 1;
+      const rh = Math.abs(de.y - ds.y) + 1;
+
+      ctx.save();
+      ctx.fillStyle = "rgba(74, 144, 217, 0.15)";
+      ctx.fillRect(rx * tw, ry * th, rw * tw, rh * th);
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = "rgba(74, 144, 217, 0.8)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(rx * tw, ry * th, rw * tw, rh * th);
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // Active selection rect (after box-select or during move)
+    const sel = tileSelection.value;
+    if (sel) {
+      const offDx = moveDragOffset.value.dx;
+      const offDy = moveDragOffset.value.dy;
+      const drawX = sel.x + offDx;
+      const drawY = sel.y + offDy;
+
+      // Draw floating tiles if cut
+      if (sel.tiles) {
+        ctx.save();
+        ctx.globalAlpha = 0.85;
+        for (let r = 0; r < sel.h; r++) {
+          for (let c = 0; c < sel.w; c++) {
+            const gid = sel.tiles[r * sel.w + c];
+            if (gid === 0) continue;
+            const resolved = resolveGid(map, gid);
+            if (!resolved) continue;
+            const ts = tsMap.get(resolved.tilesetId);
+            const img = images.get(resolved.tilesetId);
+            if (!ts || !img) continue;
+            const src = getTileSrcRect(ts, resolved.localId);
+            ctx.drawImage(
+              img,
+              src.sx,
+              src.sy,
+              src.sw,
+              src.sh,
+              (drawX + c) * tw,
+              (drawY + r) * th,
+              tw,
+              th
+            );
+          }
+        }
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+
+      // Dashed selection border
+      ctx.save();
+      ctx.fillStyle = "rgba(74, 144, 217, 0.1)";
+      ctx.fillRect(drawX * tw, drawY * th, sel.w * tw, sel.h * th);
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = "rgba(74, 144, 217, 0.9)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(drawX * tw, drawY * th, sel.w * tw, sel.h * th);
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
     ctx.restore();
   }, []);
 
-  // --- Mouse → tile coord ---
+  // --- Mouse -> tile coord ---
   const screenToTile = useCallback(
     (clientX: number, clientY: number) => {
       const rect = canvasRef.current!.getBoundingClientRect();
@@ -295,6 +422,16 @@ export function ViewportCanvas() {
       const ty = Math.floor(my / (map.tileHeight * zoom));
       if (tx < 0 || ty < 0 || tx >= map.width || ty >= map.height) return null;
       return { x: tx, y: ty };
+    },
+    []
+  );
+
+  /** Check if a tile coord is inside the current selection */
+  const isInsideSelection = useCallback(
+    (tx: number, ty: number): boolean => {
+      const sel = tileSelection.value;
+      if (!sel) return false;
+      return tx >= sel.x && tx < sel.x + sel.w && ty >= sel.y && ty < sel.y + sel.h;
     },
     []
   );
@@ -352,7 +489,7 @@ export function ViewportCanvas() {
 
   // --- Pointer handlers ---
   const onPointerDown = (e: PointerEvent) => {
-    // Middle-click or Alt+click → pan
+    // Middle-click or Alt+click -> pan
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       const startCam = { ...camera.value };
       const startX = e.clientX;
@@ -374,9 +511,34 @@ export function ViewportCanvas() {
     }
 
     if (e.button === 0) {
-      // Select tool: do nothing on click (no painting)
-      if (activeTool.value === "select") return;
+      // ---- SELECT TOOL ----
+      if (activeTool.value === "select") {
+        const tile = screenToTile(e.clientX, e.clientY);
+        if (!tile) {
+          // Click outside map: clear selection
+          tileSelection.value = null;
+          return;
+        }
 
+        // Check if clicking inside existing selection -> start move
+        if (tileSelection.value && isInsideSelection(tile.x, tile.y)) {
+          isMovingSelection.current = true;
+          hasCutTiles.current = false;
+          moveDragOrigin.value = { x: tile.x, y: tile.y };
+          moveDragOffset.value = { dx: 0, dy: 0 };
+          return;
+        }
+
+        // Otherwise start box-select
+        isBoxSelecting.current = true;
+        selectDragStart.value = { x: tile.x, y: tile.y };
+        selectDragEnd.value = { x: tile.x, y: tile.y };
+        // Clear any existing selection
+        tileSelection.value = null;
+        return;
+      }
+
+      // ---- Other tools (brush, eraser, fill, eyedropper) ----
       isPainting.current = true;
       paintedCells.current.clear();
 
@@ -384,12 +546,12 @@ export function ViewportCanvas() {
       const tool = activeTool.value;
       const label =
         tool === "brush"
-          ? "绘制 tile"
+          ? "\u7ed8\u5236 tile"
           : tool === "eraser"
-          ? "擦除 tile"
+          ? "\u64e6\u9664 tile"
           : tool === "fill"
-          ? "填充 tile"
-          : "吸取 tile";
+          ? "\u586b\u5145 tile"
+          : "\u5438\u53d6 tile";
       strokeCmd.current = new PaintTilesCommand(activeLayerId.value, label);
 
       const tile = screenToTile(e.clientX, e.clientY);
@@ -405,6 +567,49 @@ export function ViewportCanvas() {
     const tile = screenToTile(e.clientX, e.clientY);
     hoverTile.value = tile;
 
+    // Box-selecting: update drag end
+    if (isBoxSelecting.current && tile) {
+      selectDragEnd.value = { x: tile.x, y: tile.y };
+      return;
+    }
+
+    // Moving selection
+    if (isMovingSelection.current && tile && moveDragOrigin.value) {
+      const sel = tileSelection.value;
+      if (!sel) return;
+
+      // First movement: cut tiles from layer
+      if (!hasCutTiles.current) {
+        hasCutTiles.current = true;
+        const map = currentMap.value;
+        const layer = map.layers.find((l) => l.id === sel.layerId);
+        if (layer) {
+          const tiles: number[] = [];
+          for (let r = 0; r < sel.h; r++) {
+            for (let c = 0; c < sel.w; c++) {
+              const tx = sel.x + c;
+              const ty = sel.y + r;
+              if (tx >= 0 && tx < map.width && ty >= 0 && ty < map.height) {
+                const idx = ty * map.width + tx;
+                tiles.push(layer.data[idx]);
+                layer.data[idx] = 0;
+              } else {
+                tiles.push(0);
+              }
+            }
+          }
+          tileSelection.value = { ...sel, tiles };
+          bumpMapVersion();
+        }
+      }
+
+      const dx = tile.x - moveDragOrigin.value.x;
+      const dy = tile.y - moveDragOrigin.value.y;
+      moveDragOffset.value = { dx, dy };
+      return;
+    }
+
+    // Painting
     if (isPainting.current && tile) {
       const key = `${tile.x},${tile.y}`;
       if (!paintedCells.current.has(key)) {
@@ -415,6 +620,106 @@ export function ViewportCanvas() {
   };
 
   const onPointerUp = () => {
+    // Finish box-select
+    if (isBoxSelecting.current) {
+      isBoxSelecting.current = false;
+      const ds = selectDragStart.value;
+      const de = selectDragEnd.value;
+      if (ds && de) {
+        const rx = Math.min(ds.x, de.x);
+        const ry = Math.min(ds.y, de.y);
+        const rw = Math.abs(de.x - ds.x) + 1;
+        const rh = Math.abs(de.y - ds.y) + 1;
+
+        // Single-click on same tile with no meaningful area = 1x1 selection
+        // If area is at least 1x1 tile, create selection
+        tileSelection.value = {
+          x: rx,
+          y: ry,
+          w: rw,
+          h: rh,
+          tiles: null,
+          layerId: activeLayerId.value,
+        };
+      }
+      selectDragStart.value = null;
+      selectDragEnd.value = null;
+      return;
+    }
+
+    // Finish move-selection
+    if (isMovingSelection.current) {
+      isMovingSelection.current = false;
+      const sel = tileSelection.value;
+      const off = moveDragOffset.value;
+
+      if (sel && sel.tiles && (off.dx !== 0 || off.dy !== 0)) {
+        const map = currentMap.value;
+        const sourceRect = { x: sel.x, y: sel.y, w: sel.w, h: sel.h };
+        const destRect = { x: sel.x + off.dx, y: sel.y + off.dy, w: sel.w, h: sel.h };
+
+        // sourceOldTiles = the tiles data we cut (already stored in sel.tiles)
+        const sourceOldTiles = sel.tiles.slice();
+
+        // Write tiles at dest
+        const layer = map.layers.find((l) => l.id === sel.layerId);
+        if (layer) {
+          for (let r = 0; r < sel.h; r++) {
+            for (let c = 0; c < sel.w; c++) {
+              const tx = destRect.x + c;
+              const ty = destRect.y + r;
+              if (tx >= 0 && tx < map.width && ty >= 0 && ty < map.height) {
+                layer.data[ty * map.width + tx] = sel.tiles[r * sel.w + c];
+              }
+            }
+          }
+        }
+
+        // Create command (data already mutated in-place)
+        const cmd = new MoveSelectionCommand(
+          sel.layerId,
+          sourceRect,
+          destRect,
+          sel.tiles.slice(),
+          sourceOldTiles,
+        );
+        executeCommand(cmd);
+
+        // Update selection to new position, clear floating tiles
+        tileSelection.value = {
+          x: destRect.x,
+          y: destRect.y,
+          w: sel.w,
+          h: sel.h,
+          tiles: null,
+          layerId: sel.layerId,
+        };
+        bumpMapVersion();
+      } else if (sel && sel.tiles && off.dx === 0 && off.dy === 0) {
+        // No actual move: put tiles back
+        const map = currentMap.value;
+        const layer = map.layers.find((l) => l.id === sel.layerId);
+        if (layer) {
+          for (let r = 0; r < sel.h; r++) {
+            for (let c = 0; c < sel.w; c++) {
+              const tx = sel.x + c;
+              const ty = sel.y + r;
+              if (tx >= 0 && tx < map.width && ty >= 0 && ty < map.height) {
+                layer.data[ty * map.width + tx] = sel.tiles[r * sel.w + c];
+              }
+            }
+          }
+          tileSelection.value = { ...sel, tiles: null };
+          bumpMapVersion();
+        }
+      }
+
+      moveDragOrigin.value = null;
+      moveDragOffset.value = { dx: 0, dy: 0 };
+      return;
+    }
+
+    // Finish painting
     if (isPainting.current) {
       isPainting.current = false;
       // Commit the stroke command if there were actual changes
@@ -441,13 +746,25 @@ export function ViewportCanvas() {
     setZoomAt(newZoom, mouseX, mouseY);
   };
 
+  // Determine cursor
+  let cursor = "crosshair";
+  if (activeTool.value === "select") {
+    const sel = tileSelection.value;
+    const hover = hoverTile.value;
+    if (sel && hover && isInsideSelection(hover.x, hover.y)) {
+      cursor = "move";
+    } else {
+      cursor = "crosshair";
+    }
+  }
+
   return (
     <div
       ref={containerRef}
       style={{
         width: "100%",
         height: "100%",
-        cursor: activeTool.value === "select" ? "default" : "crosshair",
+        cursor,
         imageRendering: "pixelated",
       }}
       onPointerDown={onPointerDown}

@@ -1,6 +1,7 @@
 import "./editors/tile-palette/register";
 import "./editors/viewport/register";
 import "./editors/inspector/register";
+import "./editors/sprite-panel/register";
 
 import { useEffect } from "preact/hooks";
 import { LayoutRoot } from "./components/LayoutRoot";
@@ -13,6 +14,7 @@ const TOOL_SHORTCUTS: Record<string, ToolType> = {
   e: "eraser",
   g: "fill",
   i: "eyedropper",
+  n: "entity",
 };
 
 export function App() {

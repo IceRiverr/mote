@@ -3,9 +3,10 @@ import { LayoutNode, Rect, RectMap, SplitInfo } from '../layout/types';
 import { computeRects } from '../layout/rect';
 
 /**
- * New default layout:
+ * Default layout (4 panels):
  * Left: Viewport (65%)
- * Right: top = TilePalette, bottom = Inspector (vertical split inside horizontal split)
+ * Right: top = TilePalette (33%) | middle = SpritePanel (33%) | bottom = Inspector (34%)
+ *   Implemented as nested splits: right = split(palette | split(sprite-panel | inspector))
  */
 const defaultLayout: LayoutNode = {
   type: 'split',
@@ -18,10 +19,19 @@ const defaultLayout: LayoutNode = {
       type: 'split',
       id: 'split_right',
       direction: 'horizontal',
-      ratio: 0.5,
+      ratio: 0.33,
       children: [
         { type: 'area', id: 'area_palette', editorType: 'tile-palette' },
-        { type: 'area', id: 'area_inspector', editorType: 'inspector' },
+        {
+          type: 'split',
+          id: 'split_right_bottom',
+          direction: 'horizontal',
+          ratio: 0.5,
+          children: [
+            { type: 'area', id: 'area_sprite_panel', editorType: 'sprite-panel' },
+            { type: 'area', id: 'area_inspector', editorType: 'inspector' },
+          ],
+        },
       ],
     },
   ],

@@ -12,6 +12,7 @@ const tools: { id: ToolType; label: string; icon: string; shortcut: string }[] =
   { id: "eraser", label: "橡皮", icon: "🧹", shortcut: "E" },
   { id: "fill", label: "填充", icon: "🪣", shortcut: "G" },
   { id: "eyedropper", label: "吸管", icon: "💉", shortcut: "I" },
+  { id: "entity", label: "实体", icon: "◇", shortcut: "N" },
 ];
 
 export function ViewportHeader() {

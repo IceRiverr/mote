@@ -19,12 +19,18 @@ import {
   viewportZoomLocked,
   showGrid,
   gridColor,
+  activeEntityDefId,
+  selectedEntityId,
 } from "../../store/selection";
 import { tileSelection } from "../../store/tileSelection";
 import { executeCommand } from "../../store/history";
 import { PaintTilesCommand } from "../../commands/paint";
 import { MoveSelectionCommand } from "../../commands/selection";
-import { resolveGid } from "../../data/TileMap";
+import { AddEntityCommand, MoveEntityCommand } from "../../commands/entity";
+import { activeEntityLayer } from "../../store/project";
+import { spriteAtlases, atlasImages } from "../../store/atlas";
+import { resolveGid, isTileLayer, isEntityLayer, getEntityDef } from "../../data/TileMap";
+import type { EntityInstance } from "../../data/TileMap";
 import { getTileSrcRect } from "../../data/TileSet";
 
 /** Camera: x,y = world coordinate at viewport top-left. zoom = scale factor. */
@@ -40,6 +46,11 @@ const selectDragEnd = signal<{ x: number; y: number } | null>(null);
 /** Move-selection drag state */
 const moveDragOrigin = signal<{ x: number; y: number } | null>(null);
 const moveDragOffset = signal<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+
+/** Entity being dragged (move) */
+const entityDragId = signal<string | null>(null);
+const entityDragStart = signal<{ x: number; y: number } | null>(null);
+const entityDragOrigPos = signal<{ x: number; y: number } | null>(null);
 
 /** Set zoom preserving a world point at a screen position */
 function setZoomAt(newZoom: number, screenX: number, screenY: number) {
@@ -157,7 +168,7 @@ export function ViewportCanvas() {
           const sel = tileSelection.value;
           const map = currentMap.value;
           const layer = map.layers.find((l) => l.id === sel.layerId);
-          if (layer) {
+          if (layer && isTileLayer(layer)) {
             for (let r = 0; r < sel.h; r++) {
               for (let c = 0; c < sel.w; c++) {
                 const tx = sel.x + c;
@@ -172,6 +183,13 @@ export function ViewportCanvas() {
         }
         tileSelection.value = null;
         draw();
+        return;
+      }
+
+      // N = entity tool
+      if (e.key === "n" || e.key === "N") {
+        e.preventDefault();
+        activeTool.value = "entity";
         return;
       }
 
@@ -206,6 +224,9 @@ export function ViewportCanvas() {
     moveDragOffset.value,
     showGrid.value,
     gridColor.value,
+    selectedEntityId.value,
+    entityDragId.value,
+    spriteAtlases.value,
   ]);
 
   const draw = useCallback(() => {
@@ -234,6 +255,7 @@ export function ViewportCanvas() {
 
     for (const layer of map.layers) {
       if (!layer.visible) continue;
+      if (!isTileLayer(layer)) continue;
       ctx.globalAlpha = layer.opacity;
 
       for (let y = 0; y < map.height; y++) {
@@ -260,6 +282,90 @@ export function ViewportCanvas() {
             tw,
             th
           );
+        }
+      }
+    }
+
+    ctx.globalAlpha = 1;
+
+    // Render entity layers
+    for (const layer of map.layers) {
+      if (!layer.visible) continue;
+      if (!isEntityLayer(layer)) continue;
+      ctx.globalAlpha = layer.opacity;
+
+      const aImages = atlasImages.value;
+      const aList = spriteAtlases.value;
+
+      for (const entity of layer.entities) {
+        if (!entity.visible) continue;
+        const def = getEntityDef(entity.defId);
+        if (!def) continue;
+
+        const ex = entity.x * zoom;
+        const ey = entity.y * zoom;
+        const ew = entity.width * zoom;
+        const eh = entity.height * zoom;
+        const isSelected = selectedEntityId.value === entity.id;
+
+        // Try to render sprite
+        const frameId = entity.spriteFrameId ?? def.spriteFrameId;
+        const atlasId = def.spriteAtlasId;
+        let drewSprite = false;
+
+        if (atlasId && frameId) {
+          const atlas = aList.find((a) => a.id === atlasId);
+          const aImg = atlas ? aImages.get(atlas.id) : undefined;
+          const frame = atlas?.frameMap.get(frameId);
+          if (atlas && aImg && frame) {
+            // Draw sprite
+            const drawW = (def.shape === "rect" ? entity.width : frame.width) * zoom;
+            const drawH = (def.shape === "rect" ? entity.height : frame.height) * zoom;
+            const drawX = def.shape === "point" ? ex - drawW / 2 : ex;
+            const drawY = def.shape === "point" ? ey - drawH / 2 : ey;
+            ctx.drawImage(aImg, frame.x, frame.y, frame.width, frame.height, drawX, drawY, drawW, drawH);
+            drewSprite = true;
+
+            // Selection border
+            if (isSelected) {
+              ctx.strokeStyle = "#ffffff";
+              ctx.lineWidth = 2;
+              ctx.strokeRect(drawX - 1, drawY - 1, drawW + 2, drawH + 2);
+            }
+          }
+        }
+
+        if (!drewSprite) {
+          // Fallback: draw shape gizmo
+          if (def.shape === "rect") {
+            ctx.fillStyle = def.color + "40";
+            ctx.fillRect(ex, ey, ew, eh);
+            ctx.strokeStyle = isSelected ? "#ffffff" : def.color;
+            ctx.lineWidth = isSelected ? 2 : 1;
+            ctx.strokeRect(ex, ey, ew, eh);
+            ctx.fillStyle = def.color;
+            ctx.font = `${Math.max(10, 12 * zoom)}px monospace`;
+            ctx.fillText(entity.name || def.name, ex + 3 * zoom, ey + 12 * zoom);
+          } else {
+            const r = 8 * zoom;
+            ctx.beginPath();
+            ctx.arc(ex, ey, r, 0, Math.PI * 2);
+            ctx.fillStyle = def.color + "80";
+            ctx.fill();
+            ctx.strokeStyle = isSelected ? "#ffffff" : def.color;
+            ctx.lineWidth = isSelected ? 2 : 1;
+            ctx.stroke();
+            ctx.fillStyle = "#fff";
+            ctx.font = `bold ${Math.max(10, 12 * zoom)}px monospace`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(def.icon, ex, ey);
+            ctx.textAlign = "start";
+            ctx.textBaseline = "alphabetic";
+            ctx.fillStyle = def.color;
+            ctx.font = `${Math.max(9, 10 * zoom)}px monospace`;
+            ctx.fillText(entity.name || def.name, ex + r + 2, ey + 4 * zoom);
+          }
         }
       }
     }
@@ -410,6 +516,50 @@ export function ViewportCanvas() {
     ctx.restore();
   }, []);
 
+  // --- Mouse -> world pixel coord ---
+  const screenToWorld = useCallback(
+    (clientX: number, clientY: number) => {
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const { x: camX, y: camY, zoom } = camera.value;
+      const mx = clientX - rect.left + camX;
+      const my = clientY - rect.top + camY;
+      return { x: mx / zoom, y: my / zoom };
+    },
+    []
+  );
+
+  /** Find entity at world position */
+  const findEntityAt = useCallback(
+    (wx: number, wy: number): { layerId: string; entity: EntityInstance } | null => {
+      const map = currentMap.value;
+      // Search layers in reverse (top-most first)
+      for (let i = map.layers.length - 1; i >= 0; i--) {
+        const layer = map.layers[i];
+        if (!layer.visible || layer.locked || !isEntityLayer(layer)) continue;
+        for (let j = layer.entities.length - 1; j >= 0; j--) {
+          const e = layer.entities[j];
+          if (!e.visible) continue;
+          const def = getEntityDef(e.defId);
+          if (!def) continue;
+          if (def.shape === "rect") {
+            if (wx >= e.x && wx <= e.x + e.width && wy >= e.y && wy <= e.y + e.height) {
+              return { layerId: layer.id, entity: e };
+            }
+          } else {
+            // Point: hit test with radius 8px
+            const dx = wx - e.x;
+            const dy = wy - e.y;
+            if (dx * dx + dy * dy <= 12 * 12) {
+              return { layerId: layer.id, entity: e };
+            }
+          }
+        }
+      }
+      return null;
+    },
+    []
+  );
+
   // --- Mouse -> tile coord ---
   const screenToTile = useCallback(
     (clientX: number, clientY: number) => {
@@ -440,7 +590,7 @@ export function ViewportCanvas() {
   const paintAt = useCallback((x: number, y: number) => {
     const map = currentMap.value;
     const layer = activeLayer.value;
-    if (!layer || layer.locked) return;
+    if (!layer || layer.locked || !isTileLayer(layer)) return;
 
     const tool = activeTool.value;
     const cmd = strokeCmd.current;
@@ -511,6 +661,55 @@ export function ViewportCanvas() {
     }
 
     if (e.button === 0) {
+      // ---- ENTITY TOOL ----
+      if (activeTool.value === "entity") {
+        const world = screenToWorld(e.clientX, e.clientY);
+
+        // Check if clicking on an existing entity
+        const hit = findEntityAt(world.x, world.y);
+        if (hit) {
+          // Select and start drag
+          selectedEntityId.value = hit.entity.id;
+          activeLayerId.value = hit.layerId;
+          entityDragId.value = hit.entity.id;
+          entityDragStart.value = { x: e.clientX, y: e.clientY };
+          entityDragOrigPos.value = { x: hit.entity.x, y: hit.entity.y };
+          return;
+        }
+
+        // Place new entity
+        const defId = activeEntityDefId.value;
+        const entLayer = activeEntityLayer.value;
+        if (defId && entLayer) {
+          const def = getEntityDef(defId);
+          if (def) {
+            // Snap to grid
+            const map = currentMap.value;
+            const snapX = Math.round(world.x / map.tileWidth) * map.tileWidth;
+            const snapY = Math.round(world.y / map.tileHeight) * map.tileHeight;
+
+            const newEntity = {
+              id: `ent_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              defId: def.id,
+              name: "",
+              x: def.shape === "rect" ? snapX : snapX,
+              y: def.shape === "rect" ? snapY : snapY,
+              width: def.defaultWidth,
+              height: def.defaultHeight,
+              fieldValues: Object.fromEntries(
+                def.fields.map((f) => [f.id, f.default])
+              ),
+              visible: true,
+            };
+            executeCommand(new AddEntityCommand(entLayer.id, newEntity));
+            selectedEntityId.value = newEntity.id;
+          }
+        } else {
+          selectedEntityId.value = null;
+        }
+        return;
+      }
+
       // ---- SELECT TOOL ----
       if (activeTool.value === "select") {
         const tile = screenToTile(e.clientX, e.clientY);
@@ -567,6 +766,33 @@ export function ViewportCanvas() {
     const tile = screenToTile(e.clientX, e.clientY);
     hoverTile.value = tile;
 
+    // Entity dragging
+    if (entityDragId.value && entityDragStart.value && entityDragOrigPos.value) {
+      const { x: camX, y: camY, zoom } = camera.value;
+      const dx = (e.clientX - entityDragStart.value.x) / zoom;
+      const dy = (e.clientY - entityDragStart.value.y) / zoom;
+      const map = currentMap.value;
+      // Snap to grid while dragging
+      const newX = Math.round((entityDragOrigPos.value.x + dx) / map.tileWidth) * map.tileWidth;
+      const newY = Math.round((entityDragOrigPos.value.y + dy) / map.tileHeight) * map.tileHeight;
+
+      // Update entity position in-place for visual feedback
+      currentMap.value = {
+        ...map,
+        layers: map.layers.map((l) => {
+          if (!isEntityLayer(l)) return l;
+          return {
+            ...l,
+            entities: l.entities.map((ent) =>
+              ent.id === entityDragId.value ? { ...ent, x: newX, y: newY } : ent
+            ),
+          };
+        }),
+      };
+      bumpMapVersion();
+      return;
+    }
+
     // Box-selecting: update drag end
     if (isBoxSelecting.current && tile) {
       selectDragEnd.value = { x: tile.x, y: tile.y };
@@ -583,7 +809,7 @@ export function ViewportCanvas() {
         hasCutTiles.current = true;
         const map = currentMap.value;
         const layer = map.layers.find((l) => l.id === sel.layerId);
-        if (layer) {
+        if (layer && isTileLayer(layer)) {
           const tiles: number[] = [];
           for (let r = 0; r < sel.h; r++) {
             for (let c = 0; c < sel.w; c++) {
@@ -620,6 +846,43 @@ export function ViewportCanvas() {
   };
 
   const onPointerUp = () => {
+    // Finish entity drag
+    if (entityDragId.value && entityDragOrigPos.value) {
+      const entId = entityDragId.value;
+      const origPos = entityDragOrigPos.value;
+      entityDragId.value = null;
+      entityDragStart.value = null;
+      entityDragOrigPos.value = null;
+
+      // Find the entity's current position
+      const map = currentMap.value;
+      for (const layer of map.layers) {
+        if (!isEntityLayer(layer)) continue;
+        const ent = layer.entities.find((e) => e.id === entId);
+        if (ent && (ent.x !== origPos.x || ent.y !== origPos.y)) {
+          // Revert to original position, then execute command (so undo works)
+          const finalX = ent.x;
+          const finalY = ent.y;
+          // Revert
+          currentMap.value = {
+            ...map,
+            layers: map.layers.map((l) => {
+              if (!isEntityLayer(l)) return l;
+              return {
+                ...l,
+                entities: l.entities.map((e) =>
+                  e.id === entId ? { ...e, x: origPos.x, y: origPos.y } : e
+                ),
+              };
+            }),
+          };
+          executeCommand(new MoveEntityCommand(layer.id, entId, origPos.x, origPos.y, finalX, finalY));
+          break;
+        }
+      }
+      return;
+    }
+
     // Finish box-select
     if (isBoxSelecting.current) {
       isBoxSelecting.current = false;
@@ -663,7 +926,7 @@ export function ViewportCanvas() {
 
         // Write tiles at dest
         const layer = map.layers.find((l) => l.id === sel.layerId);
-        if (layer) {
+        if (layer && isTileLayer(layer)) {
           for (let r = 0; r < sel.h; r++) {
             for (let c = 0; c < sel.w; c++) {
               const tx = destRect.x + c;
@@ -699,7 +962,7 @@ export function ViewportCanvas() {
         // No actual move: put tiles back
         const map = currentMap.value;
         const layer = map.layers.find((l) => l.id === sel.layerId);
-        if (layer) {
+        if (layer && isTileLayer(layer)) {
           for (let r = 0; r < sel.h; r++) {
             for (let c = 0; c < sel.w; c++) {
               const tx = sel.x + c;
@@ -748,7 +1011,9 @@ export function ViewportCanvas() {
 
   // Determine cursor
   let cursor = "crosshair";
-  if (activeTool.value === "select") {
+  if (activeTool.value === "entity") {
+    cursor = activeEntityDefId.value ? "copy" : "default";
+  } else if (activeTool.value === "select") {
     const sel = tileSelection.value;
     const hover = hoverTile.value;
     if (sel && hover && isInsideSelection(hover.x, hover.y)) {

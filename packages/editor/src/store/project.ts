@@ -1,7 +1,7 @@
 import { signal, computed } from "@preact/signals";
 import type { TileSet } from "../data/TileSet";
-import type { TileMap } from "../data/TileMap";
-import { createTileMap } from "../data/TileMap";
+import type { TileMap, TileLayer, EntityLayer } from "../data/TileMap";
+import { createTileMap, isTileLayer, isEntityLayer } from "../data/TileMap";
 import { createTileSet } from "../data/TileSet";
 import {
   readJsonFile,
@@ -33,6 +33,18 @@ export const activeLayerId = signal<string>("layer_bg");
 export const activeLayer = computed(() => {
   const map = currentMap.value;
   return map.layers.find((l) => l.id === activeLayerId.value) ?? map.layers[0];
+});
+
+/** Active layer narrowed to TileLayer, or null */
+export const activeTileLayer = computed((): TileLayer | null => {
+  const layer = activeLayer.value;
+  return layer && isTileLayer(layer) ? layer : null;
+});
+
+/** Active layer narrowed to EntityLayer, or null */
+export const activeEntityLayer = computed((): EntityLayer | null => {
+  const layer = activeLayer.value;
+  return layer && isEntityLayer(layer) ? layer : null;
 });
 
 // Force re-render trigger (increment after map data mutation)

@@ -1,6 +1,6 @@
 import { signal } from "@preact/signals";
 
-export type ToolType = "select" | "brush" | "eraser" | "fill" | "eyedropper";
+export type ToolType = "select" | "brush" | "eraser" | "fill" | "eyedropper" | "entity";
 
 export const activeTool = signal<ToolType>("brush");
 
@@ -36,6 +36,12 @@ export const showGrid = signal(true);
 
 /** Grid line color */
 export const gridColor = signal("rgba(255, 255, 255, 0.08)");
+
+/** Currently selected EntityDef ID for placement */
+export const activeEntityDefId = signal<string | null>(null);
+
+/** Currently selected entity instance ID (for inspection/editing) */
+export const selectedEntityId = signal<string | null>(null);
 
 
 

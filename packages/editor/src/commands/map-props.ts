@@ -1,10 +1,8 @@
 import type { Command } from "../store/history";
-import type { TileMap, TileLayer } from "../data/TileMap";
+import type { TileMap } from "../data/TileMap";
+import { isTileLayer } from "../data/TileMap";
 import { currentMap, bumpMapVersion } from "../store/project";
 
-// ---------------------------------------------------------------------------
-// SetMapNameCommand
-// ---------------------------------------------------------------------------
 export class SetMapNameCommand implements Command {
   readonly label = "修改地图名称";
   private oldName: string;
@@ -26,16 +24,12 @@ export class SetMapNameCommand implements Command {
   }
 }
 
-// ---------------------------------------------------------------------------
-// ResizeMapCommand – preserves existing tile data, pads with 0
-// ---------------------------------------------------------------------------
 export class ResizeMapCommand implements Command {
   readonly label = "调整地图尺寸";
   private oldWidth: number;
   private oldHeight: number;
   private newWidth: number;
   private newHeight: number;
-  /** Full snapshot of all layer data before resize (needed to restore cropped tiles) */
   private oldLayerData: Map<string, number[]>;
 
   constructor(newWidth: number, newHeight: number) {
@@ -45,10 +39,11 @@ export class ResizeMapCommand implements Command {
     this.newWidth = newWidth;
     this.newHeight = newHeight;
 
-    // Snapshot existing data
     this.oldLayerData = new Map();
     for (const layer of map.layers) {
-      this.oldLayerData.set(layer.id, [...layer.data]);
+      if (isTileLayer(layer)) {
+        this.oldLayerData.set(layer.id, [...layer.data]);
+      }
     }
   }
 
@@ -57,15 +52,17 @@ export class ResizeMapCommand implements Command {
   }
 
   undo(): void {
-    // Restore original dimensions and data
     const map = currentMap.value;
     currentMap.value = {
       ...map,
       width: this.oldWidth,
       height: this.oldHeight,
       layers: map.layers.map((l) => {
-        const data = this.oldLayerData.get(l.id);
-        return data ? { ...l, data: [...data] } : l;
+        if (isTileLayer(l)) {
+          const data = this.oldLayerData.get(l.id);
+          return data ? { ...l, data: [...data] } : l;
+        }
+        return l;
       }),
     };
     bumpMapVersion();
@@ -83,6 +80,7 @@ export class ResizeMapCommand implements Command {
       width: newW,
       height: newH,
       layers: map.layers.map((l) => {
+        if (!isTileLayer(l)) return l;
         const srcW = l.data.length > 0 ? oldW : newW;
         const srcH = Math.floor(l.data.length / (srcW || 1));
         const newData = new Array(newW * newH).fill(0);

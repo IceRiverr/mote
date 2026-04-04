@@ -10,6 +10,7 @@ import {
   RemoveLayerCommand,
   SetLayerPropertyCommand,
 } from "../../../commands/layer";
+import { createTileLayer, createEntityLayer, isTileLayer, isEntityLayer } from "../../../data/TileMap";
 import { PanelShell } from "./PanelShell";
 
 let layerUid = 10;
@@ -27,17 +28,20 @@ export function LayersPanel() {
   const [insertIdx, setInsertIdx] = useState<number | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const addLayer = () => {
+  const [showAddMenu, setShowAddMenu] = useState(false);
+
+  const addTileLayer = () => {
     const id = `layer_${++layerUid}`;
-    const newLayer = {
-      id,
-      name: `layer_${map.layers.length + 1}`,
-      visible: true,
-      opacity: 1,
-      locked: false,
-      data: new Array(map.width * map.height).fill(0),
-    };
+    const newLayer = createTileLayer(id, `tile_${map.layers.length + 1}`, map.width, map.height);
     executeCommand(new AddLayerCommand(newLayer));
+    setShowAddMenu(false);
+  };
+
+  const addEntityLayer = () => {
+    const id = `layer_${++layerUid}`;
+    const newLayer = createEntityLayer(id, `entity_${map.layers.length + 1}`);
+    executeCommand(new AddLayerCommand(newLayer));
+    setShowAddMenu(false);
   };
 
   const removeLayer = (id: string) => {
@@ -155,30 +159,74 @@ export function LayersPanel() {
     insertIdx !== null ? map.layers.length - insertIdx : null;
 
   const addBtn = (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        addLayer();
-      }}
-      title="添加图层"
-      style={{
-        background: "transparent",
-        border: "none",
-        cursor: "pointer",
-        color: "var(--text-secondary)",
-        fontSize: 14,
-        padding: "0 4px",
-        lineHeight: 1,
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.color = "var(--text-bright)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
-      }}
-    >
-      ＋
-    </button>
+    <div style={{ position: "relative" }}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowAddMenu(!showAddMenu);
+        }}
+        title="添加图层"
+        style={{
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          color: "var(--text-secondary)",
+          fontSize: 14,
+          padding: "0 4px",
+          lineHeight: 1,
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.color = "var(--text-bright)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+        }}
+      >
+        ＋
+      </button>
+      {showAddMenu && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            right: 0,
+            zIndex: 100,
+            background: "var(--bg-panel)",
+            border: "1px solid var(--border)",
+            borderRadius: 4,
+            padding: "2px 0",
+            minWidth: 120,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+          }}
+          onMouseLeave={() => setShowAddMenu(false)}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); addTileLayer(); }}
+            style={{
+              display: "block", width: "100%", textAlign: "left",
+              background: "transparent", border: "none", cursor: "pointer",
+              color: "var(--text-primary)", fontSize: 11, padding: "4px 10px",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--selection)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+          >
+            ▦ Tile Layer
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); addEntityLayer(); }}
+            style={{
+              display: "block", width: "100%", textAlign: "left",
+              background: "transparent", border: "none", cursor: "pointer",
+              color: "var(--text-primary)", fontSize: 11, padding: "4px 10px",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--selection)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+          >
+            ◇ Entity Layer
+          </button>
+        </div>
+      )}
+    </div>
   );
 
   return (
@@ -286,6 +334,21 @@ export function LayersPanel() {
                   >
                     {layer.locked ? "🔒" : "🔓"}
                   </button>
+
+                  {/* Type icon */}
+                  <span
+                    title={isTileLayer(layer) ? "Tile Layer" : "Entity Layer"}
+                    style={{
+                      fontSize: 9,
+                      color: isEntityLayer(layer) ? "#e0a040" : "var(--text-secondary)",
+                      flexShrink: 0,
+                      width: 14,
+                      textAlign: "center",
+                      opacity: 0.7,
+                    }}
+                  >
+                    {isTileLayer(layer) ? "▦" : "◇"}
+                  </span>
 
                   {/* Name */}
                   {renamingId === layer.id ? (

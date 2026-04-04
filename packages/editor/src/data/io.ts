@@ -1,5 +1,6 @@
 import type { TileSet, TileData } from "./TileSet";
-import type { TileMap, TileSetRef, TileLayer } from "./TileMap";
+import type { TileMap, TileSetRef, MapLayer, EntityInstance } from "./TileMap";
+import { isTileLayer, isEntityLayer } from "./TileMap";
 import { createTileSet } from "./TileSet";
 
 // ============================================================
@@ -83,7 +84,7 @@ export interface TileMapStandaloneJson {
     source: string; // e.g. "kenney.mote-tileset.json"
     firstGid: number;
   }>;
-  layers: ExportLayer[];
+  layers: ExportAnyLayer[];
 }
 
 interface ExportLayer {
@@ -95,6 +96,18 @@ interface ExportLayer {
   locked: boolean;
   data: number[];
 }
+
+interface ExportEntityLayer {
+  id: string;
+  name: string;
+  type: "entitylayer";
+  visible: boolean;
+  opacity: number;
+  locked: boolean;
+  entities: EntityInstance[];
+}
+
+type ExportAnyLayer = ExportLayer | ExportEntityLayer;
 
 export function exportMapStandalone(
   map: TileMap,
@@ -118,15 +131,29 @@ export function exportMapStandalone(
         firstGid: ref.firstGid,
       };
     }),
-    layers: map.layers.map((l) => ({
-      id: l.id,
-      name: l.name,
-      type: "tilelayer" as const,
-      visible: l.visible,
-      opacity: l.opacity,
-      locked: l.locked,
-      data: Array.from(l.data),
-    })),
+    layers: map.layers.map((l): ExportAnyLayer => {
+      if (isTileLayer(l)) {
+        return {
+          id: l.id,
+          name: l.name,
+          type: "tilelayer" as const,
+          visible: l.visible,
+          opacity: l.opacity,
+          locked: l.locked,
+          data: Array.from(l.data),
+        };
+      } else {
+        return {
+          id: l.id,
+          name: l.name,
+          type: "entitylayer" as const,
+          visible: l.visible,
+          opacity: l.opacity,
+          locked: l.locked,
+          entities: l.entities.map((e) => ({ ...e })),
+        };
+      }
+    }),
   };
 }
 
@@ -159,7 +186,7 @@ export interface TileMapBundleJson {
     firstGid: number;
     tileData?: Record<number, TileData>;
   }>;
-  layers: ExportLayer[];
+  layers: ExportAnyLayer[];
 }
 
 function imageToDataUrl(img: HTMLImageElement): string {
@@ -206,15 +233,29 @@ export function exportMapBundle(
         tileData: Object.keys(ts.tileData).length > 0 ? ts.tileData : undefined,
       };
     }),
-    layers: map.layers.map((l) => ({
-      id: l.id,
-      name: l.name,
-      type: "tilelayer" as const,
-      visible: l.visible,
-      opacity: l.opacity,
-      locked: l.locked,
-      data: Array.from(l.data),
-    })),
+    layers: map.layers.map((l): ExportAnyLayer => {
+      if (isTileLayer(l)) {
+        return {
+          id: l.id,
+          name: l.name,
+          type: "tilelayer" as const,
+          visible: l.visible,
+          opacity: l.opacity,
+          locked: l.locked,
+          data: Array.from(l.data),
+        };
+      } else {
+        return {
+          id: l.id,
+          name: l.name,
+          type: "entitylayer" as const,
+          visible: l.visible,
+          opacity: l.opacity,
+          locked: l.locked,
+          entities: l.entities.map((e) => ({ ...e })),
+        };
+      }
+    }),
   };
 }
 
@@ -275,14 +316,30 @@ export async function importBundle(
     tileWidth: json.tileWidth,
     tileHeight: json.tileHeight,
     tilesets: tilesetRefs,
-    layers: json.layers.map((l) => ({
-      id: l.id,
-      name: l.name,
-      visible: l.visible,
-      opacity: l.opacity,
-      locked: l.locked,
-      data: Array.from(l.data),
-    })),
+    layers: json.layers.map((l): MapLayer => {
+      if (l.type === "entitylayer") {
+        const el = l as ExportEntityLayer;
+        return {
+          type: "entity" as const,
+          id: el.id,
+          name: el.name,
+          visible: el.visible,
+          opacity: el.opacity,
+          locked: el.locked,
+          entities: el.entities.map((e) => ({ ...e })),
+        };
+      }
+      const tl = l as ExportLayer;
+      return {
+        type: "tile" as const,
+        id: tl.id,
+        name: tl.name,
+        visible: tl.visible,
+        opacity: tl.opacity,
+        locked: tl.locked,
+        data: Array.from(tl.data),
+      };
+    }),
   };
 
   return { map, tilesets, images };
@@ -303,14 +360,30 @@ export function importStandaloneMap(
     tileWidth: json.tileWidth,
     tileHeight: json.tileHeight,
     tilesets: [], // will be filled as tilesets are loaded
-    layers: json.layers.map((l) => ({
-      id: l.id,
-      name: l.name,
-      visible: l.visible,
-      opacity: l.opacity,
-      locked: l.locked,
-      data: Array.from(l.data),
-    })),
+    layers: json.layers.map((l): MapLayer => {
+      if (l.type === "entitylayer") {
+        const el = l as ExportEntityLayer;
+        return {
+          type: "entity" as const,
+          id: el.id,
+          name: el.name,
+          visible: el.visible,
+          opacity: el.opacity,
+          locked: el.locked,
+          entities: el.entities.map((e) => ({ ...e })),
+        };
+      }
+      const tl = l as ExportLayer;
+      return {
+        type: "tile" as const,
+        id: tl.id,
+        name: tl.name,
+        visible: tl.visible,
+        opacity: tl.opacity,
+        locked: tl.locked,
+        data: Array.from(tl.data),
+      };
+    }),
   };
 
   return {

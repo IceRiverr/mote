@@ -1,5 +1,6 @@
 import type { Command } from "../store/history";
-import type { TileLayer } from "../data/TileMap";
+import type { MapLayer } from "../data/TileMap";
+import { isTileLayer } from "../data/TileMap";
 import { currentMap, activeLayerId, bumpMapVersion } from "../store/project";
 
 // ---------------------------------------------------------------------------
@@ -7,10 +8,10 @@ import { currentMap, activeLayerId, bumpMapVersion } from "../store/project";
 // ---------------------------------------------------------------------------
 export class AddLayerCommand implements Command {
   readonly label = "添加图层";
-  private layer: TileLayer;
+  private layer: MapLayer;
   private prevActiveId: string;
 
-  constructor(layer: TileLayer) {
+  constructor(layer: MapLayer) {
     this.layer = layer;
     this.prevActiveId = activeLayerId.value;
   }
@@ -41,14 +42,19 @@ export class AddLayerCommand implements Command {
 // ---------------------------------------------------------------------------
 export class RemoveLayerCommand implements Command {
   readonly label = "删除图层";
-  private layer: TileLayer;
+  private layer: MapLayer;
   private index: number;
   private prevActiveId: string;
 
   constructor(layerId: string) {
     const map = currentMap.value;
     const idx = map.layers.findIndex((l) => l.id === layerId);
-    this.layer = { ...map.layers[idx], data: [...map.layers[idx].data] };
+    const src = map.layers[idx];
+    if (isTileLayer(src)) {
+      this.layer = { ...src, data: [...src.data] };
+    } else {
+      this.layer = { ...src, entities: [...src.entities] };
+    }
     this.index = idx;
     this.prevActiveId = activeLayerId.value;
   }
@@ -59,7 +65,6 @@ export class RemoveLayerCommand implements Command {
       ...map,
       layers: map.layers.filter((l) => l.id !== this.layer.id),
     };
-    // If we removed the active layer, select the first remaining
     if (activeLayerId.value === this.layer.id) {
       activeLayerId.value = currentMap.value.layers[0]?.id ?? "";
     }
@@ -112,22 +117,24 @@ export class MoveLayerCommand implements Command {
 }
 
 // ---------------------------------------------------------------------------
-// SetLayerPropertyCommand – generic single-property setter
+// SetLayerPropertyCommand
 // ---------------------------------------------------------------------------
-export class SetLayerPropertyCommand<K extends keyof TileLayer> implements Command {
+type LayerBaseKey = "name" | "visible" | "opacity" | "locked" | "color";
+
+export class SetLayerPropertyCommand<K extends LayerBaseKey> implements Command {
   readonly label: string;
   private layerId: string;
   private key: K;
-  private oldValue: TileLayer[K];
-  private newValue: TileLayer[K];
+  private oldValue: MapLayer[K];
+  private newValue: MapLayer[K];
 
-  constructor(layerId: string, key: K, newValue: TileLayer[K], label?: string) {
+  constructor(layerId: string, key: K, newValue: MapLayer[K], label?: string) {
     this.layerId = layerId;
     this.key = key;
     this.newValue = newValue;
     const map = currentMap.value;
     const layer = map.layers.find((l) => l.id === layerId)!;
-    this.oldValue = layer[key];
+    this.oldValue = layer[key] as MapLayer[K];
     this.label = label ?? `修改图层 ${String(key)}`;
   }
 
@@ -139,7 +146,7 @@ export class SetLayerPropertyCommand<K extends keyof TileLayer> implements Comma
     this.apply(this.oldValue);
   }
 
-  private apply(value: TileLayer[K]): void {
+  private apply(value: MapLayer[K]): void {
     const map = currentMap.value;
     currentMap.value = {
       ...map,

@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "type": "mote-tileset",
+  "id": "ts_1",
+  "name": "tiny-dungeon_tilemap_packed",
+  "image": "tiny-dungeon_tilemap_packed.png",
+  "imageWidth": 192,
+  "imageHeight": 176,
+  "tileWidth": 16,
+  "tileHeight": 16,
+  "margin": 0,
+  "spacing": 0,
+  "columns": 12,
+  "rows": 11,
+  "tileCount": 132
+}

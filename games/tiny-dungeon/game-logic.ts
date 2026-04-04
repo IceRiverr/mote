@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// Tiny Dungeon — Game Update & Render Logic
+// Tiny Dungeon — Game Update & Render Logic  (Y-up world coordinates)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import type { SpriteBatch, Camera2D, InputManager } from '@mote/engine';
@@ -19,8 +19,6 @@ import type { TextureAtlas } from '@mote/engine';
 
 export const SOLID_TILES = new Set<number>([
   // 填入墙壁 tile 的 GID
-  // 例：5,6,15,16,17,18,27,29,30,41,51,52,54 等
-  // 你可以先跑游戏，开 debug 模式看 GID，然后加到这里
 ]);
 
 // ── Game Update ──────────────────────────────────────────────────────────────
@@ -34,6 +32,7 @@ export function gameUpdate(
   if (!player || !player.active) return;
 
   // ── 1. Player Movement ──
+  // Input vec2: up=+Y, down=-Y, right=+X, left=-X (Y-up convention)
   const pan = input.action('Move').vec2();
   const def = ENTITY_DEFS[player.defId];
   const speed = def.speed ?? 120;
@@ -76,17 +75,16 @@ export function gameUpdate(
 
       const eDef = ENTITY_DEFS[entity.defId];
       if (eDef.category !== 'enemy') continue;
-      if (weapon.hitThisSwing.has(entity.id)) continue; // 已经打过
+      if (weapon.hitThisSwing.has(entity.id)) continue;
 
       const eBounds = entityBounds(entity);
       if (wBounds.intersects(eBounds)) {
-        // 命中！
         const dmg = ENTITY_DEFS[weapon.defId].damage ?? 10;
         entity.health -= dmg;
         weapon.hitThisSwing.add(entity.id);
 
         if (entity.health <= 0) {
-          entity.active = false; // 死亡
+          entity.active = false;
         }
       }
     }
@@ -102,11 +100,9 @@ export function gameUpdate(
 
     const eBounds = entityBounds(entity);
     if (playerBounds.intersects(eBounds)) {
-      // 拾取！
       if (eDef.pickupKind === 'heal') {
         player.health = Math.min(player.maxHealth, player.health + (eDef.pickupAmount ?? 0));
       }
-      // mana 暂时只消失
       entity.active = false;
     }
   }
@@ -128,19 +124,28 @@ export function gameRender(
   const TW = map.tileWidth * scale;
   const TH = map.tileHeight * scale;
 
-  // ── Tilemap Layers ──
+  // ── Tilemap Layers (Y-up) ──
   // 视口裁剪：只渲染相机可见范围内的 tile
   const halfVW = camera.viewport.width / 2;
   const halfVH = camera.viewport.height / 2;
   const camL = camera.position.x - halfVW / camera.zoom;
   const camR = camera.position.x + halfVW / camera.zoom;
-  const camT = camera.position.y - halfVH / camera.zoom;
-  const camB = camera.position.y + halfVH / camera.zoom;
+  // Y-up: camera top = larger Y, camera bottom = smaller Y
+  const camT = camera.position.y + halfVH / camera.zoom;
+  const camB = camera.position.y - halfVH / camera.zoom;
 
+  // Column range (X axis unchanged)
   const colMin = Math.max(0, Math.floor(camL / TW) - 1);
   const colMax = Math.min(map.width - 1, Math.ceil(camR / TW) + 1);
-  const rowMin = Math.max(0, Math.floor(camT / TH) - 1);
-  const rowMax = Math.min(map.height - 1, Math.ceil(camB / TH) + 1);
+
+  // Row range (Y-up → row conversion)
+  // tile at row r → worldY = (mapH - 1 - r) * TH + TH/2
+  // invert: r = mapH - 1 - floor(worldY / TH)
+  // camT is largest visible worldY → smallest visible row
+  // camB is smallest visible worldY → largest visible row
+  const mapH = map.height;
+  const rowMin = Math.max(0, Math.floor((mapH * TH - camT) / TH) - 1);
+  const rowMax = Math.min(mapH - 1, Math.ceil((mapH * TH - camB) / TH));
 
   for (const layer of map.layers) {
     if (!layer.visible) continue;
@@ -148,11 +153,12 @@ export function gameRender(
       for (let col = colMin; col <= colMax; col++) {
         const gid = layer.data[row * map.width + col];
         if (gid === 0) continue;
-        const tileIdx = gid - 1; // GID 1-based → 0-based index
+        const tileIdx = gid - 1;
         if (tileIdx < 0 || tileIdx >= regions.length) continue;
 
         const wx = col * TW + TW / 2;
-        const wy = row * TH + TH / 2;
+        // Y-up: row 0 (map top) → largest worldY, row N-1 (map bottom) → smallest worldY
+        const wy = (mapH - 1 - row) * TH + TH / 2;
         batch.drawQuad(wx, wy, TW, TH, 0, regions[tileIdx], atlas, Color.white());
       }
     }
@@ -185,27 +191,24 @@ export function gameRender(
         batch.drawQuad(
           wx, wy,
           map.tileWidth * scale, map.tileHeight * scale,
-          w.angle,  // 斧头自身也跟着旋转
+          w.angle,
           region, atlas, Color.white(),
         );
       }
     }
   }
 
-  // ── HUD: Health Bar (屏幕空间，不受 camera 影响) ──
-  // SpriteBatch 是在 camera 空间画的，HUD 需要换算到世界坐标
-  // 简化方案：在 player 头顶画血条
+  // ── HUD: Health Bar ──
+  // Y-up: 血条在玩家头顶 = +Y 方向
   const player = world.entities.find(e => e.id === world.playerId);
   if (player?.active) {
     const barW = 20 * scale;
     const barH = 3 * scale;
     const barX = player.pos.x;
-    const barY = player.pos.y - 14 * scale;
+    const barY = player.pos.y + 14 * scale;  // Y-up: 头顶 = +Y
     const hpRatio = player.health / player.maxHealth;
 
-    // 背景（红色）— 用 atlas 的第一个 region（随便一个），染色
-    // 更好的做法是加一个 1x1 白色纹理，但暂时复用 atlas
-    const fullRegion = regions[0]; // 用一个 solid-ish tile 充当色块
+    const fullRegion = regions[0];
     if (fullRegion) {
       batch.drawQuad(barX, barY, barW, barH, 0, fullRegion, atlas, new Color(0.3, 0, 0, 0.8));
       batch.drawQuad(

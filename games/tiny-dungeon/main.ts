@@ -105,20 +105,24 @@ async function init(): Promise<void> {
   };
 
   // ── Spawn Entities ──
+  // ── Spawn Entities ──
   // 将来这些从编辑器的 Entity Layer 导出读取
-  // 现在硬编码位置（单位：像素，已乘 scale）
+  // 现在硬编码位置: tile(col, row) → world Y-up
+  const mapH = tilemapData.height; // 30
+  const T = 16 * SCALE; // tile size in world units
+  const tileY = (row: number) => (mapH - 1 - row) * T; // tile row → Y-up worldY
 
-  const player = createEntity('player', 14 * 16 * SCALE, 18 * 16 * SCALE);
+  const player = createEntity('player', 14 * T, tileY(18));
   const weapon = createWeapon('axe', player.id);
 
   const enemies = [
-    createEntity('skeleton', 20 * 16 * SCALE, 8 * 16 * SCALE),
-    createEntity('skeleton', 14 * 16 * SCALE, 22 * 16 * SCALE),
+    createEntity('skeleton', 20 * T, tileY(8)),
+    createEntity('skeleton', 14 * T, tileY(22)),
   ];
 
   const pickups = [
-    createEntity('potion_red',  11 * 16 * SCALE, 19 * 16 * SCALE),
-    createEntity('potion_blue', 17 * 16 * SCALE, 17 * 16 * SCALE),
+    createEntity('potion_red',  11 * T, tileY(19)),
+    createEntity('potion_blue', 17 * T, tileY(17)),
   ];
 
   // ── Build World ──
@@ -148,11 +152,11 @@ async function init(): Promise<void> {
 
       // Clamp camera to map bounds
       const mapW = world.map.width  * world.map.tileWidth  * SCALE;
-      const mapH = world.map.height * world.map.tileHeight * SCALE;
+      const mapPxH = world.map.height * world.map.tileHeight * SCALE;
       const hw = camera.viewport.width / 2;
       const hh = camera.viewport.height / 2;
       camera.position.x = Math.max(hw, Math.min(mapW - hw, camera.position.x));
-      camera.position.y = Math.max(hh, Math.min(mapH - hh, camera.position.y));
+      camera.position.y = Math.max(hh, Math.min(mapPxH - hh, camera.position.y));
     }
 
     camera.update(dt);

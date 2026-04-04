@@ -236,7 +236,9 @@ export function isSolidTile(
   solidTiles: Set<number>,
 ): boolean {
   const col = Math.floor(worldX / (map.tileWidth * scale));
-  const row = Math.floor(worldY / (map.tileHeight * scale));
+  // Y-up: worldY=0 is map bottom (row=height-1), worldY=max is map top (row=0)
+  const TH  = map.tileHeight * scale;
+  const row = Math.floor((map.height * TH - worldY) / TH);
   if (col < 0 || col >= map.width || row < 0 || row >= map.height) return true; // 地图外视为 solid
 
   // 检查所有图层（任一图层有 solid tile 就算碰撞）

@@ -24,7 +24,7 @@ export class Camera2D {
     const cy = this.position.y + this._shakeOffset.y;
 
     // Ortho centered on camera position
-    const proj = Mat4.ortho(cx - hw, cx + hw, cy + hh, cy - hh, -1, 1);
+    const proj = Mat4.ortho(cx - hw, cx + hw, cy - hh, cy + hh, -1, 1);
 
     if (this.rotation !== 0) {
       const rot = Mat4.rotationZ(-this.rotation);
@@ -38,7 +38,7 @@ export class Camera2D {
     const hh = this.viewport.height * 0.5;
     return new Vec2(
       this.position.x + (sx - hw) / this.zoom,
-      this.position.y + (sy - hh) / this.zoom,
+      this.position.y - (sy - hh) / this.zoom,
     );
   }
 
@@ -47,7 +47,7 @@ export class Camera2D {
     const hh = this.viewport.height * 0.5;
     return new Vec2(
       (wx - this.position.x) * this.zoom + hw,
-      (wy - this.position.y) * this.zoom + hh,
+      -(wy - this.position.y) * this.zoom + hh,
     );
   }
 

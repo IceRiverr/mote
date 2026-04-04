@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * 代码导出工具 - 将项目源代码合并成 Markdown 文件供 AI 分析
- * 使用: node export-code.mjs [输出文件名] [目标目录]
+ * Export Code Skill - 将项目源代码合并导出为 Markdown 文件
+ * 供 AI 分析使用
  */
 
 import fs from 'fs';
@@ -12,8 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // 配置
-const DEFAULT_OUTPUT = 'code-export.md';
-const DEFAULT_TARGET = './src';
+const DEFAULT_OUTPUT_NAME = 'code-export.md';
 
 // 排除的文件和目录
 const EXCLUDE_PATTERNS = [
@@ -33,7 +32,7 @@ const EXCLUDE_PATTERNS = [
 const INCLUDE_EXTENSIONS = [
   '.ts', '.tsx', '.js', '.jsx',
   '.css', '.scss', '.less',
-  '.json'
+  '.json', '.html'
 ];
 
 // 文件扩展名到 Markdown 代码块语言的映射
@@ -45,7 +44,8 @@ const EXT_TO_LANG = {
   '.css': 'css',
   '.scss': 'scss',
   '.less': 'less',
-  '.json': 'json'
+  '.json': 'json',
+  '.html': 'html'
 };
 
 /**
@@ -116,7 +116,7 @@ function generateFileTree(files) {
       const isFile = i === parts.length - 1;
       
       if (isFile) {
-        current[part] = null; // 文件标记为 null
+        current[part] = null;
       } else {
         current[part] = current[part] || {};
         current = current[part];
@@ -132,13 +132,10 @@ function generateFileTree(files) {
     entries.forEach(([name, children], index) => {
       const isLastItem = index === entries.length - 1;
       const connector = isLastItem ? '└── ' : '├── ';
-      const indent = prefix + connector;
       
       if (children === null) {
-        // 文件
         result += `${prefix}${connector}${name}\n`;
       } else {
-        // 目录
         result += `${prefix}${connector}${name}/\n`;
         const newPrefix = prefix + (isLastItem ? '    ' : '│   ');
         result += renderTree(children, newPrefix, isLastItem);
@@ -171,9 +168,9 @@ ${content}
  * 主函数
  */
 function main() {
-  const outputFile = process.argv[2] || DEFAULT_OUTPUT;
-  const targetDir = process.argv[3] || DEFAULT_TARGET;
-
+  // 解析参数: [目标目录]
+  const targetDir = process.argv[2] || './src';
+  
   const targetPath = path.resolve(targetDir);
 
   if (!fs.existsSync(targetPath)) {
@@ -181,8 +178,10 @@ function main() {
     process.exit(1);
   }
 
+  // 确定输出文件路径：放在目标目录的根目录下
+  const outputFile = path.join(targetPath, DEFAULT_OUTPUT_NAME);
+
   console.log(`🔍 扫描目录: ${targetPath}`);
-  console.log(`📄 输出文件: ${outputFile}\n`);
 
   // 获取所有文件
   const files = getAllFiles(targetPath);
@@ -195,7 +194,7 @@ function main() {
   // 按路径排序
   files.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
 
-  console.log(`✅ 找到 ${files.length} 个文件\n`);
+  console.log(`📁 找到 ${files.length} 个文件`);
 
   const timestamp = new Date().toISOString();
   const fileTree = generateFileTree(files);
@@ -205,14 +204,13 @@ function main() {
 ================================================================================
 CODE EXPORT - Markdown Format
 ================================================================================
-Project: packages/editor
 Generated: ${timestamp}
 Total Files: ${files.length}
 Source Directory: ${targetDir}
 ================================================================================
 -->
 
-# 📦 Code Export - packages/editor
+# 📦 Code Export
 
 > 导出时间: \`${timestamp}\`
 > 文件数量: \`${files.length}\` 个
@@ -247,7 +245,7 @@ ${fileTree}\`\`\`
   }
 
   // 添加页脚
-  output += `---\n\n*文件由 export-code.mjs 自动生成*\n`;
+  output += `---\n\n*文件由 export-code skill 自动生成*\n`;
 
   // 写入文件
   fs.writeFileSync(outputFile, output, 'utf-8');
@@ -256,12 +254,10 @@ ${fileTree}\`\`\`
   const stats = fs.statSync(outputFile);
   const sizeKB = (stats.size / 1024).toFixed(2);
 
-  console.log(`✅ 导出完成!`);
-  console.log(`   文件: ${outputFile}`);
+  console.log(`\n✅ 导出完成!`);
+  console.log(`   文件: ${path.relative(process.cwd(), outputFile)}`);
   console.log(`   大小: ${sizeKB} KB`);
   console.log(`   行数: ${output.split('\n').length}`);
-  console.log(`\n💡 你可以直接复制 ${outputFile} 的内容给 AI 分析`);
-  console.log(`   或者拖拽文件到 AI 对话中`);
 }
 
 main();

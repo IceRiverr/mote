@@ -10,106 +10,9 @@ import {
   RemoveLayerCommand,
   SetLayerPropertyCommand,
 } from "../../../commands/layer";
-import { getLayerColor } from "../../../data/TileMap";
 import { PanelShell } from "./PanelShell";
-import { ColorTagPopover } from "./ColorTagPopover";
 
 let layerUid = 10;
-
-/* ── Inline mini opacity (drag + dblclick edit) ──────────── */
-
-function InlineOpacity({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [editText, setEditText] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dragging = useRef(false);
-  const startX = useRef(0);
-  const startVal = useRef(0);
-
-  const commitEdit = () => {
-    const n = parseInt(editText);
-    if (!isNaN(n)) onChange(Math.max(0, Math.min(100, n)) / 100);
-    setEditing(false);
-  };
-
-  const onPointerDown = (e: PointerEvent) => {
-    if (editing) return;
-    dragging.current = false;
-    startX.current = e.clientX;
-    startVal.current = value;
-    const target = e.currentTarget as HTMLElement;
-    target.setPointerCapture(e.pointerId);
-
-    const onMove = (ev: PointerEvent) => {
-      const dx = ev.clientX - startX.current;
-      if (!dragging.current && Math.abs(dx) > 3) dragging.current = true;
-      if (dragging.current) {
-        onChange(Math.max(0, Math.min(1, startVal.current + dx / 150)));
-      }
-    };
-    const onUp = () => {
-      target.removeEventListener("pointermove", onMove);
-      target.removeEventListener("pointerup", onUp);
-    };
-    target.addEventListener("pointermove", onMove);
-    target.addEventListener("pointerup", onUp);
-  };
-
-  const onDblClick = (e: MouseEvent) => {
-    e.stopPropagation();
-    setEditText(String(Math.round(value * 100)));
-    setEditing(true);
-    requestAnimationFrame(() => inputRef.current?.select());
-  };
-
-  if (editing) {
-    return (
-      <input
-        ref={inputRef}
-        type="text"
-        value={editText}
-        onInput={(e) => setEditText((e.target as HTMLInputElement).value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") commitEdit();
-          if (e.key === "Escape") setEditing(false);
-          e.stopPropagation();
-        }}
-        onBlur={commitEdit}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 36, fontSize: 10, height: 16, padding: "0 2px",
-          border: "1px solid var(--accent)", borderRadius: 2,
-          background: "var(--bg-input)", color: "var(--text-bright)",
-          outline: "none", textAlign: "right", fontFamily: "monospace",
-          flexShrink: 0,
-        }}
-      />
-    );
-  }
-
-  return (
-    <span
-      onPointerDown={onPointerDown}
-      onDblClick={onDblClick}
-      title={"拖拽调整透明度 · 双击输入"}
-      style={{
-        fontSize: 10, color: "var(--text-secondary)", width: 36,
-        textAlign: "right", flexShrink: 0, fontFamily: "monospace",
-        cursor: "ew-resize", userSelect: "none",
-      }}
-    >
-      {Math.round(value * 100)}%
-    </span>
-  );
-}
-
-/* ── LayersPanel ─────────────────────────────────────────── */
 
 export function LayersPanel() {
   const map = currentMap.value;
@@ -119,7 +22,6 @@ export function LayersPanel() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameRef = useRef<HTMLInputElement>(null);
-  const [colorPopoverId, setColorPopoverId] = useState<string | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [insertIdx, setInsertIdx] = useState<number | null>(null);
@@ -159,19 +61,6 @@ export function LayersPanel() {
     );
   };
 
-  const setOpacity = (layerId: string, opacity: number) => {
-    executeCommand(
-      new SetLayerPropertyCommand(layerId, "opacity", opacity, "修改图层透明度")
-    );
-  };
-
-  const setColor = (layerId: string, colorId: string) => {
-    const color = colorId === "gray" ? undefined : colorId;
-    executeCommand(
-      new SetLayerPropertyCommand(layerId, "color", color, "修改图层颜色标记")
-    );
-  };
-
   const startRename = (id: string, currentName: string) => {
     setRenamingId(id);
     setRenameValue(currentName);
@@ -189,13 +78,12 @@ export function LayersPanel() {
 
   const displayLayers = [...map.layers].reverse();
 
+  /* Pointer-event drag reorder */
   const onRowPointerDown = useCallback(
     (e: PointerEvent, layerId: string) => {
       if (e.button !== 0) return;
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "BUTTON" || tag === "INPUT") return;
-      const role = (e.target as HTMLElement).dataset?.role;
-      if (role === "colortag" || role === "close") return;
 
       const startY = e.clientY;
       let started = false;
@@ -332,12 +220,7 @@ export function LayersPanel() {
 
                 <div
                   onPointerDown={(e) => onRowPointerDown(e as any, layer.id)}
-                  onClick={() => {
-                    activeLayerId.value = layer.id;
-                    if (colorPopoverId && colorPopoverId !== layer.id) {
-                      setColorPopoverId(null);
-                    }
-                  }}
+                  onClick={() => { activeLayerId.value = layer.id; }}
                   onMouseEnter={() => setHoverId(layer.id)}
                   onMouseLeave={() => setHoverId(null)}
                   style={{
@@ -345,7 +228,7 @@ export function LayersPanel() {
                     alignItems: "center",
                     height: 28,
                     padding: "0 4px",
-                    gap: 2,
+                    gap: 4,
                     background: isSelected
                       ? "var(--selection)"
                       : isHovered && !isDragging
@@ -404,32 +287,6 @@ export function LayersPanel() {
                     {layer.locked ? "🔒" : "🔓"}
                   </button>
 
-                  {/* Color tag */}
-                  <div style={{ position: "relative", flexShrink: 0 }}>
-                    <div
-                      data-role="colortag"
-                      title="颜色标记"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setColorPopoverId(
-                          colorPopoverId === layer.id ? null : layer.id
-                        );
-                      }}
-                      style={{
-                        width: 4, height: 16, borderRadius: 1,
-                        background: getLayerColor(layer.color),
-                        cursor: "pointer", marginRight: 4,
-                      }}
-                    />
-                    {colorPopoverId === layer.id && (
-                      <ColorTagPopover
-                        currentColor={layer.color}
-                        onSelect={(colorId) => setColor(layer.id, colorId)}
-                        onClose={() => setColorPopoverId(null)}
-                      />
-                    )}
-                  </div>
-
                   {/* Name */}
                   {renamingId === layer.id ? (
                     <input
@@ -470,15 +327,8 @@ export function LayersPanel() {
                     </span>
                   )}
 
-                  {/* Opacity */}
-                  <InlineOpacity
-                    value={layer.opacity}
-                    onChange={(v) => setOpacity(layer.id, v)}
-                  />
-
                   {/* Delete */}
                   <button
-                    data-role="close"
                     title="删除图层 (Delete)"
                     onClick={(e) => {
                       e.stopPropagation();

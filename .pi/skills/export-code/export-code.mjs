@@ -12,7 +12,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // 配置
-const DEFAULT_OUTPUT_NAME = 'code-export.md';
+function getOutputFileName(targetDir) {
+  // 获取最后一级文件夹名
+  const folderName = path.basename(targetDir);
+  return `${folderName}-code-export.md`;
+}
 
 // 排除的文件和目录
 const EXCLUDE_PATTERNS = [
@@ -178,8 +182,8 @@ function main() {
     process.exit(1);
   }
 
-  // 确定输出文件路径：放在目标目录的根目录下
-  const outputFile = path.join(targetPath, DEFAULT_OUTPUT_NAME);
+  // 确定输出文件路径：放在目标目录的根目录下，文件名包含文件夹名
+  const outputFile = path.join(targetPath, getOutputFileName(targetPath));
 
   console.log(`🔍 扫描目录: ${targetPath}`);
 

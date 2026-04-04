@@ -29,9 +29,9 @@ export-code ./packages/editor
 
 ## 输出
 
-导出的文件位于目标目录的根目录下：
+导出的文件位于目标目录的根目录下，文件名格式为 `{folder-name}-code-export.md`：
 ```
-{target-dir}/code-export.md
+{target-dir}/{folder-name}-code-export.md
 ```
 
 ## 示例
@@ -39,15 +39,19 @@ export-code ./packages/editor
 ```bash
 # 导出 src 目录
 导出代码 src
-# 输出: src/code-export.md
+# 输出: src/src-code-export.md
 
 # 导出游戏目录
 导出代码 games/tiny-dungeon
-# 输出: games/tiny-dungeon/code-export.md
+# 输出: games/tiny-dungeon/tiny-dungeon-code-export.md
+
+# 导出编辑器目录
+导出代码 ./packages/editor
+# 输出: ./packages/editor/editor-code-export.md
 
 # 导出当前目录
 导出代码 ./
-# 输出: ./code-export.md
+# 输出: ./mote-code-export.md
 ```
 
 ## 导出内容

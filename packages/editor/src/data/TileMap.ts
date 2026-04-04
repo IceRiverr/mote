@@ -9,7 +9,8 @@ export interface TileLayer {
   visible: boolean;
   opacity: number;
   locked: boolean;
-  data: number[];  // row-major, 0 = empty
+  color?: string;      // color tag for visual identification
+  data: number[];      // row-major, 0 = empty
 }
 
 export interface TileMap {
@@ -21,6 +22,24 @@ export interface TileMap {
   tileHeight: number;  // render tile height (px)
   tilesets: TileSetRef[];
   layers: TileLayer[];
+}
+
+/** Preset color tags for layers */
+export const LAYER_COLORS = [
+  { id: "red",    hex: "#e06060", label: "红" },
+  { id: "orange", hex: "#e09040", label: "橙" },
+  { id: "yellow", hex: "#d0c040", label: "黄" },
+  { id: "green",  hex: "#60b060", label: "绿" },
+  { id: "blue",   hex: "#4a90d9", label: "蓝" },
+  { id: "purple", hex: "#a060d0", label: "紫" },
+  { id: "gray",   hex: "#808080", label: "无" },
+] as const;
+
+/** Get hex color for a layer's color tag, default to gray */
+export function getLayerColor(color?: string): string {
+  if (!color) return "#808080";
+  const found = LAYER_COLORS.find((c) => c.id === color);
+  return found ? found.hex : "#808080";
 }
 
 export function createTileMap(

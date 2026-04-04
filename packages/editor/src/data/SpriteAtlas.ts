@@ -176,6 +176,71 @@ export interface TexturePackerFrame {
   sourceSize: { w: number; h: number };
 }
 
+
+// ============================================================
+// XML Sparrow / Starling format types & parser
+// ============================================================
+
+export interface SparrowXmlData {
+  imagePath: string;
+  subtextures: Array<{
+    name: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>;
+}
+
+/** Parse a TextureAtlas XML string (Sparrow / Starling format) */
+export function parseSparrowXml(xmlText: string): SparrowXmlData {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlText, "application/xml");
+  const root = doc.documentElement;
+
+  if (root.tagName !== "TextureAtlas") {
+    throw new Error("Invalid Sparrow XML: root element must be <TextureAtlas>");
+  }
+
+  const imagePath = root.getAttribute("imagePath") ?? "";
+  const subtextures: SparrowXmlData["subtextures"] = [];
+
+  const nodes = root.querySelectorAll("SubTexture");
+  for (const node of Array.from(nodes)) {
+    const name = node.getAttribute("name") ?? "";
+    const x = parseInt(node.getAttribute("x") ?? "0");
+    const y = parseInt(node.getAttribute("y") ?? "0");
+    const width = parseInt(node.getAttribute("width") ?? "0");
+    const height = parseInt(node.getAttribute("height") ?? "0");
+    if (name && width > 0 && height > 0) {
+      subtextures.push({ name, x, y, width, height });
+    }
+  }
+
+  return { imagePath, subtextures };
+}
+
+/** Create a SpriteAtlas from parsed Sparrow XML data */
+export function createAtlasFromSparrowXml(
+  id: string,
+  name: string,
+  imageUrl: string,
+  imageWidth: number,
+  imageHeight: number,
+  xmlData: SparrowXmlData,
+): SpriteAtlas {
+  const frames: SpriteFrame[] = xmlData.subtextures.map((st) => ({
+    id: st.name.replace(/\.[^.]+$/, ""),
+    name: st.name.replace(/\.[^.]+$/, ""),
+    x: st.x,
+    y: st.y,
+    width: st.width,
+    height: st.height,
+  }));
+
+  return buildAtlas(id, name, "packed", imageUrl, imageWidth, imageHeight, frames);
+}
+
 // ============================================================
 // Loose files packing — pack individual images into a single atlas texture
 // ============================================================

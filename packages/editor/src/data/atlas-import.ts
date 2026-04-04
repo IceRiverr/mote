@@ -8,6 +8,8 @@ import {
   createAtlasFromGrid,
   createAtlasFromPackedJson,
   createAtlasFromLooseFrames,
+  createAtlasFromSparrowXml,
+  parseSparrowXml,
   packLooseImages,
 } from "./SpriteAtlas";
 import type { SpriteAtlas, TexturePackerJson } from "./SpriteAtlas";
@@ -47,6 +49,16 @@ function readJsonFile(file: File): Promise<unknown> {
   });
 }
 
+
+/** Read a file as text */
+function readTextFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
 // ============================================================
 // Mode 1: Tile Sheet (grid)
 // ============================================================
@@ -135,18 +147,45 @@ export async function importLooseFiles(
   return atlas;
 }
 
+
+// ============================================================
+// Mode 4: XML Atlas (Sparrow / Starling format)
+// ============================================================
+export async function importXmlAtlas(
+  xmlFile: File,
+  imageFile: File,
+  name?: string,
+): Promise<SpriteAtlas> {
+  const xmlText = await readTextFile(xmlFile);
+  const xmlData = parseSparrowXml(xmlText);
+
+  const { url, img } = await loadImageFromFile(imageFile);
+  const atlasName = name ?? xmlFile.name.replace(/\.[^.]+$/, "");
+  const id = `atlas_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+  const atlas = createAtlasFromSparrowXml(
+    id, atlasName, url,
+    img.naturalWidth, img.naturalHeight,
+    xmlData,
+  );
+  addAtlas(atlas, img);
+  return atlas;
+}
+
 // ============================================================
 // Auto-detect import mode
 // ============================================================
 export function detectAtlasImportMode(
   files: File[],
-): "packed" | "loose" | "unknown" {
+): "packed" | "xml" | "loose" | "unknown" {
   const hasJson = files.some((f) => f.name.endsWith(".json"));
+  const hasXml = files.some((f) => /\.(xml|txt)$/i.test(f.name));
   const imageCount = files.filter((f) =>
     /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name)
   ).length;
 
   if (hasJson && imageCount === 1) return "packed";
-  if (!hasJson && imageCount > 1) return "loose";
+  if (hasXml && imageCount === 1) return "xml";
+  if (!hasJson && !hasXml && imageCount > 1) return "loose";
   return "unknown";
 }

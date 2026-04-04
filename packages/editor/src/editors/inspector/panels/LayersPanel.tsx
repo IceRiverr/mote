@@ -8,34 +8,123 @@ import { executeCommand } from "../../../store/history";
 import {
   AddLayerCommand,
   RemoveLayerCommand,
-  MoveLayerCommand,
   SetLayerPropertyCommand,
 } from "../../../commands/layer";
 import { getLayerColor } from "../../../data/TileMap";
 import { PanelShell } from "./PanelShell";
-import { OpacitySlider } from "./OpacitySlider";
 import { ColorTagPopover } from "./ColorTagPopover";
 
 let layerUid = 10;
+
+/* ── Inline mini opacity (drag + dblclick edit) ──────────── */
+
+function InlineOpacity({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dragging = useRef(false);
+  const startX = useRef(0);
+  const startVal = useRef(0);
+
+  const commitEdit = () => {
+    const n = parseInt(editText);
+    if (!isNaN(n)) onChange(Math.max(0, Math.min(100, n)) / 100);
+    setEditing(false);
+  };
+
+  const onPointerDown = (e: PointerEvent) => {
+    if (editing) return;
+    dragging.current = false;
+    startX.current = e.clientX;
+    startVal.current = value;
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX.current;
+      if (!dragging.current && Math.abs(dx) > 3) dragging.current = true;
+      if (dragging.current) {
+        onChange(Math.max(0, Math.min(1, startVal.current + dx / 150)));
+      }
+    };
+    const onUp = () => {
+      target.removeEventListener("pointermove", onMove);
+      target.removeEventListener("pointerup", onUp);
+    };
+    target.addEventListener("pointermove", onMove);
+    target.addEventListener("pointerup", onUp);
+  };
+
+  const onDblClick = (e: MouseEvent) => {
+    e.stopPropagation();
+    setEditText(String(Math.round(value * 100)));
+    setEditing(true);
+    requestAnimationFrame(() => inputRef.current?.select());
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        type="text"
+        value={editText}
+        onInput={(e) => setEditText((e.target as HTMLInputElement).value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commitEdit();
+          if (e.key === "Escape") setEditing(false);
+          e.stopPropagation();
+        }}
+        onBlur={commitEdit}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 36, fontSize: 10, height: 16, padding: "0 2px",
+          border: "1px solid var(--accent)", borderRadius: 2,
+          background: "var(--bg-input)", color: "var(--text-bright)",
+          outline: "none", textAlign: "right", fontFamily: "monospace",
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
+
+  return (
+    <span
+      onPointerDown={onPointerDown}
+      onDblClick={onDblClick}
+      title={"拖拽调整透明度 · 双击输入"}
+      style={{
+        fontSize: 10, color: "var(--text-secondary)", width: 36,
+        textAlign: "right", flexShrink: 0, fontFamily: "monospace",
+        cursor: "ew-resize", userSelect: "none",
+      }}
+    >
+      {Math.round(value * 100)}%
+    </span>
+  );
+}
+
+/* ── LayersPanel ─────────────────────────────────────────── */
 
 export function LayersPanel() {
   const map = currentMap.value;
   const selectedLayer =
     map.layers.find((l) => l.id === activeLayerId.value) ?? map.layers[0];
 
-  // --- Inline rename state ---
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameRef = useRef<HTMLInputElement>(null);
-
-  // --- Color tag popover state ---
   const [colorPopoverId, setColorPopoverId] = useState<string | null>(null);
-
-  // --- Drag state ---
+  const [hoverId, setHoverId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
-  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [insertIdx, setInsertIdx] = useState<number | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
-  // --- Actions ---
   const addLayer = () => {
     const id = `layer_${++layerUid}`;
     const newLayer = {
@@ -49,17 +138,9 @@ export function LayersPanel() {
     executeCommand(new AddLayerCommand(newLayer));
   };
 
-  const removeLayer = () => {
-    if (!selectedLayer || map.layers.length <= 1) return;
-    executeCommand(new RemoveLayerCommand(selectedLayer.id));
-  };
-
-  const moveLayer = (dir: -1 | 1) => {
-    if (!selectedLayer) return;
-    const idx = map.layers.findIndex((l) => l.id === selectedLayer.id);
-    const newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= map.layers.length) return;
-    executeCommand(new MoveLayerCommand(selectedLayer.id, dir));
+  const removeLayer = (id: string) => {
+    if (map.layers.length <= 1) return;
+    executeCommand(new RemoveLayerCommand(id));
   };
 
   const toggleVisible = (id: string) => {
@@ -78,15 +159,9 @@ export function LayersPanel() {
     );
   };
 
-  const setOpacity = (opacity: number) => {
-    if (!selectedLayer) return;
+  const setOpacity = (layerId: string, opacity: number) => {
     executeCommand(
-      new SetLayerPropertyCommand(
-        selectedLayer.id,
-        "opacity",
-        opacity,
-        "修改图层透明度"
-      )
+      new SetLayerPropertyCommand(layerId, "opacity", opacity, "修改图层透明度")
     );
   };
 
@@ -97,7 +172,6 @@ export function LayersPanel() {
     );
   };
 
-  // --- Inline rename ---
   const startRename = (id: string, currentName: string) => {
     setRenamingId(id);
     setRenameValue(currentName);
@@ -107,393 +181,350 @@ export function LayersPanel() {
   const commitRename = () => {
     if (renamingId && renameValue.trim()) {
       executeCommand(
-        new SetLayerPropertyCommand(
-          renamingId,
-          "name",
-          renameValue.trim(),
-          "重命名图层"
-        )
+        new SetLayerPropertyCommand(renamingId, "name", renameValue.trim(), "重命名图层")
       );
     }
     setRenamingId(null);
   };
 
-  // --- Drag & drop ---
-  const displayLayers = [...map.layers].reverse(); // top → bottom = front → back
+  const displayLayers = [...map.layers].reverse();
 
-  const onDragStart = (e: DragEvent, layerId: string) => {
-    setDragId(layerId);
-    e.dataTransfer!.effectAllowed = "move";
-    // Minimal drag image
-    const el = e.currentTarget as HTMLElement;
-    e.dataTransfer!.setDragImage(el, 0, 0);
-  };
+  const onRowPointerDown = useCallback(
+    (e: PointerEvent, layerId: string) => {
+      if (e.button !== 0) return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "BUTTON" || tag === "INPUT") return;
+      const role = (e.target as HTMLElement).dataset?.role;
+      if (role === "colortag" || role === "close") return;
 
-  const onDragOver = useCallback(
-    (e: DragEvent, displayIdx: number) => {
-      e.preventDefault();
-      e.dataTransfer!.dropEffect = "move";
-      // Convert display index to real index
-      const realIdx = map.layers.length - 1 - displayIdx;
-      setDropIndex(realIdx);
-    },
-    [map.layers.length]
-  );
+      const startY = e.clientY;
+      let started = false;
+      let currentInsert: number | null = null;
+      const target = e.currentTarget as HTMLElement;
+      target.setPointerCapture(e.pointerId);
 
-  const onDrop = useCallback(
-    (e: DragEvent) => {
-      e.preventDefault();
-      if (dragId === null || dropIndex === null) return;
+      const onMove = (ev: PointerEvent) => {
+        const dy = ev.clientY - startY;
+        if (!started && Math.abs(dy) > 4) {
+          started = true;
+          setDragId(layerId);
+        }
+        if (!started || !listRef.current) return;
 
-      const fromIdx = map.layers.findIndex((l) => l.id === dragId);
-      if (fromIdx < 0 || fromIdx === dropIndex) {
+        const children = Array.from(listRef.current.children) as HTMLElement[];
+        let bestIdx = displayLayers.length;
+        for (let i = 0; i < children.length; i++) {
+          const rect = children[i].getBoundingClientRect();
+          const mid = rect.top + rect.height / 2;
+          if (ev.clientY < mid) {
+            bestIdx = i;
+            break;
+          }
+        }
+        const realInsert = map.layers.length - bestIdx;
+        currentInsert = realInsert;
+        setInsertIdx(realInsert);
+      };
+
+      const onUp = () => {
+        target.removeEventListener("pointermove", onMove);
+        target.removeEventListener("pointerup", onUp);
+
+        if (started && currentInsert !== null) {
+          const fromDisplayIdx = displayLayers.findIndex((l) => l.id === layerId);
+          const fromRealIdx = map.layers.length - 1 - fromDisplayIdx;
+          let targetIdx = currentInsert;
+          if (targetIdx > fromRealIdx) targetIdx--;
+          if (targetIdx !== fromRealIdx && targetIdx >= 0 && targetIdx < map.layers.length) {
+            const newLayers = [...map.layers];
+            const [removed] = newLayers.splice(fromRealIdx, 1);
+            newLayers.splice(targetIdx, 0, removed);
+            currentMap.value = { ...map, layers: newLayers };
+            bumpMapVersion();
+          }
+        }
         setDragId(null);
-        setDropIndex(null);
-        return;
-      }
+        setInsertIdx(null);
+      };
 
-      // Move layer by swapping step by step
-      const dir = dropIndex > fromIdx ? 1 : -1;
-      let steps = Math.abs(dropIndex - fromIdx);
-      // Execute as multiple move commands (or a single reorder)
-      // For simplicity, do direct mutation + single undo command
-      const newLayers = [...map.layers];
-      const [removed] = newLayers.splice(fromIdx, 1);
-      newLayers.splice(dropIndex, 0, removed);
-      currentMap.value = { ...map, layers: newLayers };
-      bumpMapVersion();
-
-      setDragId(null);
-      setDropIndex(null);
+      target.addEventListener("pointermove", onMove);
+      target.addEventListener("pointerup", onUp);
     },
-    [dragId, dropIndex, map]
+    [displayLayers, map]
   );
 
-  const onDragEnd = () => {
-    setDragId(null);
-    setDropIndex(null);
-  };
-
-  // --- Keyboard ---
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Delete" || e.key === "Backspace") {
-      if (renamingId) return; // Don't delete while renaming
-      removeLayer();
+      if (renamingId) return;
+      if (selectedLayer && map.layers.length > 1) removeLayer(selectedLayer.id);
     }
     if (e.key === "F2" && selectedLayer && !renamingId) {
       startRename(selectedLayer.id, selectedLayer.name);
     }
   };
 
-  // Selected layer index for move button disable
-  const selectedIdx = selectedLayer
-    ? map.layers.findIndex((l) => l.id === selectedLayer.id)
-    : -1;
+  const insertDisplayIdx =
+    insertIdx !== null ? map.layers.length - insertIdx : null;
+
+  const addBtn = (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        addLayer();
+      }}
+      title="添加图层"
+      style={{
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        color: "var(--text-secondary)",
+        fontSize: 14,
+        padding: "0 4px",
+        lineHeight: 1,
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.color = "var(--text-bright)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+      }}
+    >
+      ＋
+    </button>
+  );
 
   return (
-    <PanelShell title="图层">
-      <div
-        tabIndex={0}
-        onKeyDown={onKeyDown}
-        style={{ outline: "none" }}
-      >
-        {/* --- Top: Opacity slider for selected layer --- */}
-        <OpacitySlider
-          value={selectedLayer?.opacity ?? 1}
-          onChange={setOpacity}
-          disabled={!selectedLayer}
-        />
-
-        {/* --- Layer list --- */}
+    <PanelShell title="图层" headerRight={addBtn}>
+      <div tabIndex={0} onKeyDown={onKeyDown} style={{ outline: "none" }}>
         <div
+          ref={listRef}
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: 1,
-            marginTop: 4,
-            marginBottom: 4,
+            gap: 0,
+            position: "relative",
           }}
         >
           {displayLayers.map((layer, displayIdx) => {
             const isSelected = activeLayerId.value === layer.id;
             const isDragging = dragId === layer.id;
-            const realIdx = map.layers.length - 1 - displayIdx;
-            const isDropTarget = dropIndex === realIdx && dragId !== null && dragId !== layer.id;
+            const isHovered = hoverId === layer.id;
+            const showInsertBefore =
+              insertDisplayIdx === displayIdx && dragId !== null && dragId !== layer.id;
+            const showInsertAfter =
+              insertDisplayIdx === displayLayers.length &&
+              displayIdx === displayLayers.length - 1 &&
+              dragId !== null &&
+              dragId !== layer.id;
 
             return (
-              <div
-                key={layer.id}
-                draggable={renamingId !== layer.id}
-                onDragStart={(e) => onDragStart(e as any, layer.id)}
-                onDragOver={(e) => onDragOver(e as any, displayIdx)}
-                onDrop={(e) => onDrop(e as any)}
-                onDragEnd={onDragEnd}
-                onClick={() => {
-                  activeLayerId.value = layer.id;
-                  // Close color popover if open
-                  if (colorPopoverId && colorPopoverId !== layer.id) {
-                    setColorPopoverId(null);
-                  }
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  height: 28,
-                  padding: "0 4px",
-                  gap: 2,
-                  background: isSelected
-                    ? "var(--selection)"
-                    : "transparent",
-                  borderLeft: isSelected
-                    ? "2px solid var(--accent)"
-                    : "2px solid transparent",
-                  borderTop: isDropTarget
-                    ? "2px solid var(--accent)"
-                    : "2px solid transparent",
-                  borderRadius: 2,
-                  cursor: "grab",
-                  opacity: isDragging ? 0.4 : 1,
-                  transition: "background 0.1s",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isSelected) {
-                    (e.currentTarget as HTMLElement).style.background =
-                      "rgba(255,255,255,0.04)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isSelected) {
-                    (e.currentTarget as HTMLElement).style.background =
-                      "transparent";
-                  }
-                }}
-              >
-                {/* Visibility */}
-                <button
-                  title={layer.visible ? "隐藏" : "显示"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleVisible(layer.id);
-                  }}
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    padding: "0 1px",
-                    cursor: "pointer",
-                    opacity: layer.visible ? 0.9 : 0.25,
-                    fontSize: 11,
-                    width: 20,
-                    height: 20,
-                    flexShrink: 0,
-                    lineHeight: "20px",
-                    textAlign: "center",
-                  }}
-                >
-                  👁
-                </button>
-
-                {/* Lock */}
-                <button
-                  title={layer.locked ? "解锁" : "锁定"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleLock(layer.id);
-                  }}
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    padding: "0 1px",
-                    cursor: "pointer",
-                    opacity: layer.locked ? 0.9 : 0.25,
-                    fontSize: 11,
-                    width: 20,
-                    height: 20,
-                    flexShrink: 0,
-                    lineHeight: "20px",
-                    textAlign: "center",
-                  }}
-                >
-                  🔒
-                </button>
-
-                {/* Color tag */}
-                <div
-                  style={{ position: "relative", flexShrink: 0 }}
-                >
+              <div key={layer.id}>
+                {showInsertBefore && (
                   <div
-                    title="颜色标记"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setColorPopoverId(
-                        colorPopoverId === layer.id ? null : layer.id
-                      );
-                    }}
                     style={{
-                      width: 4,
-                      height: 16,
+                      height: 2,
+                      background: "var(--accent)",
                       borderRadius: 1,
-                      background: getLayerColor(layer.color),
-                      cursor: "pointer",
-                      marginRight: 4,
+                      margin: "0 4px",
                     }}
                   />
-                  {colorPopoverId === layer.id && (
-                    <ColorTagPopover
-                      currentColor={layer.color}
-                      onSelect={(colorId) => setColor(layer.id, colorId)}
-                      onClose={() => setColorPopoverId(null)}
-                    />
-                  )}
-                </div>
-
-                {/* Name (double-click to rename) */}
-                {renamingId === layer.id ? (
-                  <input
-                    ref={renameRef}
-                    type="text"
-                    value={renameValue}
-                    onInput={(e) =>
-                      setRenameValue((e.target as HTMLInputElement).value)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") commitRename();
-                      if (e.key === "Escape") setRenamingId(null);
-                      e.stopPropagation();
-                    }}
-                    onBlur={commitRename}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      fontSize: 11,
-                      height: 18,
-                      padding: "0 3px",
-                      border: "1px solid var(--accent)",
-                      borderRadius: 2,
-                      background: "var(--bg-input)",
-                      color: "var(--text-bright)",
-                      outline: "none",
-                    }}
-                  />
-                ) : (
-                  <span
-                    onDblClick={(e) => {
-                      e.stopPropagation();
-                      startRename(layer.id, layer.name);
-                    }}
-                    style={{
-                      flex: 1,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      fontSize: 11,
-                      cursor: "default",
-                      userSelect: "none",
-                    }}
-                  >
-                    {layer.name}
-                  </span>
                 )}
 
-                {/* Opacity percentage */}
-                <span
+                <div
+                  onPointerDown={(e) => onRowPointerDown(e as any, layer.id)}
+                  onClick={() => {
+                    activeLayerId.value = layer.id;
+                    if (colorPopoverId && colorPopoverId !== layer.id) {
+                      setColorPopoverId(null);
+                    }
+                  }}
+                  onMouseEnter={() => setHoverId(layer.id)}
+                  onMouseLeave={() => setHoverId(null)}
                   style={{
-                    fontSize: 10,
-                    color: "var(--text-secondary)",
-                    width: 32,
-                    textAlign: "right",
-                    flexShrink: 0,
-                    fontFamily: "monospace",
+                    display: "flex",
+                    alignItems: "center",
+                    height: 28,
+                    padding: "0 4px",
+                    gap: 2,
+                    background: isSelected
+                      ? "var(--selection)"
+                      : isHovered && !isDragging
+                      ? "rgba(255,255,255,0.04)"
+                      : "transparent",
+                    borderLeft: isSelected
+                      ? "2px solid var(--accent)"
+                      : "2px solid transparent",
+                    borderRadius: 2,
+                    cursor: "grab",
+                    opacity: isDragging ? 0.3 : 1,
+                    transition: "background 0.1s, opacity 0.1s",
+                    userSelect: "none",
                   }}
                 >
-                  {Math.round(layer.opacity * 100)}%
-                </span>
+                  {/* Visibility */}
+                  <button
+                    title={layer.visible ? "隐藏" : "显示"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleVisible(layer.id);
+                    }}
+                    style={{
+                      border: "none", background: "transparent",
+                      padding: "0 1px", cursor: "pointer",
+                      opacity: layer.visible ? 0.9 : 0.25,
+                      fontSize: 11, width: 20, height: 20,
+                      flexShrink: 0, lineHeight: "20px", textAlign: "center",
+                    }}
+                  >
+                    👁
+                  </button>
+
+                  {/* Lock */}
+                  <button
+                    title={layer.locked ? "解锁" : "锁定"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleLock(layer.id);
+                    }}
+                    style={{
+                      background: layer.locked ? "var(--accent)" : "transparent",
+                      border: layer.locked
+                        ? "1px solid var(--accent)"
+                        : "1px solid var(--border)",
+                      borderRadius: 3,
+                      padding: "1px 5px",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      lineHeight: 1,
+                      color: layer.locked ? "#fff" : "var(--text-secondary)",
+                      width: 24, height: 20, flexShrink: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    {layer.locked ? "🔒" : "🔓"}
+                  </button>
+
+                  {/* Color tag */}
+                  <div style={{ position: "relative", flexShrink: 0 }}>
+                    <div
+                      data-role="colortag"
+                      title="颜色标记"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setColorPopoverId(
+                          colorPopoverId === layer.id ? null : layer.id
+                        );
+                      }}
+                      style={{
+                        width: 4, height: 16, borderRadius: 1,
+                        background: getLayerColor(layer.color),
+                        cursor: "pointer", marginRight: 4,
+                      }}
+                    />
+                    {colorPopoverId === layer.id && (
+                      <ColorTagPopover
+                        currentColor={layer.color}
+                        onSelect={(colorId) => setColor(layer.id, colorId)}
+                        onClose={() => setColorPopoverId(null)}
+                      />
+                    )}
+                  </div>
+
+                  {/* Name */}
+                  {renamingId === layer.id ? (
+                    <input
+                      ref={renameRef}
+                      type="text"
+                      value={renameValue}
+                      onInput={(e) =>
+                        setRenameValue((e.target as HTMLInputElement).value)
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitRename();
+                        if (e.key === "Escape") setRenamingId(null);
+                        e.stopPropagation();
+                      }}
+                      onBlur={commitRename}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        flex: 1, minWidth: 0, fontSize: 11, height: 18,
+                        padding: "0 3px",
+                        border: "1px solid var(--accent)", borderRadius: 2,
+                        background: "var(--bg-input)", color: "var(--text-bright)",
+                        outline: "none",
+                      }}
+                    />
+                  ) : (
+                    <span
+                      onDblClick={(e) => {
+                        e.stopPropagation();
+                        startRename(layer.id, layer.name);
+                      }}
+                      style={{
+                        flex: 1, overflow: "hidden",
+                        textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        fontSize: 11, cursor: "default",
+                      }}
+                    >
+                      {layer.name}
+                    </span>
+                  )}
+
+                  {/* Opacity */}
+                  <InlineOpacity
+                    value={layer.opacity}
+                    onChange={(v) => setOpacity(layer.id, v)}
+                  />
+
+                  {/* Delete */}
+                  <button
+                    data-role="close"
+                    title="删除图层 (Delete)"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeLayer(layer.id);
+                    }}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      cursor: map.layers.length <= 1 ? "default" : "pointer",
+                      fontSize: 10,
+                      width: 18,
+                      height: 18,
+                      flexShrink: 0,
+                      lineHeight: "18px",
+                      textAlign: "center",
+                      color: "var(--text-secondary)",
+                      opacity: (isHovered || isSelected) && map.layers.length > 1 ? 0.7 : 0,
+                      transition: "opacity 0.15s",
+                      padding: 0,
+                      borderRadius: 2,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (map.layers.length > 1)
+                        (e.currentTarget as HTMLElement).style.color = "#e06060";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {showInsertAfter && (
+                  <div
+                    style={{
+                      height: 2,
+                      background: "var(--accent)",
+                      borderRadius: 1,
+                      margin: "0 4px",
+                    }}
+                  />
+                )}
               </div>
             );
           })}
-        </div>
-
-        {/* --- Bottom toolbar --- */}
-        <div
-          style={{
-            display: "flex",
-            gap: 2,
-            paddingTop: 4,
-            borderTop: "1px solid var(--border)",
-          }}
-        >
-          <button
-            onClick={addLayer}
-            title="添加图层"
-            style={{
-              flex: 1,
-              fontSize: 12,
-              height: 24,
-              border: "1px solid var(--border)",
-              borderRadius: 3,
-              background: "transparent",
-              color: "var(--text)",
-              cursor: "pointer",
-            }}
-          >
-            ＋
-          </button>
-          <button
-            onClick={() => moveLayer(-1)}
-            disabled={selectedIdx <= 0}
-            title="上移"
-            style={{
-              flex: 1,
-              fontSize: 12,
-              height: 24,
-              border: "1px solid var(--border)",
-              borderRadius: 3,
-              background: "transparent",
-              color: "var(--text)",
-              cursor: selectedIdx <= 0 ? "default" : "pointer",
-              opacity: selectedIdx <= 0 ? 0.3 : 1,
-            }}
-          >
-            ▲
-          </button>
-          <button
-            onClick={() => moveLayer(1)}
-            disabled={selectedIdx >= map.layers.length - 1}
-            title="下移"
-            style={{
-              flex: 1,
-              fontSize: 12,
-              height: 24,
-              border: "1px solid var(--border)",
-              borderRadius: 3,
-              background: "transparent",
-              color: "var(--text)",
-              cursor:
-                selectedIdx >= map.layers.length - 1 ? "default" : "pointer",
-              opacity: selectedIdx >= map.layers.length - 1 ? 0.3 : 1,
-            }}
-          >
-            ▼
-          </button>
-          <button
-            onClick={removeLayer}
-            disabled={map.layers.length <= 1}
-            title="删除图层 (Delete)"
-            style={{
-              flex: 1,
-              fontSize: 12,
-              height: 24,
-              border: "1px solid var(--border)",
-              borderRadius: 3,
-              background: "transparent",
-              color:
-                map.layers.length <= 1 ? "var(--text-secondary)" : "#e06060",
-              cursor: map.layers.length <= 1 ? "default" : "pointer",
-              opacity: map.layers.length <= 1 ? 0.3 : 1,
-            }}
-          >
-            🗑
-          </button>
         </div>
       </div>
     </PanelShell>

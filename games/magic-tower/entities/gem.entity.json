@@ -1,0 +1,11 @@
+{
+  "id": "gem", "name": "Gem", "sprite": "items:gem_red",
+  "shape": "rect", "width": 32, "height": 32, "resizable": false,
+  "color": "#FF4444", "icon": "💎", "script": "scripts/item-pickup.ts",
+  "collider": null,
+  "fields": [
+    {"id":"itemType","label":"类型","type":"string","default":"gem"},
+    {"id":"stat","label":"属性","type":"string","default":"atk"},
+    {"id":"amount","label":"增加量","type":"number","default":3}
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "potion", "name": "Potion", "sprite": "items:potion_red",
+  "shape": "rect", "width": 32, "height": 32, "resizable": false,
+  "color": "#FF6B6B", "icon": "🧪", "script": "scripts/item-pickup.ts",
+  "collider": null,
+  "fields": [
+    {"id":"itemType","label":"类型","type":"string","default":"potion"},
+    {"id":"amount","label":"回复量","type":"number","default":200}
+  ]
+}

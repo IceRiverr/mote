@@ -1,0 +1,16 @@
+{
+  "id": "monster", "name": "Monster", "sprite": "characters:slime_green",
+  "shape": "rect", "width": 32, "height": 32, "resizable": false,
+  "color": "#FF4444", "icon": "👹", "script": "scripts/monster.ts",
+  "collider": [{"type":"full"}],
+  "fields": [
+    {"id":"monsterType","label":"怪物类型","type":"string","default":"slime_green"},
+    {"id":"hp","label":"HP","type":"number","default":50},
+    {"id":"atk","label":"ATK","type":"number","default":20},
+    {"id":"def","label":"DEF","type":"number","default":1},
+    {"id":"gold","label":"Gold","type":"number","default":1},
+    {"id":"exp","label":"EXP","type":"number","default":1},
+    {"id":"tags","label":"标签","type":"string","default":"slime"},
+    {"id":"boss","label":"是否BOSS","type":"bool","default":false}
+  ]
+}

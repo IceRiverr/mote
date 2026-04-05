@@ -1,0 +1,228 @@
+{
+  "id": "floor-6",
+  "name": "6F 暗影回廊",
+  "width": 416,
+  "height": 416,
+  "tileWidth": 32,
+  "tileHeight": 32,
+  "spriteSheets": ["tower-tiles", "characters", "items", "ui"],
+  "layers": [
+    {
+      "name": "tiles",
+      "type": "tile",
+      "spriteSheet": "tower-tiles",
+      "encoding": "names",
+      "data": [
+        "wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark",
+        "wall_dark","floor_stone","wall_dark","floor_stone","floor_stone","floor_stone","floor_dark","floor_stone","floor_stone","floor_stone","wall_dark","stair_up","wall_dark",
+        "wall_dark","floor_stone","wall_dark","floor_stone","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","floor_stone","wall_dark","floor_stone","wall_dark",
+        "wall_dark","floor_stone","wall_dark","floor_stone","wall_dark","floor_stone","floor_stone","floor_stone","wall_dark","floor_stone","wall_dark","floor_stone","wall_dark",
+        "wall_dark","floor_stone","wall_dark","floor_stone","wall_dark","floor_stone","lava","floor_stone","wall_dark","floor_stone","wall_dark","floor_stone","wall_dark",
+        "wall_dark","floor_stone","door_blue","floor_stone","door_yellow","floor_stone","lava","floor_stone","door_red","floor_stone","door_blue","floor_stone","wall_dark",
+        "wall_dark","floor_stone","wall_dark","floor_stone","wall_dark","floor_stone","floor_dark","floor_stone","wall_dark","floor_stone","wall_dark","floor_stone","wall_dark",
+        "wall_dark","floor_stone","wall_dark","floor_stone","wall_dark","wall_dark","door_yellow","wall_dark","wall_dark","floor_stone","wall_dark","floor_stone","wall_dark",
+        "wall_dark","floor_stone","wall_dark","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","wall_dark","floor_stone","wall_dark",
+        "wall_dark","floor_stone","wall_dark","wall_dark","wall_dark","floor_stone","wall_dark","floor_stone","wall_dark","wall_dark","wall_dark","floor_stone","wall_dark",
+        "wall_dark","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","wall_dark","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","wall_dark",
+        "wall_dark","floor_stone","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","floor_stone","wall_dark",
+        "wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark","wall_dark"
+      ]
+    },
+    {
+      "name": "entities",
+      "type": "entity",
+      "entities": [
+        {
+          "id": "f6_stair_down",
+          "template": "stair",
+          "name": "下楼梯",
+          "x": 32,
+          "y": 32,
+          "width": 32,
+          "height": 32,
+          "fields": { "direction": "down", "targetFloor": "floor-5", "targetX": 32, "targetY": 32 }
+        },
+        {
+          "id": "f6_stair_up",
+          "template": "stair",
+          "name": "上楼梯",
+          "x": 352,
+          "y": 32,
+          "width": 32,
+          "height": 32,
+          "fields": { "direction": "up", "targetFloor": "floor-7", "targetX": 352, "targetY": 32 }
+        },
+        {
+          "id": "f6_dark_knight_1",
+          "template": "monster",
+          "name": "暗黑骑士",
+          "x": 96,
+          "y": 256,
+          "width": 32,
+          "height": 32,
+          "fields": { "monsterType": "dark_knight", "hp": 400, "atk": 90, "def": 50, "gold": 30, "exp": 30, "tags": "undead", "boss": false }
+        },
+        {
+          "id": "f6_dark_knight_2",
+          "template": "monster",
+          "name": "暗黑骑士",
+          "x": 352,
+          "y": 256,
+          "width": 32,
+          "height": 32,
+          "fields": { "monsterType": "dark_knight", "hp": 400, "atk": 90, "def": 50, "gold": 30, "exp": 30, "tags": "undead", "boss": false }
+        },
+        {
+          "id": "f6_spirit_1",
+          "template": "monster",
+          "name": "冤魂",
+          "x": 192,
+          "y": 256,
+          "width": 32,
+          "height": 32,
+          "fields": { "monsterType": "spirit", "hp": 500, "atk": 100, "def": 60, "gold": 35, "exp": 35, "tags": "magic", "boss": false }
+        },
+        {
+          "id": "f6_orc_captain_1",
+          "template": "monster",
+          "name": "兽人队长",
+          "x": 288,
+          "y": 96,
+          "width": 32,
+          "height": 32,
+          "fields": { "monsterType": "orc_captain", "hp": 300, "atk": 65, "def": 30, "gold": 18, "exp": 18, "tags": "orc", "boss": false }
+        },
+        {
+          "id": "f6_orc_captain_2",
+          "template": "monster",
+          "name": "兽人队长",
+          "x": 160,
+          "y": 320,
+          "width": 32,
+          "height": 32,
+          "fields": { "monsterType": "orc_captain", "hp": 300, "atk": 65, "def": 30, "gold": 18, "exp": 18, "tags": "orc", "boss": false }
+        },
+        {
+          "id": "f6_door_b1",
+          "template": "door",
+          "name": "蓝门",
+          "x": 64,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "fields": { "color": "blue" }
+        },
+        {
+          "id": "f6_door_b2",
+          "template": "door",
+          "name": "蓝门",
+          "x": 320,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "fields": { "color": "blue" }
+        },
+        {
+          "id": "f6_door_r1",
+          "template": "door",
+          "name": "红门",
+          "x": 256,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "fields": { "color": "red" }
+        },
+        {
+          "id": "f6_door_y1",
+          "template": "door",
+          "name": "黄门",
+          "x": 128,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "fields": { "color": "yellow" }
+        },
+        {
+          "id": "f6_door_y2",
+          "template": "door",
+          "name": "黄门",
+          "x": 192,
+          "y": 224,
+          "width": 32,
+          "height": 32,
+          "fields": { "color": "yellow" }
+        },
+        {
+          "id": "f6_key_b1",
+          "template": "key",
+          "name": "蓝钥匙",
+          "x": 32,
+          "y": 320,
+          "width": 32,
+          "height": 32,
+          "fields": { "itemType": "key", "color": "blue" }
+        },
+        {
+          "id": "f6_key_y1",
+          "template": "key",
+          "name": "黄钥匙",
+          "x": 352,
+          "y": 320,
+          "width": 32,
+          "height": 32,
+          "fields": { "itemType": "key", "color": "yellow" }
+        },
+        {
+          "id": "f6_sword_holy",
+          "template": "equipment",
+          "name": "圣剑",
+          "x": 32,
+          "y": 192,
+          "width": 32,
+          "height": 32,
+          "fields": { "itemType": "equipment", "equipId": "sword_holy", "stat": "atk", "amount": 20 }
+        },
+        {
+          "id": "f6_lava_1",
+          "template": "lava",
+          "name": "熔岩",
+          "x": 192,
+          "y": 128,
+          "width": 32,
+          "height": 32,
+          "fields": { "damage": 100 }
+        },
+        {
+          "id": "f6_lava_2",
+          "template": "lava",
+          "name": "熔岩",
+          "x": 192,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "fields": { "damage": 100 }
+        },
+        {
+          "id": "f6_npc_princess",
+          "template": "npc",
+          "name": "公主",
+          "x": 192,
+          "y": 96,
+          "width": 32,
+          "height": 32,
+          "fields": { "npcType": "princess", "dialog": "勇者，谢谢你来到这里！这把蓝钥匙送给你，魔王就在最上面的楼层等着你。请一定要打败他！" }
+        },
+        {
+          "id": "f6_potion_r1",
+          "template": "potion",
+          "name": "红血瓶",
+          "x": 288,
+          "y": 256,
+          "width": 32,
+          "height": 32,
+          "fields": { "itemType": "potion", "amount": 100 }
+        }
+      ]
+    }
+  ]
+}

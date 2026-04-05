@@ -1,0 +1,218 @@
+{
+  "id": "floor-2",
+  "name": "2F 地牢通道",
+  "width": 416,
+  "height": 416,
+  "tileWidth": 32,
+  "tileHeight": 32,
+  "spriteSheets": ["tower-tiles", "characters", "items", "ui"],
+  "layers": [
+    {
+      "name": "tiles",
+      "type": "tile",
+      "spriteSheet": "tower-tiles",
+      "encoding": "names",
+      "data": [
+        "wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray",
+        "wall_gray","floor_stone","floor_stone","floor_stone","wall_gray","floor_stone","floor_stone","floor_stone","wall_gray","floor_stone","floor_stone","stair_up","wall_gray",
+        "wall_gray","floor_stone","wall_gray","floor_stone","wall_gray","floor_stone","wall_gray","floor_stone","wall_gray","floor_stone","wall_gray","wall_gray","wall_gray",
+        "wall_gray","floor_stone","wall_gray","floor_stone","floor_stone","floor_stone","wall_gray","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","wall_gray",
+        "wall_gray","floor_stone","wall_gray","wall_gray","wall_gray","door_yellow","wall_gray","wall_gray","wall_gray","door_yellow","wall_gray","floor_stone","wall_gray",
+        "wall_gray","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","wall_gray",
+        "wall_gray","wall_gray","wall_gray","floor_stone","wall_gray","wall_gray","door_blue","wall_gray","wall_gray","floor_stone","wall_gray","wall_gray","wall_gray",
+        "wall_gray","floor_stone","floor_stone","floor_stone","wall_gray","floor_stone","floor_stone","floor_stone","wall_gray","floor_stone","floor_stone","floor_stone","wall_gray",
+        "wall_gray","floor_stone","wall_gray","floor_stone","wall_gray","floor_stone","wall_gray","floor_stone","wall_gray","floor_stone","wall_gray","floor_stone","wall_gray",
+        "wall_gray","floor_stone","wall_gray","floor_stone","wall_gray","floor_stone","wall_gray","floor_stone","floor_stone","floor_stone","wall_gray","floor_stone","wall_gray",
+        "wall_gray","floor_stone","wall_gray","floor_stone","wall_gray","floor_stone","wall_gray","wall_gray","wall_gray","door_yellow","wall_gray","floor_stone","wall_gray",
+        "wall_gray","stair_down","wall_gray","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","floor_stone","wall_gray",
+        "wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray","wall_gray"
+      ]
+    },
+    {
+      "name": "entities",
+      "type": "entity",
+      "entities": [
+        {
+          "id": "f2_stair_down",
+          "template": "stair",
+          "name": "下楼梯",
+          "x": 32,
+          "y": 352,
+          "width": 32,
+          "height": 32,
+          "fields": { "direction": "down", "targetFloor": "floor-1", "targetX": 192, "targetY": 0 }
+        },
+        {
+          "id": "f2_stair_up",
+          "template": "stair",
+          "name": "上楼梯",
+          "x": 352,
+          "y": 32,
+          "width": 32,
+          "height": 32,
+          "fields": { "direction": "up", "targetFloor": "floor-3", "targetX": 352, "targetY": 352 }
+        },
+        {
+          "id": "f2_slime_g1",
+          "template": "monster",
+          "name": "绿色史莱姆",
+          "x": 160,
+          "y": 96,
+          "width": 32,
+          "height": 32,
+          "fields": { "monsterType": "slime_green", "hp": 50, "atk": 20, "def": 1, "gold": 1, "exp": 1, "tags": "slime", "boss": false }
+        },
+        {
+          "id": "f2_slime_r1",
+          "template": "monster",
+          "name": "红色史莱姆",
+          "x": 96,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "fields": { "monsterType": "slime_red", "hp": 70, "atk": 15, "def": 2, "gold": 2, "exp": 2, "tags": "slime", "boss": false }
+        },
+        {
+          "id": "f2_slime_r2",
+          "template": "monster",
+          "name": "红色史莱姆",
+          "x": 288,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "fields": { "monsterType": "slime_red", "hp": 70, "atk": 15, "def": 2, "gold": 2, "exp": 2, "tags": "slime", "boss": false }
+        },
+        {
+          "id": "f2_bat_1",
+          "template": "monster",
+          "name": "蝙蝠",
+          "x": 192,
+          "y": 224,
+          "width": 32,
+          "height": 32,
+          "fields": { "monsterType": "bat", "hp": 60, "atk": 32, "def": 1, "gold": 3, "exp": 3, "tags": "flying", "boss": false }
+        },
+        {
+          "id": "f2_bat_2",
+          "template": "monster",
+          "name": "蝙蝠",
+          "x": 96,
+          "y": 288,
+          "width": 32,
+          "height": 32,
+          "fields": { "monsterType": "bat", "hp": 60, "atk": 32, "def": 1, "gold": 3, "exp": 3, "tags": "flying", "boss": false }
+        },
+        {
+          "id": "f2_door_y1",
+          "template": "door",
+          "name": "黄门",
+          "x": 160,
+          "y": 128,
+          "width": 32,
+          "height": 32,
+          "fields": { "color": "yellow" }
+        },
+        {
+          "id": "f2_door_y2",
+          "template": "door",
+          "name": "黄门",
+          "x": 288,
+          "y": 128,
+          "width": 32,
+          "height": 32,
+          "fields": { "color": "yellow" }
+        },
+        {
+          "id": "f2_door_y3",
+          "template": "door",
+          "name": "黄门",
+          "x": 288,
+          "y": 320,
+          "width": 32,
+          "height": 32,
+          "fields": { "color": "yellow" }
+        },
+        {
+          "id": "f2_door_b1",
+          "template": "door",
+          "name": "蓝门",
+          "x": 192,
+          "y": 192,
+          "width": 32,
+          "height": 32,
+          "fields": { "color": "blue" }
+        },
+        {
+          "id": "f2_key_y1",
+          "template": "key",
+          "name": "黄钥匙",
+          "x": 32,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "fields": { "itemType": "key", "color": "yellow" }
+        },
+        {
+          "id": "f2_key_y2",
+          "template": "key",
+          "name": "黄钥匙",
+          "x": 352,
+          "y": 160,
+          "width": 32,
+          "height": 32,
+          "fields": { "itemType": "key", "color": "yellow" }
+        },
+        {
+          "id": "f2_key_y3",
+          "template": "key",
+          "name": "黄钥匙",
+          "x": 128,
+          "y": 352,
+          "width": 32,
+          "height": 32,
+          "fields": { "itemType": "key", "color": "yellow" }
+        },
+        {
+          "id": "f2_key_b1",
+          "template": "key",
+          "name": "蓝钥匙",
+          "x": 352,
+          "y": 352,
+          "width": 32,
+          "height": 32,
+          "fields": { "itemType": "key", "color": "blue" }
+        },
+        {
+          "id": "f2_potion_r1",
+          "template": "potion",
+          "name": "红血瓶",
+          "x": 32,
+          "y": 32,
+          "width": 32,
+          "height": 32,
+          "fields": { "itemType": "potion", "amount": 100 }
+        },
+        {
+          "id": "f2_potion_r2",
+          "template": "potion",
+          "name": "红血瓶",
+          "x": 224,
+          "y": 224,
+          "width": 32,
+          "height": 32,
+          "fields": { "itemType": "potion", "amount": 100 }
+        },
+        {
+          "id": "f2_gem_r1",
+          "template": "gem",
+          "name": "红宝石",
+          "x": 160,
+          "y": 224,
+          "width": 32,
+          "height": 32,
+          "fields": { "itemType": "gem", "stat": "atk", "amount": 3 }
+        }
+      ]
+    }
+  ]
+}

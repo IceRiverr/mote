@@ -3,35 +3,54 @@ import { LayoutNode, Rect, RectMap, SplitInfo } from '../layout/types';
 import { computeRects } from '../layout/rect';
 
 /**
- * Default layout (4 panels):
- * Left: Viewport (65%)
- * Right: top = TilePalette (33%) | middle = SpritePanel (33%) | bottom = Inspector (34%)
- *   Implemented as nested splits: right = split(palette | split(sprite-panel | inspector))
+ * Default layout (6 panels) — Blender-style:
+ *
+ * ┌──────────┬──────────────────┬──────────┐
+ * │          │                  │          │
+ * │ Scene    │     Viewport     │Inspector │
+ * │ Tree     │                  │          │
+ * │          │                  │          │
+ * ├──────────┴────────┬─────────┴──────────┤
+ * │                   │                    │
+ * │  Sprite Editor    │  Assets Browser    │
+ * │                   │                    │
+ * └───────────────────┴────────────────────┘
  */
 const defaultLayout: LayoutNode = {
   type: 'split',
-  id: 'root_split',
-  direction: 'vertical',
+  id: 'root',
+  direction: 'horizontal',
   ratio: 0.65,
   children: [
-    { type: 'area', id: 'area_viewport', editorType: 'viewport' },
+    // Top row
     {
       type: 'split',
-      id: 'split_right',
-      direction: 'horizontal',
-      ratio: 0.33,
+      id: 'top',
+      direction: 'vertical',
+      ratio: 0.18,
       children: [
-        { type: 'area', id: 'area_palette', editorType: 'tile-palette' },
+        { type: 'area', id: 'area_scene_tree', editorType: 'scene-tree' },
         {
           type: 'split',
-          id: 'split_right_bottom',
-          direction: 'horizontal',
-          ratio: 0.5,
+          id: 'top_right',
+          direction: 'vertical',
+          ratio: 0.75,
           children: [
-            { type: 'area', id: 'area_sprite_panel', editorType: 'sprite-panel' },
+            { type: 'area', id: 'area_viewport', editorType: 'viewport' },
             { type: 'area', id: 'area_inspector', editorType: 'inspector' },
           ],
         },
+      ],
+    },
+    // Bottom row
+    {
+      type: 'split',
+      id: 'bottom',
+      direction: 'vertical',
+      ratio: 0.55,
+      children: [
+        { type: 'area', id: 'area_sprite_editor', editorType: 'sprite-editor' },
+        { type: 'area', id: 'area_assets', editorType: 'assets' },
       ],
     },
   ],

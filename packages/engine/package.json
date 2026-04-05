@@ -2,7 +2,13 @@
   "name": "@mote/engine",
   "version": "0.1.0",
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@webgpu/types": "^0.1.69"
   }
 }

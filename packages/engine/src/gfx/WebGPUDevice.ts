@@ -213,7 +213,7 @@ export class WebGPUDevice implements IGfxDevice {
   }
 
   writeBuffer(buf: IGfxBuffer, data: ArrayBufferView | ArrayBuffer, byteOffset = 0): void {
-    this.device.queue.writeBuffer((buf as WebGPUBuffer).gpuBuffer, byteOffset, data);
+    this.device.queue.writeBuffer((buf as WebGPUBuffer).gpuBuffer, byteOffset, data as ArrayBuffer);
   }
 
   async loadTexture(url: string): Promise<IGfxTexture> {

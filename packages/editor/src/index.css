@@ -1,20 +1,24 @@
-/* ---- Mote Editor - Dark Theme ---- */
 :root {
-  --bg-base: #1e1e1e;
-  --bg-area: #252526;
+  --bg: #1e1e1e;
+  --bg-panel: #252525;
   --bg-header: #2d2d2d;
-  --bg-input: #3c3c3c;
-  --border: #3e3e3e;
-  --border-active: #4a90d9;
-  --text-primary: #cccccc;
-  --text-secondary: #888888;
-  --text-bright: #e0e0e0;
+  --bg-input: #333;
+  --bg-hover: #3a3a3a;
+  --bg-active: #4a4a4a;
+  --bg-selected: #264f78;
+  --border: #1a1a1a;
+  --border-light: #444;
+  --text: #ddd;
+  --text-bright: #fff;
+  --text-secondary: #999;
+  --text-dim: #666;
   --accent: #4a90d9;
-  --accent-hover: #5da0e9;
-  --danger: #d94a4a;
-  --handle-hover: #4a90d9;
-  --panel-header: #333333;
-  --selection: rgba(74, 144, 217, 0.3);
+  --accent-hover: #5ba0e9;
+  --danger: #e06060;
+  --success: #60b060;
+  --warning: #f0a030;
+  --scrollbar-thumb: #555;
+  --scrollbar-track: #2a2a2a;
 }
 
 * {
@@ -27,94 +31,43 @@ html, body, #app {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--bg-base);
-  color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  font-size: 12px;
-  user-select: none;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
 }
 
-input, select, button {
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #777; }
+
+/* Selection */
+::selection { background: var(--bg-selected); color: var(--text-bright); }
+
+/* Button reset */
+button {
   font-family: inherit;
   font-size: inherit;
-  color: var(--text-primary);
-}
-
-input[type="text"], input[type="number"], select {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 2px 6px;
-  height: 22px;
-  outline: none;
-}
-
-input[type="text"]:focus, input[type="number"]:focus, select:focus {
-  border-color: var(--accent);
-}
-
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  outline: none;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--accent);
   cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
 }
 
-button {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 2px 10px;
-  height: 24px;
-  cursor: pointer;
+/* Input reset */
+input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
 }
 
-button:hover {
-  background: var(--border);
-}
-
-button:active {
-  background: var(--accent);
-}
-
-/* Thin scrollbar (global) */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-/* Firefox thin scrollbar */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
-}
-
+/* Canvas */
 canvas {
+  display: block;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }

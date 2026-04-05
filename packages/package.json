@@ -1,0 +1,15 @@
+{
+  "name": "mote",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "npm run dev -w packages/editor",
+    "build": "npm run build -w packages/engine && npm run build -w packages/editor",
+    "check": "tsc --noEmit -p packages/editor/tsconfig.json && tsc --noEmit -p packages/engine/tsconfig.json"
+  },
+  "workspaces": [
+    "packages/editor",
+    "packages/engine"
+  ]
+}

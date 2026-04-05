@@ -1,0 +1,19 @@
+{
+  "name": "tiny-dungeon",
+  "version": "1.0",
+  "engine": "mote-0.1",
+  "tileWidth": 16,
+  "tileHeight": 16,
+  "spriteSheets": [
+    "sheets/dungeon-tiles.sprite.json"
+  ],
+  "entities": [
+    "entities/player-spawn.entity.json",
+    "entities/trigger-zone.entity.json"
+  ],
+  "scenes": [
+    "scenes/level-01.map.json"
+  ],
+  "scripts": "scripts/",
+  "startScene": "level_01"
+}

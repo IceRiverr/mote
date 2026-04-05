@@ -1,0 +1,25 @@
+{
+  "id": "dungeon_tiles",
+  "name": "Dungeon Tiles",
+  "image": "./dungeon-tiles.png",
+  "imageWidth": 256,
+  "imageHeight": 256,
+  "slicing": {
+    "mode": "grid",
+    "tileWidth": 16,
+    "tileHeight": 16,
+    "margin": 0,
+    "spacing": 0
+  },
+  "frames": {
+    "floor_0": { "x": 0, "y": 0, "w": 16, "h": 16, "tags": ["floor"] },
+    "floor_1": { "x": 16, "y": 0, "w": 16, "h": 16, "tags": ["floor"] },
+    "wall_top": { "x": 32, "y": 0, "w": 16, "h": 16, "collider": [{"type": "full"}], "tags": ["wall"] },
+    "wall_side": { "x": 48, "y": 0, "w": 16, "h": 16, "collider": [{"type": "full"}], "tags": ["wall"] },
+    "wall_corner_nw": { "x": 64, "y": 0, "w": 16, "h": 16, "collider": [{"type": "full"}], "tags": ["wall"] },
+    "slope_ne": { "x": 80, "y": 0, "w": 16, "h": 16, "collider": [{"type": "slope", "direction": "NE"}], "tags": ["slope"] },
+    "platform": { "x": 96, "y": 0, "w": 16, "h": 16, "collider": [{"type": "rect", "x": 0, "y": 0, "w": 16, "h": 8}], "tags": ["platform"] },
+    "door": { "x": 112, "y": 0, "w": 16, "h": 16, "tags": ["interactive"] },
+    "chest": { "x": 0, "y": 16, "w": 16, "h": 16, "collider": [{"type": "rect", "x": 2, "y": 4, "w": 12, "h": 12}], "tags": ["interactive"] }
+  }
+}

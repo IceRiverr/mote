@@ -69,16 +69,19 @@ interface SceneData {
 interface SceneLayer {
   name: string;
   type: string; // "tile" | "entity"
-  data?: number[];        // tile layer: array of tile indices
-  tilesetId?: string;     // tile layer: which sprite sheet
+  data?: number[] | string[];  // tile layer: array of tile indices or names
+  encoding?: string;           // "index" | "names"
+  tilesetId?: string;          // tile layer: which sprite sheet
+  spriteSheet?: string;        // alternative to tilesetId
   entities?: SceneEntity[];
 }
 
 interface SceneEntity {
   id: string;
-  templateId: string;
-  x: number; // grid X
-  y: number; // grid Y
+  templateId?: string;
+  template?: string;  // Alternative field name used in scene files
+  x: number; // pixel X (will be converted to grid)
+  y: number; // pixel Y (will be converted to grid)
   fields: Record<string, any>;
 }
 
@@ -257,15 +260,27 @@ function getTileFrameName(tileIndex: number): string | null {
 
 function renderTileLayer(): void {
   if (!tileLayer || !tileLayer.data) return;
-  const sheetId = tileLayer.tilesetId || 'tower-tiles';
+  const sheetId = tileLayer.tilesetId || tileLayer.spriteSheet || 'tower-tiles';
+  const encoding = tileLayer.encoding || 'index';
 
   for (let row = 0; row < GRID_H; row++) {
     for (let col = 0; col < GRID_W; col++) {
       const idx = row * GRID_W + col;
-      const tileIndex = tileLayer.data[idx];
-      if (tileIndex === undefined || tileIndex < 0) continue;
+      const tileData = tileLayer.data[idx];
+      if (tileData === undefined || tileData === null) continue;
 
-      const frameName = getTileFrameName(tileIndex);
+      let frameName: string | null = null;
+
+      if (encoding === 'names') {
+        // Data is already frame names (strings)
+        frameName = tileData as string;
+      } else {
+        // Data is numeric indices
+        const tileIndex = tileData as number;
+        if (tileIndex < 0) continue;
+        frameName = getTileFrameName(tileIndex);
+      }
+
       if (!frameName) continue;
 
       drawSpriteFrame(ctx, sheetId, frameName, col * TILE_SIZE, row * TILE_SIZE);
@@ -279,7 +294,7 @@ function renderTileLayer(): void {
  * Determine which sprite sheet and frame to use for an entity instance.
  */
 function getEntitySprite(entity: SceneEntity): { sheetId: string; frameName: string } | null {
-  const t = entity.templateId;
+  const t = entity.templateId || entity.template || '';
   const f = entity.fields;
 
   switch (t) {
@@ -337,10 +352,10 @@ function renderEntities(): void {
     if (isEntityRemoved(state, sceneId, entity.id)) continue;
 
     // Skip player entity (rendered separately)
-    if (entity.templateId === 'player') continue;
+    if ((entity.templateId || entity.template) === 'player') continue;
 
     // Check trigger walls: if their event has fired, they may be gone
-    if (entity.templateId === 'trigger_wall') {
+    if ((entity.templateId || entity.template) === 'trigger_wall') {
       const triggerEvent = entity.fields.triggerEvent || '';
       const disappearOnTrigger = entity.fields.disappearOnTrigger !== false;
       if (triggerEvent && isEventFired(triggerEvent) && disappearOnTrigger) {
@@ -353,8 +368,11 @@ function renderEntities(): void {
     const sprite = getEntitySprite(entity);
     if (!sprite) continue;
 
-    const px = entity.x * TILE_SIZE;
-    const py = entity.y * TILE_SIZE;
+    // Entity coordinates are in pixels, convert to grid for rendering
+    const gridX = Math.floor(entity.x / TILE_SIZE);
+    const gridY = Math.floor(entity.y / TILE_SIZE);
+    const px = gridX * TILE_SIZE;
+    const py = gridY * TILE_SIZE;
     drawSpriteFrame(ctx, sprite.sheetId, sprite.frameName, px, py);
   }
 }
@@ -471,10 +489,13 @@ function getEntitiesAt(gx: number, gy: number): SceneEntity[] {
   const sceneId = currentScene?.id || '';
 
   return entityLayer.entities.filter((e) => {
-    if (e.x !== gx || e.y !== gy) return false;
+    // Entity coordinates are in pixels, convert to grid for comparison
+    const eGridX = Math.floor(e.x / TILE_SIZE);
+    const eGridY = Math.floor(e.y / TILE_SIZE);
+    if (eGridX !== gx || eGridY !== gy) return false;
     if (isEntityRemoved(state, sceneId, e.id)) return false;
     // Check trigger walls dynamically
-    if (e.templateId === 'trigger_wall') {
+    if ((e.templateId || e.template) === 'trigger_wall') {
       const triggerEvent = e.fields.triggerEvent || '';
       const disappearOnTrigger = e.fields.disappearOnTrigger !== false;
       if (triggerEvent && isEventFired(triggerEvent) && disappearOnTrigger) {
@@ -494,13 +515,26 @@ function isTileWall(gx: number, gy: number): boolean {
   if (!tileLayer || !tileLayer.data) return false;
 
   const idx = gy * GRID_W + gx;
-  const tileIndex = tileLayer.data[idx];
-  if (tileIndex === undefined || tileIndex < 0) return false;
+  const tileData = tileLayer.data[idx];
+  if (tileData === undefined || tileData === null) return false;
 
-  const frameName = getTileFrameName(tileIndex);
+  let frameName: string | null = null;
+  const encoding = tileLayer.encoding || 'index';
+
+  if (encoding === 'names') {
+    // Data is already frame names (strings)
+    frameName = tileData as string;
+  } else {
+    // Data is numeric indices
+    const tileIndex = tileData as number;
+    if (tileIndex < 0) return false;
+    frameName = getTileFrameName(tileIndex);
+  }
+
   if (!frameName) return false;
 
-  const sheet = sheetData.get('tower-tiles');
+  const sheetId = tileLayer.tilesetId || tileLayer.spriteSheet || 'tower-tiles';
+  const sheet = sheetData.get(sheetId);
   if (!sheet) return false;
 
   const frame = sheet.frames[frameName];
@@ -534,7 +568,8 @@ function checkMove(dx: number, dy: number): MoveResult {
   const entities = getEntitiesAt(targetX, targetY);
 
   for (const entity of entities) {
-    switch (entity.templateId) {
+    const template = entity.templateId || entity.template || '';
+    switch (template) {
       case 'door':
         return { type: 'door', entity };
       case 'monster':
@@ -650,7 +685,7 @@ function handleMonsterInteraction(entity: SceneEntity): void {
 
 function handleItemPickup(entity: SceneEntity): void {
   const fields = entity.fields;
-  const t = entity.templateId;
+  const t = entity.templateId || entity.template || '';
   let message = '';
 
   switch (t) {
@@ -724,8 +759,9 @@ function handleItemPickup(entity: SceneEntity): void {
 async function handleStairInteraction(entity: SceneEntity): Promise<void> {
   const fields = entity.fields;
   const targetFloor = fields.targetFloor || 'floor-1';
-  const targetX = typeof fields.targetX === 'number' ? fields.targetX : 6;
-  const targetY = typeof fields.targetY === 'number' ? fields.targetY : 11;
+  // Target coordinates are in pixels, convert to grid
+  const targetX = typeof fields.targetX === 'number' ? Math.floor(fields.targetX / TILE_SIZE) : 6;
+  const targetY = typeof fields.targetY === 'number' ? Math.floor(fields.targetY / TILE_SIZE) : 11;
 
   await loadScene(targetFloor);
 
@@ -770,7 +806,8 @@ async function checkPostMoveEffects(): Promise<void> {
   const sceneId = currentScene?.id || '';
 
   for (const entity of entities) {
-    switch (entity.templateId) {
+    const template = entity.templateId || entity.template || '';
+    switch (template) {
       case 'lava': {
         const damage = entity.fields.damage ?? 100;
         const msg = handleLavaDamage(state, damage);
@@ -935,7 +972,7 @@ function showMonsterBook(): void {
     const sceneId = currentScene?.id || '';
     for (const e of entityLayer.entities) {
       if (!isEntityRemoved(state, sceneId, e.id)) {
-        entities.push({ id: e.id, templateId: e.templateId, fields: e.fields });
+        entities.push({ id: e.id, templateId: e.templateId || e.template || '', fields: e.fields });
       }
     }
   }
@@ -988,9 +1025,10 @@ function showFloorTeleport(): void {
       let foundPos = false;
       if (entityLayer && entityLayer.entities) {
         for (const e of entityLayer.entities) {
-          if (e.templateId === 'stair' && e.fields.direction === 'down') {
-            state.playerX = e.x;
-            state.playerY = e.y;
+          if ((e.templateId || e.template) === 'stair' && e.fields.direction === 'down') {
+            // Entity coordinates are in pixels, convert to grid
+            state.playerX = Math.floor(e.x / TILE_SIZE);
+            state.playerY = Math.floor(e.y / TILE_SIZE);
             foundPos = true;
             break;
           }
@@ -1218,9 +1256,10 @@ async function init(): Promise<void> {
   // Try to find a player entity in the scene to get starting position
   if (entityLayer && entityLayer.entities) {
     for (const e of entityLayer.entities) {
-      if (e.templateId === 'player') {
-        state.playerX = e.x;
-        state.playerY = e.y;
+      if ((e.templateId || e.template) === 'player') {
+        // Entity coordinates are in pixels, convert to grid
+        state.playerX = Math.floor(e.x / TILE_SIZE);
+        state.playerY = Math.floor(e.y / TILE_SIZE);
         state.direction = (e.fields.direction as Direction) || 'down';
         break;
       }

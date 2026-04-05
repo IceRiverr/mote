@@ -76,6 +76,7 @@ export type MapLayer = TileLayer | EntityLayer;
 /* ── Built-in Entity Definitions ───────────────────────────── */
 
 export const BUILTIN_ENTITY_DEFS: EntityDef[] = [
+  // ── 通用 ──
   {
     id: "player_spawn",
     name: "Player Spawn",
@@ -115,6 +116,58 @@ export const BUILTIN_ENTITY_DEFS: EntityDef[] = [
     fields: [
       { id: "order", label: "Order", type: "number", default: 0 },
     ],
+  },
+
+  // ── 游戏专用 (tiny-dungeon) ──
+  {
+    id: "enemy_skeleton",
+    name: "Skeleton",
+    shape: "point",
+    color: "#c0392b",
+    icon: "\uD83D\uDC80",
+    defaultWidth: 16,
+    defaultHeight: 16,
+    resizable: false,
+    fields: [
+      { id: "health", label: "Health", type: "number", default: 30 },
+    ],
+  },
+  {
+    id: "pickup_potion_red",
+    name: "Red Potion",
+    shape: "point",
+    color: "#e74c3c",
+    icon: "\u2764\uFE0F",
+    defaultWidth: 16,
+    defaultHeight: 16,
+    resizable: false,
+    fields: [
+      { id: "amount", label: "Heal Amount", type: "number", default: 20 },
+    ],
+  },
+  {
+    id: "pickup_potion_blue",
+    name: "Blue Potion",
+    shape: "point",
+    color: "#3498db",
+    icon: "\uD83D\uDCA7",
+    defaultWidth: 16,
+    defaultHeight: 16,
+    resizable: false,
+    fields: [
+      { id: "amount", label: "Mana Amount", type: "number", default: 15 },
+    ],
+  },
+  {
+    id: "weapon_axe",
+    name: "Axe",
+    shape: "point",
+    color: "#f39c12",
+    icon: "\uD83E\uDE93",
+    defaultWidth: 16,
+    defaultHeight: 16,
+    resizable: false,
+    fields: [],
   },
 ];
 

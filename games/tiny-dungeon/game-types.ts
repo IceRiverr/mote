@@ -5,7 +5,7 @@
 // 设计原则：
 //   1. 最小化 — 不用 ECS，用朴素的结构体 + 数组
 //   2. 数据驱动 — 实体定义和实例分离
-//   3. 可序列化 — 将来对接编辑器导出的 JSON
+//   3. 可序列化 — 对接编辑器导出的 JSON
 //
 // Sprite Index 约定 (Kenney Tiny Dungeon, 12 columns):
 //   Player:       98
@@ -106,6 +106,25 @@ export const ENTITY_DEFS: Record<string, EntityDef> = {
   },
 };
 
+// ── Editor defId → Game defId 映射 ───────────────────────────────────────────
+// 编辑器里的 EntityDef.id 和游戏里的 ENTITY_DEFS key 命名风格不同
+// 这张表让游戏侧能自动识别编辑器放置的实体
+
+export const EDITOR_TO_GAME_DEF: Record<string, string> = {
+  // 编辑器 defId         → 游戏 defId
+  'player_start':          'player',
+  'player':                'player',
+  'enemy_skeleton':        'skeleton',
+  'pickup_potion_red':     'potion_red',
+  'pickup_potion_blue':    'potion_blue',
+  'weapon_axe':            'axe',
+  // 直接同名的也兜底
+  'skeleton':              'skeleton',
+  'potion_red':            'potion_red',
+  'potion_blue':           'potion_blue',
+  'axe':                   'axe',
+};
+
 
 // ── Layer 4: Entity Instance (运行时实体) ────────────────────────────────────
 
@@ -159,12 +178,13 @@ export interface TileLayerData {
 }
 
 export interface World {
-  map:         TilemapData;
-  entities:    Entity[];
-  playerId:    number;          // player 的 Entity.id
-  weapon:      Weapon;
-  nextEntityId: number;         // 自增 ID 计数器
-  scale:       number;          // 渲染缩放 (2x)
+  map:          TilemapData;
+  entities:     Entity[];
+  playerId:     number;          // player 的 Entity.id
+  weapon:       Weapon;
+  nextEntityId: number;          // 自增 ID 计数器
+  scale:        number;          // 渲染缩放 (2x)
+  solidTiles:   Set<number>;     // P3: 从 tileData.collision 构建的 solid GID 集合
 }
 
 

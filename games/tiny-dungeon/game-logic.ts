@@ -13,15 +13,6 @@ import {
 } from './game-types';
 import type { TextureAtlas } from '@mote/engine';
 
-// ── Solid Tiles ──────────────────────────────────────────────────────────────
-// 暂时硬编码：将来从编辑器的 tileData.collision 导出
-// 这些 GID 对应墙壁/障碍物 tile（需要根据你的地图实际调整）
-
-export const SOLID_TILES = new Set<number>([
-  // 填入墙壁 tile 的 GID
-  15,41,14,16,3,27,5,6,17,18
-]);
-
 // ── Game Update ──────────────────────────────────────────────────────────────
 
 export function gameUpdate(
@@ -43,7 +34,7 @@ export function gameUpdate(
     player.pos = moveWithCollision(
       player.pos, delta,
       player.width / 2, player.height / 2,
-      world.map, world.scale, SOLID_TILES,
+      world.map, world.scale, world.solidTiles,
     );
   }
 

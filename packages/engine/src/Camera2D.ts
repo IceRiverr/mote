@@ -6,6 +6,9 @@ export class Camera2D {
   rotation: number;
   readonly viewport: { width: number; height: number };
 
+  /** 像素对齐：消除 tilemap 接缝。默认开启。 */
+  pixelSnap = true;
+
   private _shakeIntensity = 0;
   private _shakeDuration  = 0;
   private _shakeOffset    = Vec2.zero();
@@ -20,10 +23,17 @@ export class Camera2D {
   getViewProjectionMatrix(): Mat4 {
     const hw = this.viewport.width  * 0.5 / this.zoom;
     const hh = this.viewport.height * 0.5 / this.zoom;
-    const cx = this.position.x + this._shakeOffset.x;
-    const cy = this.position.y + this._shakeOffset.y;
+    let cx = this.position.x + this._shakeOffset.x;
+    let cy = this.position.y + this._shakeOffset.y;
 
-    // Ortho centered on camera position
+    // Pixel snap: 将相机对齐到屏幕像素网格，消除 tile 接缝
+    // 原理：世界坐标 × zoom = 屏幕像素，对齐到整数像素后再除回来
+    if (this.pixelSnap) {
+      cx = Math.round(cx * this.zoom) / this.zoom;
+      cy = Math.round(cy * this.zoom) / this.zoom;
+    }
+
+    // Y-up ortho projection
     const proj = Mat4.ortho(cx - hw, cx + hw, cy - hh, cy + hh, -1, 1);
 
     if (this.rotation !== 0) {

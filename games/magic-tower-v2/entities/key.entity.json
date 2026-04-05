@@ -1,0 +1,10 @@
+{
+  "id": "key", "name": "Key", "sprite": "items:key_yellow",
+  "shape": "rect", "width": 32, "height": 32, "resizable": false,
+  "color": "#FFD700", "icon": "🔑", "script": "scripts/item-pickup.ts",
+  "collider": null,
+  "fields": [
+    {"id":"itemType","label":"类型","type":"string","default":"key"},
+    {"id":"color","label":"钥匙颜色","type":"string","default":"yellow"}
+  ]
+}

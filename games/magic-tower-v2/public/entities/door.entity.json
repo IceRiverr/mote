@@ -1,0 +1,9 @@
+{
+  "id": "door", "name": "Door", "sprite": "tower-tiles:door_yellow",
+  "shape": "rect", "width": 32, "height": 32, "resizable": false,
+  "color": "#FFD700", "icon": "🚪", "script": "scripts/door.ts",
+  "collider": [{"type":"full"}],
+  "fields": [
+    {"id":"color","label":"门颜色","type":"string","default":"yellow"}
+  ]
+}

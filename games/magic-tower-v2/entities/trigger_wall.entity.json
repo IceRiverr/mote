@@ -1,0 +1,10 @@
+{
+  "id": "trigger_wall", "name": "Trigger Wall", "sprite": "tower-tiles:wall_gray",
+  "shape": "rect", "width": 32, "height": 32, "resizable": false,
+  "color": "#7F8C8D", "icon": "🧱", "script": "scripts/trigger-wall.ts",
+  "collider": [{"type":"full"}],
+  "fields": [
+    {"id":"triggerEvent","label":"触发事件","type":"string","default":""},
+    {"id":"disappearOnTrigger","label":"触发后消失","type":"bool","default":true}
+  ]
+}

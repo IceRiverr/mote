@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>魔塔 Magic Tower</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#111; display:flex; justify-content:center; align-items:center; min-height:100vh; font-family:'Courier New',monospace; color:#eee; }
+    #game-wrapper { position:relative; }
+    #game-canvas { image-rendering:pixelated; image-rendering:crisp-edges; display:block; border:2px solid #555; }
+    #hud-top { position:absolute; top:-60px; left:0; right:0; background:rgba(0,0,0,0.8); padding:8px 12px; border-radius:4px; font-size:13px; }
+    #hud-top .row { display:flex; gap:16px; margin:2px 0; }
+    #hud-bottom { position:absolute; bottom:-40px; left:0; right:0; display:flex; gap:8px; justify-content:center; }
+    #hud-bottom button { padding:4px 16px; font-size:12px; background:#333; color:#eee; border:1px solid #666; cursor:pointer; border-radius:3px; }
+    #hud-bottom button:hover { background:#555; }
+    #dialog-overlay { position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); display:none; justify-content:center; align-items:center; }
+    .dialog-box { background:#222; border:2px solid #888; padding:16px; max-width:380px; border-radius:6px; text-align:center; }
+    .dialog-box h3 { color:#FFD700; margin-bottom:8px; }
+    .dialog-box p { margin:4px 0; font-size:13px; }
+    .dialog-box button { margin-top:12px; padding:6px 20px; background:#555; color:#eee; border:1px solid #888; cursor:pointer; border-radius:3px; }
+    .dialog-box button:hover { background:#777; }
+    #floor-label { color:#FFD700; font-weight:bold; }
+  </style>
+</head>
+<body>
+  <div id="game-wrapper">
+    <div id="hud-top">
+      <div class="row"><span id="floor-label">1F 入口大厅</span></div>
+      <div class="row">
+        <span>♥<span id="hp">1000</span></span>
+        <span>⚔<span id="atk">10</span></span>
+        <span>🛡<span id="def">10</span></span>
+        <span>💰<span id="gold">0</span></span>
+      </div>
+      <div class="row">
+        <span>🔑Y:<span id="keys-y">1</span></span>
+        <span>B:<span id="keys-b">0</span></span>
+        <span>R:<span id="keys-r">0</span></span>
+        <span>Lv.<span id="level">1</span></span>
+      </div>
+    </div>
+    <canvas id="game-canvas" width="416" height="416"></canvas>
+    <div id="hud-bottom">
+      <button id="btn-book">📖图鉴</button>
+      <button id="btn-save">💾存档</button>
+      <button id="btn-load">📂读档</button>
+      <button id="btn-teleport">🌀传送</button>
+    </div>
+    <div id="dialog-overlay"><div class="dialog-box" id="dialog-box"></div></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

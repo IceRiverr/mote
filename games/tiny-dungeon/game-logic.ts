@@ -19,6 +19,7 @@ import type { TextureAtlas } from '@mote/engine';
 
 export const SOLID_TILES = new Set<number>([
   // 填入墙壁 tile 的 GID
+  15,41,14,16,3,27,5,6,17,18
 ]);
 
 // ── Game Update ──────────────────────────────────────────────────────────────

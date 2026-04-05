@@ -1,0 +1,28 @@
+{
+  "id": "effects",
+  "name": "Effects",
+  "image": "../images/effects.png",
+  "imageWidth": 128,
+  "imageHeight": 128,
+  "slicing": { "mode": "manual" },
+  "frames": {
+    "nitro_flame_1":  { "x": 0,  "y": 0,  "w": 16, "h": 16 },
+    "nitro_flame_2":  { "x": 16, "y": 0,  "w": 16, "h": 16 },
+    "spark_1":        { "x": 32, "y": 0,  "w": 16, "h": 16 },
+    "spark_2":        { "x": 48, "y": 0,  "w": 16, "h": 16 },
+    "smoke_1":        { "x": 64, "y": 0,  "w": 16, "h": 16 },
+    "smoke_2":        { "x": 80, "y": 0,  "w": 16, "h": 16 },
+
+    "pickup_weapon":  { "x": 0,  "y": 16, "w": 16, "h": 16 },
+    "pickup_nitro":   { "x": 16, "y": 16, "w": 16, "h": 16 },
+    "pickup_health":  { "x": 32, "y": 16, "w": 16, "h": 16 },
+    "pickup_money":   { "x": 48, "y": 16, "w": 16, "h": 16 },
+    "weapon_chain":   { "x": 64, "y": 16, "w": 16, "h": 16 },
+    "weapon_bat":     { "x": 80, "y": 16, "w": 16, "h": 16 },
+    "weapon_pipe":    { "x": 96, "y": 16, "w": 16, "h": 16 },
+
+    "punch_effect":   { "x": 0,  "y": 32, "w": 16, "h": 16 },
+    "hit_effect":     { "x": 16, "y": 32, "w": 16, "h": 16 },
+    "crash_effect":   { "x": 32, "y": 32, "w": 16, "h": 16 }
+  }
+}

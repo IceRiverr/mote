@@ -1,0 +1,23 @@
+{
+  "id": "ui",
+  "name": "UI",
+  "image": "../images/ui.png",
+  "imageWidth": 128,
+  "imageHeight": 64,
+  "slicing": { "mode": "grid", "tileWidth": 16, "tileHeight": 16 },
+  "frames": {
+    "speed_icon":       { "x": 0,  "y": 0,  "w": 16, "h": 16 },
+    "health_icon":      { "x": 16, "y": 0,  "w": 16, "h": 16 },
+    "nitro_icon":       { "x": 32, "y": 0,  "w": 16, "h": 16 },
+    "weapon_icon_fist":  { "x": 48, "y": 0,  "w": 16, "h": 16 },
+    "weapon_icon_chain": { "x": 64, "y": 0,  "w": 16, "h": 16 },
+    "weapon_icon_bat":   { "x": 80, "y": 0,  "w": 16, "h": 16 },
+    "weapon_icon_pipe":  { "x": 96, "y": 0,  "w": 16, "h": 16 },
+
+    "position_bg":       { "x": 0,  "y": 16, "w": 16, "h": 16 },
+    "minimap_player":    { "x": 16, "y": 16, "w": 16, "h": 16 },
+    "minimap_opponent":  { "x": 32, "y": 16, "w": 16, "h": 16 },
+    "minimap_police":    { "x": 48, "y": 16, "w": 16, "h": 16 },
+    "countdown_bg":      { "x": 64, "y": 16, "w": 16, "h": 16 }
+  }
+}

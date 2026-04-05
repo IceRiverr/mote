@@ -1,0 +1,16 @@
+{
+  "id": "traffic-vehicle",
+  "name": "Traffic Vehicle",
+  "sprite": "vehicles:sedan_up",
+  "shape": "rect",
+  "width": 32,
+  "height": 56,
+  "script": "scripts/traffic-vehicle.ts",
+  "collider": [{ "type": "aabb", "x": 2, "y": 4, "w": 28, "h": 48 }],
+  "fields": [
+    { "id": "vehicleType", "type": "string", "default": "sedan" },
+    { "id": "speed", "type": "number", "default": 60 },
+    { "id": "direction", "type": "string", "default": "up" },
+    { "id": "lane", "type": "number", "default": 2 }
+  ]
+}

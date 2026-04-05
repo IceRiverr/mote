@@ -1,0 +1,14 @@
+{
+  "id": "weapon-pickup",
+  "name": "Weapon Pickup",
+  "sprite": "effects:pickup_weapon",
+  "shape": "rect",
+  "width": 32,
+  "height": 32,
+  "script": "scripts/weapon-pickup.ts",
+  "collider": [{ "type": "aabb", "x": 4, "y": 4, "w": 24, "h": 24 }],
+  "fields": [
+    { "id": "weaponType", "type": "string", "default": "chain" },
+    { "id": "collected", "type": "boolean", "default": false }
+  ]
+}

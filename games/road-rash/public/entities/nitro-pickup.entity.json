@@ -1,0 +1,14 @@
+{
+  "id": "nitro-pickup",
+  "name": "Nitro Pickup",
+  "sprite": "effects:pickup_nitro",
+  "shape": "rect",
+  "width": 32,
+  "height": 32,
+  "script": "scripts/nitro-pickup.ts",
+  "collider": [{ "type": "aabb", "x": 4, "y": 4, "w": 24, "h": 24 }],
+  "fields": [
+    { "id": "nitroAmount", "type": "number", "default": 50 },
+    { "id": "collected", "type": "boolean", "default": false }
+  ]
+}

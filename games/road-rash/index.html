@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Road Rash 2D — mote engine</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Courier New', monospace; }
+    #game-container { position: relative; width: 416px; height: 640px; }
+    #game-canvas { display: block; background: #222; image-rendering: pixelated; }
+    
+    /* HUD overlay */
+    #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; color: #fff; }
+    #speed-display { position: absolute; left: 10px; bottom: 10px; font-size: 24px; font-weight: bold; text-shadow: 2px 2px #000; }
+    #speed-unit { font-size: 12px; color: #aaa; }
+    #health-bar-container { position: absolute; left: 10px; top: 10px; width: 120px; height: 12px; background: #333; border: 1px solid #666; }
+    #health-bar { height: 100%; background: #e44; transition: width 0.2s; }
+    #nitro-bar-container { position: absolute; left: 10px; top: 28px; width: 120px; height: 8px; background: #333; border: 1px solid #666; }
+    #nitro-bar { height: 100%; background: #4af; transition: width 0.2s; }
+    #position-display { position: absolute; right: 10px; top: 10px; font-size: 36px; font-weight: bold; text-shadow: 2px 2px #000; }
+    #position-suffix { font-size: 16px; }
+    #weapon-display { position: absolute; right: 10px; bottom: 10px; font-size: 14px; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px; }
+    #distance-display { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 14px; color: #ccc; text-shadow: 1px 1px #000; }
+    #minimap { position: absolute; right: 10px; top: 60px; width: 20px; height: 200px; background: rgba(0,0,0,0.5); border: 1px solid #444; border-radius: 3px; }
+    
+    /* Countdown overlay */
+    #countdown-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); }
+    #countdown-text { font-size: 96px; font-weight: bold; color: #fff; text-shadow: 4px 4px #000; }
+    
+    /* Race result overlay */
+    #result-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.8); }
+    #result-overlay h2 { font-size: 36px; color: #ffd700; margin-bottom: 20px; }
+    #result-details { color: #fff; font-size: 18px; line-height: 2; text-align: center; }
+    #restart-btn { margin-top: 20px; padding: 10px 30px; font-size: 18px; background: #e44; color: #fff; border: none; cursor: pointer; pointer-events: auto; border-radius: 5px; }
+    
+    /* Damage flash */
+    #damage-flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.3); display: none; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas" width="416" height="640"></canvas>
+    <div id="hud">
+      <div id="health-bar-container"><div id="health-bar" style="width:100%"></div></div>
+      <div id="nitro-bar-container"><div id="nitro-bar" style="width:0%"></div></div>
+      <div id="speed-display">0 <span id="speed-unit">km/h</span></div>
+      <div id="position-display">6<span id="position-suffix">th</span></div>
+      <div id="weapon-display">&#x1F44A; Fist</div>
+      <div id="distance-display">4.5 km to finish</div>
+      <div id="minimap"></div>
+    </div>
+    <div id="countdown-overlay"><div id="countdown-text">3</div></div>
+    <div id="result-overlay">
+      <h2 id="result-title">RACE FINISHED</h2>
+      <div id="result-details"></div>
+      <button id="restart-btn">RACE AGAIN</button>
+    </div>
+    <div id="damage-flash"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

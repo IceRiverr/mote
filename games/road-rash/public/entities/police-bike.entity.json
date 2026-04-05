@@ -1,0 +1,29 @@
+{
+  "id": "police-bike",
+  "name": "Police Bike",
+  "sprite": "bikes:police_up",
+  "shape": "rect",
+  "width": 32,
+  "height": 48,
+  "script": "scripts/opponent-ai.ts",
+  "collider": [{ "type": "aabb", "x": 4, "y": 8, "w": 24, "h": 32 }],
+  "fields": [
+    { "id": "riderName", "type": "string", "default": "Officer" },
+    { "id": "color", "type": "string", "default": "police" },
+    { "id": "maxSpeed", "type": "number", "default": 180 },
+    { "id": "acceleration", "type": "number", "default": 80 },
+    { "id": "handling", "type": "number", "default": 7 },
+    { "id": "health", "type": "number", "default": 150 },
+    { "id": "currentSpeed", "type": "number", "default": 0 },
+    { "id": "lane", "type": "number", "default": 2 },
+    { "id": "targetLane", "type": "number", "default": 2 },
+    { "id": "weapon", "type": "string", "default": "baton" },
+    { "id": "aggressiveness", "type": "number", "default": 80 },
+    { "id": "skillLevel", "type": "number", "default": 70 },
+    { "id": "crashed", "type": "boolean", "default": false },
+    { "id": "crashTimer", "type": "number", "default": 0 },
+    { "id": "distance", "type": "number", "default": 0 },
+    { "id": "finished", "type": "boolean", "default": false },
+    { "id": "isPolice", "type": "boolean", "default": true }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "Road Rash 2D",
+  "version": "1.0.0",
+  "engine": "mote-0.1",
+  "tileWidth": 32,
+  "tileHeight": 32,
+  "spriteSheets": [
+    "sheets/road-tiles.sprite.json",
+    "sheets/bikes.sprite.json",
+    "sheets/vehicles.sprite.json",
+    "sheets/effects.sprite.json",
+    "sheets/scenery.sprite.json",
+    "sheets/ui.sprite.json"
+  ],
+  "entities": [
+    "entities/player-bike.entity.json",
+    "entities/opponent-bike.entity.json",
+    "entities/traffic-vehicle.entity.json",
+    "entities/police-bike.entity.json",
+    "entities/weapon-pickup.entity.json",
+    "entities/nitro-pickup.entity.json",
+    "entities/health-pickup.entity.json",
+    "entities/road-hazard.entity.json",
+    "entities/race-controller.entity.json"
+  ],
+  "scenes": [],
+  "scripts": "scripts",
+  "startScene": "track-city"
+}

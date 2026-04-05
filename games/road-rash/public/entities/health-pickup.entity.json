@@ -1,0 +1,14 @@
+{
+  "id": "health-pickup",
+  "name": "Health Pickup",
+  "sprite": "effects:pickup_health",
+  "shape": "rect",
+  "width": 32,
+  "height": 32,
+  "script": "scripts/health-pickup.ts",
+  "collider": [{ "type": "aabb", "x": 4, "y": 4, "w": 24, "h": 24 }],
+  "fields": [
+    { "id": "healAmount", "type": "number", "default": 30 },
+    { "id": "collected", "type": "boolean", "default": false }
+  ]
+}

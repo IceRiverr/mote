@@ -1,0 +1,17 @@
+{
+  "id": "projectile", "name": "投射物", "shape": "rect", "width": 8, "height": 4,
+  "sprite": { "sheetId": "projectiles", "frameId": "arrow" },
+  "collider": [{ "type": "aabb", "x": 0, "y": 0, "w": 8, "h": 4 }],
+  "fields": [
+    { "id": "entityType", "type": "string", "default": "projectile" },
+    { "id": "projectileType", "type": "string", "default": "arrow" },
+    { "id": "damage", "type": "number", "default": 10 },
+    { "id": "aoeRadius", "type": "number", "default": 0 },
+    { "id": "targetX", "type": "number", "default": 0 },
+    { "id": "targetY", "type": "number", "default": 0 },
+    { "id": "rotation", "type": "number", "default": 0 },
+    { "id": "side", "type": "string", "default": "defender" },
+    { "id": "collisionGroup", "type": "number", "default": 4 }
+  ],
+  "scriptPath": "scripts/projectile.ts"
+}

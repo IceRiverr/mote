@@ -1,0 +1,20 @@
+{
+  "id": "siege-engine", "name": "攻城器械", "shape": "rect", "width": 48, "height": 48,
+  "sprite": { "sheetId": "siege-engines", "frameId": "trebuchet_idle" },
+  "collider": [{ "type": "aabb", "x": 0, "y": 0, "w": 48, "h": 48 }],
+  "fields": [
+    { "id": "entityType", "type": "string", "default": "siege_engine" },
+    { "id": "engineType", "type": "string", "default": "trebuchet" },
+    { "id": "hp", "type": "number", "default": 150 },
+    { "id": "maxHp", "type": "number", "default": 150 },
+    { "id": "damage", "type": "number", "default": 40 },
+    { "id": "range", "type": "number", "default": 400 },
+    { "id": "reloadTime", "type": "number", "default": 8.0 },
+    { "id": "reloadProgress", "type": "number", "default": 0 },
+    { "id": "state", "type": "string", "default": "idle" },
+    { "id": "onFire", "type": "boolean", "default": false },
+    { "id": "operatorCount", "type": "number", "default": 0 },
+    { "id": "collisionGroup", "type": "number", "default": 8 }
+  ],
+  "scriptPath": "scripts/siege-engine.ts"
+}

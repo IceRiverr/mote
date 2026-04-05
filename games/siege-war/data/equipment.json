@@ -1,0 +1,19 @@
+{
+  "equipment": {
+    "rolling_logs": { "name": "滚木", "cost": 10, "type": "wall_drop", "damage": 30, "aoe": 1.5, "uses": 1 },
+    "rocks": { "name": "礌石", "cost": 10, "type": "wall_drop", "damage": 25, "aoe": 1.0, "uses": 1 },
+    "fire_oil_barrel": { "name": "火油桶", "cost": 150, "type": "wall_pour", "damage": 40, "dot": 15, "dotDuration": 3.0, "uses": 1 },
+    "boiling_excrement": { "name": "金汁", "cost": 100, "type": "wall_pour", "damage": 20, "debuff": { "type": "infection", "attackSpeedMult": 0.7, "duration": 5.0 }, "uses": 1 },
+    "caltrops": { "name": "铁蒺藜", "cost": 20, "type": "ground_scatter", "damage": 5, "slowFactor": 0.5, "area": 3 },
+    "bed_crossbow": { "name": "床弩", "cost": 800, "type": "emplacement", "damage": 80, "range": 300, "penetration": true, "reloadTime": 5.0 },
+    "lime_pot": { "name": "石灰罐", "cost": 50, "type": "thrown", "aoe": 2.0, "debuff": { "type": "blind", "accuracyMult": 0.3, "duration": 4.0 } },
+    "fire_ball": { "name": "万人敌", "cost": 200, "type": "wall_drop", "damage": 60, "aoe": 3.0, "fire": true },
+    "listening_pot": { "name": "听瓮", "cost": 300, "type": "underground", "detectionRadius": 160 },
+    "siege_ladder": { "name": "云梯", "cost": 100, "type": "attacker_siege", "hp": 50, "climbSpeed": 1.0 },
+    "battering_ram": { "name": "攻城锤", "cost": 500, "type": "attacker_siege", "hp": 200, "gateDamage": 15, "moveSpeed": 15 },
+    "trebuchet": { "name": "投石机", "cost": 800, "type": "attacker_siege", "hp": 150, "damage": 40, "range": 400, "aoe": 2.5, "reloadTime": 8.0 },
+    "siege_tower": { "name": "巢车", "cost": 600, "type": "attacker_siege", "hp": 180, "archerSlots": 10, "moveSpeed": 10 },
+    "tortoise_shell": { "name": "尖头木驴", "cost": 300, "type": "attacker_siege", "hp": 120, "protectedSlots": 8, "moveSpeed": 20 },
+    "moat_fill_cart": { "name": "填壕车", "cost": 200, "type": "attacker_siege", "hp": 80, "fillSpeed": 1.0 }
+  }
+}

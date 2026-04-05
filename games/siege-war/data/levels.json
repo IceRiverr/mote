@@ -1,0 +1,54 @@
+{
+  "campaign": {
+    "chapters": [
+      { "id": "ch1", "name": "墨子之道", "subtitle": "教学", "levels": ["level-01", "level-02"] },
+      { "id": "ch2", "name": "战国烽烟", "levels": ["level-03", "level-04"] },
+      { "id": "ch3", "name": "楚汉风云", "levels": ["level-05", "level-06"] },
+      { "id": "ch4", "name": "三国争霸", "levels": ["level-07", "level-08", "level-09"] },
+      { "id": "ch5", "name": "铁血大唐", "levels": ["level-10", "level-11"] },
+      { "id": "ch6", "name": "靖康前夜", "levels": ["level-12", "level-13"] },
+      { "id": "ch7", "name": "钓鱼城——最终之战", "levels": ["level-14", "level-15"] }
+    ]
+  },
+  "levels": {
+    "level-01": {
+      "name": "墨子守宋·基础防御",
+      "scene": "level-01-mozi-basic",
+      "side": "defender",
+      "budget": 2000,
+      "rounds": 3,
+      "tutorialFlags": ["basic_deploy", "basic_fire", "push_ladder", "rolling_logs"],
+      "enemyWaves": [
+        { "round": 1, "type": "infantry_charge", "count": 30 },
+        { "round": 2, "type": "ladder_assault", "count": 40, "ladders": 3 },
+        { "round": 3, "type": "ram_advance", "count": 50, "rams": 1 }
+      ],
+      "winCondition": { "type": "survive_rounds", "rounds": 3 },
+      "loseConditions": [
+        { "type": "gate_hp_zero" },
+        { "type": "enemies_in_city", "threshold": 20 }
+      ],
+      "stars": [
+        { "condition": "win", "label": "击退全部" },
+        { "condition": "wall_intact", "label": "城墙完好" },
+        { "condition": "casualties_lt", "value": 10, "label": "伤亡<10" }
+      ],
+      "availableUnits": ["archer_basic", "swordsman_basic"],
+      "availableEquipment": ["rolling_logs", "rocks"]
+    },
+    "level-02": { "name": "墨子守宋·全面防线", "scene": "level-02-mozi-advanced", "side": "defender", "budget": 3000, "rounds": 5 },
+    "level-03": { "name": "田单守即墨", "scene": "level-03-tiandan", "side": "defender", "budget": 3500, "rounds": 5 },
+    "level-04": { "name": "白起攻鄢城", "scene": "level-04-baiqi", "side": "attacker", "budget": 4000, "rounds": 5 },
+    "level-05": { "name": "巨鹿之战", "scene": "level-05-julu", "side": "attacker", "budget": 4500, "rounds": 6, "tutorialFlags": ["first_tunnel"] },
+    "level-06": { "name": "荥阳守城", "scene": "level-06-xingyang", "side": "defender", "budget": 4000, "rounds": 6, "tutorialFlags": ["listening_pot", "counter_tunnel"] },
+    "level-07": { "name": "张辽守合肥", "scene": "level-07-hefei", "side": "defender", "budget": 5000, "rounds": 7 },
+    "level-08": { "name": "陆逊攻荆州", "scene": "level-08-jingzhou", "side": "attacker", "budget": 5000, "rounds": 6 },
+    "level-09": { "name": "诸葛亮攻陈仓", "scene": "level-09-chencang", "side": "attacker", "budget": 5500, "rounds": 7, "tutorialFlags": ["multi_tunnel", "noise_decoy"] },
+    "level-10": { "name": "安市城之战", "scene": "level-10-anshi", "side": "defender", "budget": 5000, "rounds": 8 },
+    "level-11": { "name": "张巡守睢阳", "scene": "level-11-suiyang", "side": "defender", "budget": 3000, "rounds": 10, "specialMechanics": ["straw_men", "food_system", "night_sortie"] },
+    "level-12": { "name": "太原保卫战", "scene": "level-12-taiyuan", "side": "defender", "budget": 4000, "rounds": 8 },
+    "level-13": { "name": "东京保卫战", "scene": "level-13-dongjing", "side": "defender", "budget": 6000, "rounds": 8 },
+    "level-14": { "name": "钓鱼城", "scene": "level-14-diaoyucheng", "side": "defender", "budget": 7000, "rounds": 5, "specialMechanics": ["counterweight_trebuchet", "water_gate", "hidden_ending"] },
+    "level-15": { "name": "襄阳之战", "scene": "level-15-xiangyang", "side": "defender", "budget": 6000, "rounds": 8, "specialMechanics": ["counterweight_trebuchet"] }
+  }
+}

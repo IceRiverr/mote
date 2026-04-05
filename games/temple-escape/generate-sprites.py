@@ -12,7 +12,7 @@ import os
 from PIL import Image, ImageDraw
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(BASE, "public", "images")
+OUT = os.path.join(BASE, "images")
 os.makedirs(OUT, exist_ok=True)
 
 # ─── Helper ────────────────────────────────────────────────────────

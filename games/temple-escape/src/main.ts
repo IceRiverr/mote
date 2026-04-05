@@ -137,10 +137,12 @@ function spawnChunk(sceneId: string) {
       for (const inst of (layer as EntityLayerData).entities) {
         const def = entityDefs.get(inst.template);
         if (!def) continue;
+        // Flip Y: inst.y is from top, convert to from bottom
+        const flippedInstY = heightPx - inst.y - inst.height;
         entities.push({
           def, inst,
           worldX: inst.x + 0, // chunks are always at x=0
-          worldY: inst.y + worldY,
+          worldY: flippedInstY + worldY,
           w: inst.width || def.width,
           h: inst.height || def.height,
           visible: true,
@@ -383,8 +385,11 @@ function renderChunk(chunk: ActiveChunk, viewTop: number, viewBottom: number) {
       const sheet = spriteSheets.get(tl.spriteSheet);
       if (!sheet) continue;
 
+      // Render tiles from bottom to top (flip Y to match game scroll direction)
       for (let y = 0; y < scene.height; y++) {
-        const worldY = chunk.worldY + y * th;
+        // Flip Y: map data y=0 (top) -> worldY at bottom of chunk
+        const flippedY = scene.height - 1 - y;
+        const worldY = chunk.worldY + flippedY * th;
         if (worldY + th < viewTop || worldY > viewBottom) continue; // cull
 
         for (let x = 0; x < scene.width; x++) {
@@ -511,6 +516,12 @@ function startGame() {
   spawnChunk('chunk-straight-easy');
   spawnChunk('chunk-straight-easy');
   spawnChunk('chunk-medium');
+
+  // Position camera at first chunk's center so player starts on ground
+  if (activeChunks.length > 0) {
+    const firstChunk = activeChunks[0];
+    cameraY = firstChunk.worldY + firstChunk.heightPx / 2;
+  }
 
   running = true;
   lastTime = performance.now();

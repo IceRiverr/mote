@@ -1,0 +1,15 @@
+{
+  "id": "exit_marker",
+  "name": "Exit Marker",
+  "shape": "point",
+  "width": 16,
+  "height": 16,
+  "resizable": false,
+  "color": "#FF00FF",
+  "icon": "⬆",
+  "collider": null,
+  "fields": [
+    { "id": "exits", "label": "Exits", "type": "string", "default": "left,right" },
+    { "id": "nextChunkPool", "label": "Next Chunk Pool", "type": "string", "default": "straight,turn_left,turn_right" }
+  ]
+}

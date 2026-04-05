@@ -1,0 +1,19 @@
+{
+  "id": "spike_trap",
+  "name": "Spike Trap",
+  "sprite": "traps:spike_up",
+  "shape": "rect",
+  "width": 16,
+  "height": 16,
+  "resizable": false,
+  "color": "#AAAAAA",
+  "icon": "🔺",
+  "script": "scripts/spike-trap.ts",
+  "collider": [
+    { "type": "rect", "x": 2, "y": 8, "w": 12, "h": 8 }
+  ],
+  "fields": [
+    { "id": "interval", "label": "Interval", "type": "number", "default": 2 },
+    { "id": "active", "label": "Active", "type": "bool", "default": true }
+  ]
+}

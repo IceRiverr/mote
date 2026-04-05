@@ -1,0 +1,93 @@
+{
+  "id": "chunk-turn-right",
+  "name": "Turn Right",
+  "width": 5,
+  "height": 15,
+  "tileWidth": 16,
+  "tileHeight": 16,
+  "spriteSheets": ["temple-tiles"],
+  "layers": [
+    {
+      "id": "ground",
+      "name": "ground",
+      "type": "tile",
+      "visible": true,
+      "opacity": 1,
+      "locked": false,
+      "spriteSheet": "temple-tiles",
+      "encoding": "names",
+      "data": [
+        "frame_0", "frame_8", "frame_8", "frame_8", "frame_0",
+        "frame_0", "frame_8", "frame_8", "frame_8", "frame_0",
+        "frame_0", "frame_8", "frame_8", "frame_8", "frame_0",
+        "frame_0", "frame_8", "frame_8", "frame_8", "frame_0",
+        "frame_0", "frame_8", "frame_8", "frame_8", "frame_0",
+        "frame_0", "frame_8", "frame_8", "frame_8", "frame_0",
+        "frame_0", "frame_8", "frame_8", "frame_8", "frame_0",
+        "frame_0", "frame_8", "frame_8", "frame_8", "frame_0",
+        "frame_0", "frame_8", "frame_8", "frame_8", "frame_0",
+        "frame_0", "frame_8", "frame_8", "frame_8", "frame_0",
+        "frame_0", "frame_0", "frame_8", "frame_8", "frame_8",
+        "frame_0", "frame_0", "frame_8", "frame_8", "frame_8",
+        "frame_0", "frame_0", "frame_8", "frame_8", "frame_8",
+        "frame_0", "frame_0", "frame_8", "frame_8", "frame_8",
+        "frame_0", "frame_0", "frame_8", "frame_8", "frame_8"
+      ]
+    },
+    {
+      "id": "gameplay",
+      "name": "gameplay",
+      "type": "entity",
+      "visible": true,
+      "opacity": 1,
+      "locked": false,
+      "entities": [
+        {
+          "id": "ent_exit",
+          "template": "exit_marker",
+          "name": "ExitMarker",
+          "x": 64,
+          "y": 112,
+          "width": 16,
+          "height": 16,
+          "fields": {
+            "exits": "right",
+            "nextChunkPool": "straight,turn_left,turn_right"
+          }
+        },
+        {
+          "id": "ent_turn_arrow",
+          "template": "turn_arrow",
+          "name": "TurnArrow",
+          "x": 32,
+          "y": 96,
+          "width": 16,
+          "height": 16,
+          "fields": {
+            "direction": "right"
+          }
+        },
+        {
+          "id": "ent_gem_1",
+          "template": "gem",
+          "name": "Gem1",
+          "x": 40,
+          "y": 48,
+          "width": 16,
+          "height": 16,
+          "fields": {}
+        },
+        {
+          "id": "ent_gem_2",
+          "template": "gem",
+          "name": "Gem2",
+          "x": 24,
+          "y": 112,
+          "width": 16,
+          "height": 16,
+          "fields": {}
+        }
+      ]
+    }
+  ]
+}

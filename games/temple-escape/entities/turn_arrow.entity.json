@@ -1,0 +1,15 @@
+{
+  "id": "turn_arrow",
+  "name": "Turn Arrow",
+  "sprite": "ui:arrow_left",
+  "shape": "point",
+  "width": 16,
+  "height": 16,
+  "resizable": false,
+  "color": "#FFFFFF",
+  "icon": "↩",
+  "collider": null,
+  "fields": [
+    { "id": "direction", "label": "Direction", "type": "string", "default": "left" }
+  ]
+}

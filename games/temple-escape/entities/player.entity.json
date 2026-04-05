@@ -1,0 +1,18 @@
+{
+  "id": "player",
+  "name": "Player",
+  "sprite": "characters:player_idle",
+  "shape": "rect",
+  "width": 16,
+  "height": 24,
+  "resizable": false,
+  "color": "#00FF00",
+  "icon": "🏃",
+  "script": "scripts/player.ts",
+  "collider": null,
+  "fields": [
+    { "id": "speed", "label": "Speed", "type": "number", "default": 120 },
+    { "id": "jumpForce", "label": "Jump Force", "type": "number", "default": 280 },
+    { "id": "lane", "label": "Lane", "type": "number", "default": 1 }
+  ]
+}

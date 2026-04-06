@@ -137,7 +137,8 @@ export async function loadProject(
   // Resolve image URLs relative to each sheet JSON path, then load in parallel
   const imgUrls: string[] = sheetJsons.map((json, i) => {
     const sheetPath = project.spriteSheets[i];
-    return new URL(json.image, basePath + sheetPath).href;
+    const sheetDir = sheetPath.substring(0, sheetPath.lastIndexOf('/') + 1);
+    return basePath + sheetDir + json.image;
   });
 
   const loadedImgs = await Promise.all(imgUrls.map(loadImage));

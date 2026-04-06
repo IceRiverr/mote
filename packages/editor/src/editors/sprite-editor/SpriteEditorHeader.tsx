@@ -20,11 +20,12 @@ import {
   formatZoom,
 } from './state';
 import {
-  importTileSheetAtlas,
-  importPackedAtlas,
-  importXmlAtlas,
-  importLooseFiles,
-} from '../../data/atlas-import';
+  importGridSpriteSheet,
+  importPackedSpriteSheet,
+  importXmlSpriteSheet,
+  importLooseSpriteSheet,
+} from '../../data/sprite-sheet-import';
+import { addSpriteSheet } from '../../store/spriteSheet';
 
 // ── Import Popover ────────────────────────────────────────────
 
@@ -59,21 +60,25 @@ function ImportPopover({ onDone }: { onDone: () => void }) {
       if (mode === 'tilesheet') {
         const imgFile = files.find((f) => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
         if (!imgFile) throw new Error('未找到图片文件');
-        await importTileSheetAtlas(imgFile, tileW, tileH, margin, spacing);
+        const { sheet, img } = await importGridSpriteSheet(imgFile, tileW, tileH, margin, spacing);
+        addSpriteSheet(sheet, img);
       } else if (mode === 'packed') {
         const jsonFile = files.find((f) => f.name.endsWith('.json'));
         const imgFile = files.find((f) => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
         if (!jsonFile || !imgFile) throw new Error('需要 JSON + 图片文件');
-        await importPackedAtlas(jsonFile, imgFile);
+        const { sheet, img } = await importPackedSpriteSheet(jsonFile, imgFile);
+        addSpriteSheet(sheet, img);
       } else if (mode === 'xml') {
         const xmlFile = files.find((f) => /\.(xml|txt)$/i.test(f.name));
         const imgFile = files.find((f) => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
         if (!xmlFile || !imgFile) throw new Error('需要 XML + 图片文件');
-        await importXmlAtlas(xmlFile, imgFile);
+        const { sheet, img } = await importXmlSpriteSheet(xmlFile, imgFile);
+        addSpriteSheet(sheet, img);
       } else {
         const imgFiles = files.filter((f) => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
         if (imgFiles.length < 2) throw new Error('至少需要 2 张图片');
-        await importLooseFiles(imgFiles);
+        const { sheet, img } = await importLooseSpriteSheet(imgFiles);
+        addSpriteSheet(sheet, img);
       }
       onDone();
     } catch (e: any) {

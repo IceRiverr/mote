@@ -28,7 +28,7 @@ import { PaintTilesCommand } from "../../commands/paint";
 import { MoveSelectionCommand } from "../../commands/selection";
 import { AddEntityCommand, MoveEntityCommand } from "../../commands/entity";
 import { activeEntityLayer } from "../../store/project";
-import { spriteAtlases, atlasImages } from "../../store/atlas";
+
 import { resolveGid, isTileLayer, isEntityLayer, getEntityDef } from "../../data/TileMap";
 import type { EntityInstance } from "../../data/TileMap";
 import { getTileSrcRect } from "../../data/TileSet";
@@ -226,7 +226,6 @@ export function ViewportCanvas() {
     gridColor.value,
     selectedEntityId.value,
     entityDragId.value,
-    spriteAtlases.value,
   ]);
 
   const draw = useCallback(() => {
@@ -294,8 +293,10 @@ export function ViewportCanvas() {
       if (!isEntityLayer(layer)) continue;
       ctx.globalAlpha = layer.opacity;
 
-      const aImages = atlasImages.value;
-      const aList = spriteAtlases.value;
+      // Sprite rendering temporarily disabled (old atlas system removed)
+      // TODO: migrate to new spriteSheet system
+      const aImages = new Map<string, HTMLImageElement>();
+      const aList: any[] = [];
 
       for (const entity of layer.entities) {
         if (!entity.visible) continue;

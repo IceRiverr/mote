@@ -6,7 +6,6 @@
 
 import { useRef, useEffect, useCallback, useState } from 'preact/hooks';
 import type { SpriteSheet, FrameData } from '../../data/SpriteSheet';
-import type { ColliderData } from '../../data/Collider';
 import { drawColliderOverlay, drawColliderBadge } from './ColliderOverlay';
 import { FrameContextMenu } from './FrameContextMenu';
 import {
@@ -23,19 +22,6 @@ import {
   spriteSheets,
   stepZoom,
 } from './state';
-
-// ── Frame extra data accessor (mirrors FrameContextMenu) ──────
-
-interface FrameExtraData {
-  collider?: ColliderData;
-  tags?: string[];
-  properties?: Record<string, unknown>;
-}
-
-function getFrameExtra(sheet: SpriteSheet, frameId: string): FrameExtraData {
-  const extra = (sheet as any).frameExtra as Record<string, FrameExtraData> | undefined;
-  return extra?.[frameId] ?? {};
-}
 
 // ── Grid layout helpers ───────────────────────────────────────
 
@@ -257,31 +243,29 @@ export function SpriteEditorCanvas() {
     if (showColliders) {
       for (let i = 0; i < frames.length; i++) {
         const entry = frames[i];
-        const extra = getFrameExtra(sheet, entry.id);
-        if (!extra.collider || extra.collider.shapes.length === 0) continue;
+        if (!entry.frame.collider || entry.frame.collider.length === 0) continue;
         const col = i % cols;
         const row = Math.floor(i / cols);
         drawColliderOverlay(
           ctx,
-          extra.collider.shapes,
+          entry.frame.collider,
           col * cellW, row * cellH,
           cellW, cellH,
-          extra.collider.oneWay,
+          false, // oneWay not yet supported in FrameData
         );
       }
     } else {
       // Draw small badges for frames that have colliders
       for (let i = 0; i < frames.length; i++) {
         const entry = frames[i];
-        const extra = getFrameExtra(sheet, entry.id);
-        if (!extra.collider || extra.collider.shapes.length === 0) continue;
+        if (!entry.frame.collider || entry.frame.collider.length === 0) continue;
         const col = i % cols;
         const row = Math.floor(i / cols);
         drawColliderBadge(
           ctx,
           col * cellW, row * cellH,
           cellW, cellH,
-          extra.collider.oneWay,
+          false, // oneWay not yet supported in FrameData
         );
       }
     }
@@ -390,20 +374,18 @@ export function SpriteEditorCanvas() {
 
       // Collider overlay or badge
       if (showColliders) {
-        const extra = getFrameExtra(sheet, entry.id);
-        if (extra.collider && extra.collider.shapes.length > 0) {
+        if (entry.frame.collider && entry.frame.collider.length > 0) {
           drawColliderOverlay(
             ctx,
-            extra.collider.shapes,
+            entry.frame.collider,
             cx, cy,
             cellSize, cellSize,
-            extra.collider.oneWay,
+            false, // oneWay not yet supported in FrameData
           );
         }
       } else {
-        const extra = getFrameExtra(sheet, entry.id);
-        if (extra.collider && extra.collider.shapes.length > 0) {
-          drawColliderBadge(ctx, cx, cy, cellSize, cellSize, extra.collider.oneWay);
+        if (entry.frame.collider && entry.frame.collider.length > 0) {
+          drawColliderBadge(ctx, cx, cy, cellSize, cellSize, false);
         }
       }
 

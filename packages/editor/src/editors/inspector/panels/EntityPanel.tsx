@@ -6,7 +6,7 @@ import { activeEntityDefId, selectedEntityId, activeTool } from "../../../store/
 import { currentMap, activeLayer, activeLayerId } from "../../../store/project";
 import { executeCommand } from "../../../store/history";
 import { RemoveEntityCommand, SetEntityPropertyCommand } from "../../../commands/entity";
-import { spriteAtlases, activeAtlasId } from "../../../store/atlas";
+
 
 export function EntityPanel() {
   const layer = activeLayer.value;

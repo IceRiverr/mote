@@ -1,12 +1,10 @@
-// Register ALL editors (old + new)
-import "./editors/tile-palette/register";    // preserved: backward compat
+// Register ALL editors
 import "./editors/viewport/register";
 import "./editors/inspector/register";
-import "./editors/sprite-panel/register";    // preserved: backward compat
-import "./editors/sprite-editor/register";   // new: unified sprite editor
-import "./editors/assets/register";          // new: assets browser
-import "./editors/scene-tree/register";      // new: scene tree
-import "./editors/console/register";         // new: console
+import "./editors/sprite-editor/register";
+import "./editors/assets/register";
+import "./editors/scene-tree/register";
+import "./editors/console/register";
 
 import { useEffect } from "preact/hooks";
 import { LayoutRoot } from "./components/LayoutRoot";

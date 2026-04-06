@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ColliderShape } from '../../data/Collider';
 import { COLLIDER_PRESETS } from '../../data/Collider';
 import type { ColliderData } from '../../data/Collider';
-import { spriteSheets, activeSpriteSheet } from './state';
+import { spriteSheets, activeSpriteSheet, setFrameCollider, setFrameTags } from '../../store/spriteSheet';
 import type { SpriteSheet, FrameData } from '../../data/SpriteSheet';
 
 // ── Types ─────────────────────────────────────────────────────
@@ -20,60 +20,19 @@ interface Props {
   onClose: () => void;
 }
 
-/**
- * Extended frame data stored alongside FrameData.
- * This mirrors the structure that will be in the unified SpriteSheet store.
- * For now, we store it in a side-map on the sheet object via a type assertion.
- */
-interface FrameExtraData {
-  collider?: ColliderData;
-  tags?: string[];
-  properties?: Record<string, unknown>;
-}
-
 // ── Frame data helpers ────────────────────────────────────────
 
-/**
- * Get extra data for a frame. We store this in a `frameExtra` map
- * on the SpriteSheet object, cast as needed.
- */
-function getFrameExtra(sheet: SpriteSheet, frameId: string): FrameExtraData {
-  const extra = (sheet as any).frameExtra as Record<string, FrameExtraData> | undefined;
-  return extra?.[frameId] ?? {};
+/** Get collider data directly from FrameData */
+function getFrameCollider(frame: FrameData): ColliderData | undefined {
+  if (frame.collider && frame.collider.length > 0) {
+    return { shapes: frame.collider };
+  }
+  return undefined;
 }
 
-function setFrameExtra(sheetId: string, frameId: string, data: FrameExtraData): void {
-  spriteSheets.value = spriteSheets.value.map((sheet) => {
-    if (sheet.id !== sheetId) return sheet;
-    const prev = ((sheet as any).frameExtra ?? {}) as Record<string, FrameExtraData>;
-    const updated = { ...prev, [frameId]: { ...prev[frameId], ...data } };
-    return { ...sheet, frameExtra: updated } as any;
-  });
-}
-
-function updateFrameCollider(
-  sheetId: string,
-  frameId: string,
-  collider: ColliderData | undefined,
-): void {
-  spriteSheets.value = spriteSheets.value.map((sheet) => {
-    if (sheet.id !== sheetId) return sheet;
-    const prev = ((sheet as any).frameExtra ?? {}) as Record<string, FrameExtraData>;
-    const oldData = prev[frameId] ?? {};
-    let newData: FrameExtraData;
-    if (collider) {
-      newData = { ...oldData, collider };
-    } else {
-      const { collider: _, ...rest } = oldData;
-      newData = rest;
-    }
-    const updated = { ...prev, [frameId]: newData };
-    return { ...sheet, frameExtra: updated } as any;
-  });
-}
-
-function updateFrameTags(sheetId: string, frameId: string, tags: string[]): void {
-  setFrameExtra(sheetId, frameId, { tags: tags.length > 0 ? tags : undefined });
+/** Get tags directly from FrameData */
+function getFrameTags(frame: FrameData): string[] {
+  return frame.tags ?? [];
 }
 
 // ── Menu item style helpers ───────────────────────────────────
@@ -104,12 +63,10 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
   const frame = sheet.frames[frameId];
   if (!frame) return null;
 
-  const extra = getFrameExtra(sheet, frameId);
-  const collider = extra.collider;
-  const tags = extra.tags ?? [];
-  const properties = extra.properties ?? {};
+  const collider = getFrameCollider(frame);
+  const tags = getFrameTags(frame);
+  const properties = frame.properties ?? {};
   const hasCollider = collider && collider.shapes.length > 0;
-  const isOneWay = collider?.oneWay ?? false;
 
   // Determine frame grid position (for grid-sourced sheets)
   const frameKeys = Object.keys(sheet.frames);
@@ -146,24 +103,12 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
   }, []);
 
   // ── Collider actions ──
-  const setColliderPreset = (shapes: ColliderShape[]) => {
-    updateFrameCollider(sheetId, frameId, { shapes, oneWay: isOneWay });
+  const applyColliderPreset = (shapes: ColliderShape[]) => {
+    setFrameCollider(sheetId, frameId, shapes);
   };
 
   const clearCollider = () => {
-    updateFrameCollider(sheetId, frameId, undefined);
-  };
-
-  const toggleOneWay = () => {
-    if (collider) {
-      updateFrameCollider(sheetId, frameId, { ...collider, oneWay: !isOneWay });
-    } else {
-      // Enable one-way with a full collider
-      updateFrameCollider(sheetId, frameId, {
-        shapes: [{ type: 'full' }],
-        oneWay: true,
-      });
-    }
+    setFrameCollider(sheetId, frameId, undefined);
   };
 
   // ── Tag editing ──
@@ -174,7 +119,7 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
-    updateFrameTags(sheetId, frameId, newTags);
+    setFrameTags(sheetId, frameId, newTags);
     setEditingTags(false);
   };
 
@@ -234,7 +179,7 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
         icon={isPresetActive(COLLIDER_PRESETS.full) ? '\u25A0' : '\u25A1'}
         label="Full Tile"
         active={isPresetActive(COLLIDER_PRESETS.full)}
-        onClick={() => setColliderPreset(COLLIDER_PRESETS.full)}
+        onClick={() => applyColliderPreset(COLLIDER_PRESETS.full)}
       />
 
       {/* Half Top */}
@@ -242,7 +187,7 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
         icon={isPresetActive(COLLIDER_PRESETS.halfTop) ? '\u25AC' : '\u25AD'}
         label="Half Top"
         active={isPresetActive(COLLIDER_PRESETS.halfTop)}
-        onClick={() => setColliderPreset(COLLIDER_PRESETS.halfTop)}
+        onClick={() => applyColliderPreset(COLLIDER_PRESETS.halfTop)}
       />
 
       {/* Half Bottom */}
@@ -250,7 +195,7 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
         icon={isPresetActive(COLLIDER_PRESETS.halfBottom) ? '\u25AC' : '\u25AD'}
         label="Half Bottom"
         active={isPresetActive(COLLIDER_PRESETS.halfBottom)}
-        onClick={() => setColliderPreset(COLLIDER_PRESETS.halfBottom)}
+        onClick={() => applyColliderPreset(COLLIDER_PRESETS.halfBottom)}
       />
 
       {/* Slope NE */}
@@ -258,7 +203,7 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
         icon="\u2571"
         label="Slope NE"
         active={isPresetActive(COLLIDER_PRESETS.slopeNE)}
-        onClick={() => setColliderPreset(COLLIDER_PRESETS.slopeNE)}
+        onClick={() => applyColliderPreset(COLLIDER_PRESETS.slopeNE)}
       />
 
       {/* Slope NW */}
@@ -266,7 +211,7 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
         icon="\u2572"
         label="Slope NW"
         active={isPresetActive(COLLIDER_PRESETS.slopeNW)}
-        onClick={() => setColliderPreset(COLLIDER_PRESETS.slopeNW)}
+        onClick={() => applyColliderPreset(COLLIDER_PRESETS.slopeNW)}
       />
 
       {/* Slope SE */}
@@ -274,7 +219,7 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
         icon="\u2571"
         label="Slope SE"
         active={isPresetActive(COLLIDER_PRESETS.slopeSE)}
-        onClick={() => setColliderPreset(COLLIDER_PRESETS.slopeSE)}
+        onClick={() => applyColliderPreset(COLLIDER_PRESETS.slopeSE)}
       />
 
       {/* Slope SW */}
@@ -282,7 +227,7 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
         icon="\u2572"
         label="Slope SW"
         active={isPresetActive(COLLIDER_PRESETS.slopeSW)}
-        onClick={() => setColliderPreset(COLLIDER_PRESETS.slopeSW)}
+        onClick={() => applyColliderPreset(COLLIDER_PRESETS.slopeSW)}
       />
 
       {/* Custom Rect (stub) */}
@@ -306,11 +251,13 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
       <div style={{ borderTop: '1px solid var(--border)', margin: '2px 0' }} />
 
       {/* ── One-Way Platform ── */}
+      {/* Note: oneWay is stored separately in ColliderData but FrameData only has collider shapes array.
+           For now this is a placeholder - full one-way support needs ColliderData in FrameData. */}
       <MenuItem
-        icon={isOneWay ? '\u2611' : '\u2610'}
+        icon={'\u2610'}
         label="One-Way Platform"
-        active={isOneWay}
-        onClick={toggleOneWay}
+        disabled
+        onClick={() => {}}
       />
 
       {/* ── Separator ── */}
@@ -376,7 +323,7 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
               color: tags.length > 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
             }}
           >
-            {tags.length > 0 ? tags.join(', ') : '点击添加标签\u2026'}
+            {tags.length > 0 ? tags.join(', ') : '点击添加标签…'}
           </div>
         )}
       </div>

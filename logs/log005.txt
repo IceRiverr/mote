@@ -1,10 +1,16 @@
 client:495 [vite] connecting...
 client:618 [vite] connected.
-main.ts:679 Road Rash init failed: TypeError: Failed to construct 'URL': Invalid base URL
-    at canvas-loader.ts:101:12
-    at Array.map (<anonymous>)
-    at loadProject (canvas-loader.ts:98:40)
-    at async init (main.ts:90:18)
-(anonymous) @ main.ts:679
-Promise.catch
-(anonymous) @ main.ts:678
+Input.ts:246 Uncaught Error: Action "Pause" not found in any enabled ActionMap
+    at InputManager.action (Input.ts:246:11)
+    at GameLoop.update [as onUpdate] (main.ts:376:29)
+    at _tick (GameLoop.ts:43:12)
+action @ Input.ts:246
+update @ main.ts:376
+_tick @ GameLoop.ts:43
+requestAnimationFrame
+_tick @ GameLoop.ts:50
+requestAnimationFrame
+start @ GameLoop.ts:23
+init @ main.ts:174
+await in init
+(anonymous) @ main.ts:674

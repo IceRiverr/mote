@@ -1,30 +1,133 @@
-client:495 [vite] connecting...
-client:618 [vite] connected.
-[Violation] 'requestAnimationFrame' handler took <N>ms
-[Violation] 'requestAnimationFrame' handler took <N>ms
-[Violation] 'requestAnimationFrame' handler took <N>ms
-[Violation] 'requestAnimationFrame' handler took <N>ms
-[Violation] 'requestAnimationFrame' handler took <N>ms
-[Violation] 'requestAnimationFrame' handler took <N>ms
-[Violation] 'requestAnimationFrame' handler took <N>ms
-[Violation] 'requestAnimationFrame' handler took <N>ms
-[Violation] 'requestAnimationFrame' handler took <N>ms
-[Violation] 'requestAnimationFrame' handler took <N>ms
-[Violation] 'requestAnimationFrame' handler took <N>ms
-[Violation] 'requestAnimationFrame' handler took <N>ms
-[Violation] 'requestAnimationFrame' handler took <N>ms
-GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 54ms
-GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 51ms
-GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 55ms
-GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 52ms
-GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 59ms
-GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 64ms
-GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 57ms
-GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 63ms
-GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 67ms
-GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 60ms
-GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 58ms
-GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 64ms
-GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 68ms
-[Violation] 'requestIdleCallback' handler took 54ms
-[Violation] 'requestIdleCallback' handler took 67ms
+SpriteEditorCanvas.tsx:276 [drawGridView] Checking colliders for 132 frames
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_0 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_1 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_2 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_3 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_4 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_5 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_6 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_7 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_8 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_9 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_10 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_11 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_12 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_13 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_14 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_15 collider: undefined
+ [drawGridView] Frame frame_16 collider: undefined
+ [drawGridView] Frame frame_17 collider: undefined
+ [drawGridView] Frame frame_18 collider: undefined
+ [drawGridView] Frame frame_19 collider: undefined
+ [drawGridView] Frame frame_20 collider: undefined
+ [drawGridView] Frame frame_21 collider: undefined
+ [drawGridView] Frame frame_22 collider: undefined
+ [drawGridView] Frame frame_23 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_24 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_25 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_26 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_27 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_28 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_29 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_30 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_31 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_32 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_33 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_34 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_35 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_36 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_37 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_38 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_39 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_40 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_41 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_42 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_43 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_44 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_45 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_46 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_47 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_48 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_49 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_50 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_51 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_52 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_53 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_54 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_55 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_56 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_57 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_58 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_59 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_60 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_61 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_62 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_63 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_64 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_65 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_66 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_67 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_68 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_69 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_70 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_71 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_72 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_73 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_74 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_75 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_76 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_77 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_78 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_79 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_80 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_81 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_82 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_83 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_84 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_85 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_86 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_87 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_88 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_89 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_90 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_91 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_92 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_93 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_94 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_95 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_96 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_97 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_98 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_99 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_100 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_101 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_102 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_103 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_104 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_105 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_106 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_107 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_108 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_109 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_110 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_111 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_112 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_113 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_114 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_115 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_116 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_117 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_118 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_119 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_120 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_121 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_122 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_123 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_124 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_125 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_126 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_127 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_128 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_129 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_130 collider: undefined
+SpriteEditorCanvas.tsx:279 [drawGridView] Frame frame_131 collider: undefined

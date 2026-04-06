@@ -16,7 +16,8 @@
     "paths": {
       "@mote/engine": ["../engine/src/index.ts"],
       "@mote/engine/*": ["../engine/src/*"]
-    }
+    },
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

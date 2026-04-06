@@ -11,13 +11,15 @@
     "isolatedModules": true,
     "noEmit": true,
     "outDir": "dist",
+    "ignoreDeprecations": "5.0",
+    "types": ["@webgpu/types"],
     "baseUrl": ".",
     "paths": {
       "@mote/engine": [
-        "../packages/engine/src/index.ts"
+        "../../packages/engine/src/index.ts"
       ],
       "@mote/engine/*": [
-        "../packages/engine/src/*"
+        "../../packages/engine/src/*"
       ]
     }
   },

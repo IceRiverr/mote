@@ -1,6 +1,9 @@
 import { defineConfig } from 'vite';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { readdirSync } from 'fs';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Discover script entry points dynamically
 const scriptDir = resolve(__dirname, 'scripts');
@@ -17,7 +20,7 @@ try {
 export default defineConfig({
   resolve: {
     alias: {
-      '@mote/engine': resolve(__dirname, '../packages/engine/src'),
+      '@mote/engine': resolve(__dirname, '../../packages/engine/src/index.ts'),
     },
   },
   build: {

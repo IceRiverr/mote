@@ -623,7 +623,7 @@ function addEventLog(message: string, type: 'info' | 'warning' | 'success' = 'in
 
 async function init(): Promise<void> {
   // 1. Canvas setup
-  canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
+  canvas = document.getElementById('game') as HTMLCanvasElement;
   canvas.width = CANVAS_W;
   canvas.height = CANVAS_H;
   ctx2d = canvas.getContext('2d')!;

@@ -988,8 +988,10 @@ async function loadLevel(levelId: string): Promise<void> {
 
   // Set camera bounds based on scene size
   if (scene && scene.data) {
-    const worldW = scene.data.width;
-    const worldH = scene.data.height;
+    const tileW = scene.data.tileWidth ?? 32;
+    const tileH = scene.data.tileHeight ?? 32;
+    const worldW = scene.data.width * tileW;
+    const worldH = scene.data.height * tileH;
     (camera as unknown as Record<string, unknown>).bounds = {
       left: 0, right: worldW, top: 0, bottom: worldH,
     };
@@ -998,6 +1000,7 @@ async function loadLevel(levelId: string): Promise<void> {
       ? context.wallSegments.reduce((sum, s) => sum + s.x, 0) / context.wallSegments.length
       : worldW / 2;
     (camera as unknown as Record<string, Function>).panTo(wallCenter, worldH / 2);
+    console.log('[Siege War] Camera positioned at:', wallCenter, worldH / 2, 'World size:', worldW, worldH);
   }
 
   addEventLog(`Loading: ${levelConfig.name}`, 'info');
@@ -1456,8 +1459,9 @@ function render(_alpha: number): void {
   if (scene && scene.data) {
     tileW = scene.data.tileWidth ?? TILE_SIZE;
     tileH = scene.data.tileHeight ?? TILE_SIZE;
-    mapCols = scene.data.width / tileW;
-    mapRows = scene.data.height / tileH;
+    // scene.data.width/height are in tiles, not pixels
+    mapCols = scene.data.width;
+    mapRows = scene.data.height;
 
     for (const layer of scene.layers) {
       if (layer.type === 'tile') {

@@ -234,14 +234,22 @@ export function drawColliderBadge(
   ch: number,
   hasOneWay?: boolean,
 ): void {
-  const badgeSize = Math.min(8, cw / 4, ch / 4);
-  if (badgeSize < 3) return;
+  // Fixed badge size (in screen pixels), clamped to reasonable range
+  const badgeSize = Math.max(4, Math.min(10, Math.min(cw, ch) / 5));
+  
+  // Position: top-right corner with small padding
+  const padding = 2;
+  const bx = cx + cw - badgeSize - padding;
+  const by = cy + padding;
 
-  const bx = cx + cw - badgeSize - 2;
-  const by = cy + 2;
-
-  ctx.fillStyle = hasOneWay ? 'rgba(230, 200, 50, 0.8)' : 'rgba(220, 60, 60, 0.8)';
+  // Draw a small filled circle
+  ctx.fillStyle = hasOneWay ? 'rgba(255, 200, 0, 0.9)' : 'rgba(255, 60, 60, 0.9)';
   ctx.beginPath();
   ctx.arc(bx + badgeSize / 2, by + badgeSize / 2, badgeSize / 2, 0, Math.PI * 2);
   ctx.fill();
+  
+  // Add a subtle border
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
 }

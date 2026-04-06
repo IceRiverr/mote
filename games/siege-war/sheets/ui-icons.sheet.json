@@ -1,0 +1,127 @@
+{
+  "image": "assets/sprites/ui-icons.png",
+  "imageWidth": 128,
+  "imageHeight": 48,
+  "frames": {
+    "icon_food": {
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "icon_arrow_ammo": {
+      "x": 16,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "icon_stone_ammo": {
+      "x": 32,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "icon_oil_ammo": {
+      "x": 48,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "icon_gold": {
+      "x": 64,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "icon_morale": {
+      "x": 80,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "icon_time": {
+      "x": 96,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "icon_star": {
+      "x": 112,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "icon_attack": {
+      "x": 0,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    "icon_defense": {
+      "x": 16,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    "icon_speed": {
+      "x": 32,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    "icon_range": {
+      "x": 48,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    "icon_skill_military": {
+      "x": 64,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    "icon_skill_engineering": {
+      "x": 80,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    "icon_skill_logistics": {
+      "x": 96,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    "icon_skill_espionage": {
+      "x": 112,
+      "y": 16,
+      "w": 16,
+      "h": 16
+    },
+    "icon_pause": {
+      "x": 0,
+      "y": 32,
+      "w": 16,
+      "h": 16
+    },
+    "icon_play": {
+      "x": 16,
+      "y": 32,
+      "w": 16,
+      "h": 16
+    },
+    "icon_fast": {
+      "x": 32,
+      "y": 32,
+      "w": 16,
+      "h": 16
+    },
+    "icon_menu": {
+      "x": 48,
+      "y": 32,
+      "w": 16,
+      "h": 16
+    }
+  }
+}

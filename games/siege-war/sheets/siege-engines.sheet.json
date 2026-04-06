@@ -1,0 +1,223 @@
+{
+  "image": "assets/sprites/siege-engines.png",
+  "imageWidth": 288,
+  "imageHeight": 288,
+  "frames": {
+    "trebuchet_idle": {
+      "x": 0,
+      "y": 0,
+      "w": 48,
+      "h": 48
+    },
+    "trebuchet_move_0": {
+      "x": 48,
+      "y": 0,
+      "w": 48,
+      "h": 48
+    },
+    "trebuchet_move_1": {
+      "x": 96,
+      "y": 0,
+      "w": 48,
+      "h": 48
+    },
+    "trebuchet_fire": {
+      "x": 144,
+      "y": 0,
+      "w": 48,
+      "h": 48
+    },
+    "trebuchet_reload": {
+      "x": 192,
+      "y": 0,
+      "w": 48,
+      "h": 48
+    },
+    "trebuchet_destroyed": {
+      "x": 240,
+      "y": 0,
+      "w": 48,
+      "h": 48
+    },
+    "battering_ram_idle": {
+      "x": 0,
+      "y": 48,
+      "w": 48,
+      "h": 48
+    },
+    "battering_ram_move_0": {
+      "x": 48,
+      "y": 48,
+      "w": 48,
+      "h": 48
+    },
+    "battering_ram_move_1": {
+      "x": 96,
+      "y": 48,
+      "w": 48,
+      "h": 48
+    },
+    "battering_ram_fire": {
+      "x": 144,
+      "y": 48,
+      "w": 48,
+      "h": 48
+    },
+    "battering_ram_reload": {
+      "x": 192,
+      "y": 48,
+      "w": 48,
+      "h": 48
+    },
+    "battering_ram_destroyed": {
+      "x": 240,
+      "y": 48,
+      "w": 48,
+      "h": 48
+    },
+    "siege_tower_idle": {
+      "x": 0,
+      "y": 96,
+      "w": 48,
+      "h": 48
+    },
+    "siege_tower_move_0": {
+      "x": 48,
+      "y": 96,
+      "w": 48,
+      "h": 48
+    },
+    "siege_tower_move_1": {
+      "x": 96,
+      "y": 96,
+      "w": 48,
+      "h": 48
+    },
+    "siege_tower_fire": {
+      "x": 144,
+      "y": 96,
+      "w": 48,
+      "h": 48
+    },
+    "siege_tower_reload": {
+      "x": 192,
+      "y": 96,
+      "w": 48,
+      "h": 48
+    },
+    "siege_tower_destroyed": {
+      "x": 240,
+      "y": 96,
+      "w": 48,
+      "h": 48
+    },
+    "siege_ladder_idle": {
+      "x": 0,
+      "y": 144,
+      "w": 48,
+      "h": 48
+    },
+    "siege_ladder_move_0": {
+      "x": 48,
+      "y": 144,
+      "w": 48,
+      "h": 48
+    },
+    "siege_ladder_move_1": {
+      "x": 96,
+      "y": 144,
+      "w": 48,
+      "h": 48
+    },
+    "siege_ladder_fire": {
+      "x": 144,
+      "y": 144,
+      "w": 48,
+      "h": 48
+    },
+    "siege_ladder_reload": {
+      "x": 192,
+      "y": 144,
+      "w": 48,
+      "h": 48
+    },
+    "siege_ladder_destroyed": {
+      "x": 240,
+      "y": 144,
+      "w": 48,
+      "h": 48
+    },
+    "tortoise_idle": {
+      "x": 0,
+      "y": 192,
+      "w": 48,
+      "h": 48
+    },
+    "tortoise_move_0": {
+      "x": 48,
+      "y": 192,
+      "w": 48,
+      "h": 48
+    },
+    "tortoise_move_1": {
+      "x": 96,
+      "y": 192,
+      "w": 48,
+      "h": 48
+    },
+    "tortoise_fire": {
+      "x": 144,
+      "y": 192,
+      "w": 48,
+      "h": 48
+    },
+    "tortoise_reload": {
+      "x": 192,
+      "y": 192,
+      "w": 48,
+      "h": 48
+    },
+    "tortoise_destroyed": {
+      "x": 240,
+      "y": 192,
+      "w": 48,
+      "h": 48
+    },
+    "moat_cart_idle": {
+      "x": 0,
+      "y": 240,
+      "w": 48,
+      "h": 48
+    },
+    "moat_cart_move_0": {
+      "x": 48,
+      "y": 240,
+      "w": 48,
+      "h": 48
+    },
+    "moat_cart_move_1": {
+      "x": 96,
+      "y": 240,
+      "w": 48,
+      "h": 48
+    },
+    "moat_cart_fire": {
+      "x": 144,
+      "y": 240,
+      "w": 48,
+      "h": 48
+    },
+    "moat_cart_reload": {
+      "x": 192,
+      "y": 240,
+      "w": 48,
+      "h": 48
+    },
+    "moat_cart_destroyed": {
+      "x": 240,
+      "y": 240,
+      "w": 48,
+      "h": 48
+    }
+  }
+}

@@ -4,9 +4,9 @@
 // (thumbnail grid style), with collider overlay rendering.
 // ═══════════════════════════════════════════════════════════════
 
-import { useRef, useEffect, useCallback, useState } from 'preact/hooks';
+import { useRef, useEffect, useState } from 'preact/hooks';
 import type { SpriteSheet, FrameData } from '../../data/SpriteSheet';
-import { drawColliderOverlay, drawColliderBadge } from './ColliderOverlay';
+import { drawColliderOverlay } from './ColliderOverlay';
 import { FrameContextMenu } from './FrameContextMenu';
 import {
   activeSpriteSheetId,
@@ -26,17 +26,11 @@ import {
 // ── Grid layout helpers ───────────────────────────────────────
 
 interface GridInfo {
-  /** Number of columns in the source image grid */
   cols: number;
-  /** Number of rows in the source image grid */
   rows: number;
-  /** Width of each frame in source pixels */
   frameW: number;
-  /** Height of each frame in source pixels */
   frameH: number;
-  /** Displayed cell width (frameW * zoom) */
   cellW: number;
-  /** Displayed cell height (frameH * zoom) */
   cellH: number;
 }
 
@@ -88,9 +82,29 @@ interface CtxMenuState {
   sheetId: string;
 }
 
-// ── Frame entry type (from filteredFrames) ────────────────────
-
 type FrameEntry = { id: string; frame: FrameData };
+
+// ── Draw collider badge directly (simpler version) ────────────
+
+function drawColliderBadge(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  cw: number,
+  ch: number,
+): void {
+  // Draw a bright red filled rect in top-right corner
+  const size = Math.max(6, Math.min(12, Math.min(cw, ch) / 3));
+  const padding = 2;
+  
+  ctx.fillStyle = '#ff3333';
+  ctx.fillRect(cx + cw - size - padding, cy + padding, size, size);
+  
+  // White border
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(cx + cw - size - padding + 0.5, cy + padding + 0.5, size - 1, size - 1);
+}
 
 // ── Component ─────────────────────────────────────────────────
 
@@ -99,17 +113,35 @@ export function SpriteEditorCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoverIdx = useRef<number>(-1);
   const selDragStart = useRef<number | null>(null);
-
   const [ctxMenu, setCtxMenu] = useState<CtxMenuState | null>(null);
-  const [tooltip, setTooltip] = useState<{
-    text: string;
-    x: number;
-    y: number;
-  } | null>(null);
+  const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [renderTick, setRenderTick] = useState(0);
 
-  // ── Drawing ─────────────────────────────────────────────────
+  // Force re-render when signals change
+  useEffect(() => {
+    const unsubSheets = spriteSheets.subscribe(() => setRenderTick(t => t + 1));
+    const unsubMode = spriteEditorMode.subscribe(() => setRenderTick(t => t + 1));
+    const unsubZoom = spriteEditorZoom.subscribe(() => setRenderTick(t => t + 1));
+    const unsubColl = colliderEditMode.subscribe(() => setRenderTick(t => t + 1));
+    const unsubFilter = spriteFilterText.subscribe(() => setRenderTick(t => t + 1));
+    const unsubSelect = selectedFrameIds.subscribe(() => setRenderTick(t => t + 1));
+    const unsubCam = editorCam.subscribe(() => setRenderTick(t => t + 1));
+    const unsubActive = activeSpriteSheetId.subscribe(() => setRenderTick(t => t + 1));
+    
+    return () => {
+      unsubSheets();
+      unsubMode();
+      unsubZoom();
+      unsubColl();
+      unsubFilter();
+      unsubSelect();
+      unsubCam();
+      unsubActive();
+    };
+  }, []);
 
-  const draw = useCallback(() => {
+  // Draw function
+  useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
@@ -139,7 +171,7 @@ export function SpriteEditorCanvas() {
       ctx.fillStyle = '#888';
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('\u70B9\u51FB\u300C\u5BFC\u5165\u300D\u6DFB\u52A0\u7CBE\u7075\u56FE\u96C6', w / 2, h / 2);
+      ctx.fillText('点击「导入」添加精灵图集', w / 2, h / 2);
       return;
     }
 
@@ -148,7 +180,7 @@ export function SpriteEditorCanvas() {
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(
-        spriteFilterText.value ? '\u672A\u627E\u5230\u5339\u914D\u5E27' : '\u56FE\u96C6\u65E0\u5E27',
+        spriteFilterText.value ? '未找到匹配帧' : '图集无帧',
         w / 2,
         h / 2,
       );
@@ -160,10 +192,24 @@ export function SpriteEditorCanvas() {
     } else {
       drawListView(ctx, sheet, img, frames, selected, cam, zoom, w, h, showColliders);
     }
+  }, [renderTick]);
+
+  // Resize handler
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setRenderTick(t => t + 1));
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
-  // ── Grid View drawing ───────────────────────────────────────
+  // Reset camera on sheet change
+  useEffect(() => {
+    editorCam.value = { x: 0, y: 0 };
+    hoverIdx.current = -1;
+  }, [activeSpriteSheetId.value]);
 
+  // ── Grid View drawing ───────────────────────────────────────
   function drawGridView(
     ctx: CanvasRenderingContext2D,
     sheet: SpriteSheet,
@@ -214,6 +260,32 @@ export function SpriteEditorCanvas() {
       ctx.stroke();
     }
 
+    // Collider overlays (draw BEFORE hover/selection so they appear underneath)
+    if (showColliders) {
+      for (let i = 0; i < frames.length; i++) {
+        const entry = frames[i];
+        if (!entry.frame.collider || entry.frame.collider.length === 0) continue;
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        drawColliderOverlay(
+          ctx,
+          entry.frame.collider,
+          col * cellW, row * cellH,
+          cellW, cellH,
+          false,
+        );
+      }
+    } else {
+      // Draw badges for frames that have colliders
+      for (let i = 0; i < frames.length; i++) {
+        const entry = frames[i];
+        if (!entry.frame.collider || entry.frame.collider.length === 0) continue;
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        drawColliderBadge(ctx, col * cellW, row * cellH, cellW, cellH);
+      }
+    }
+
     // Hover highlight
     const hover = hoverIdx.current;
     if (hover >= 0 && hover < frames.length) {
@@ -226,7 +298,7 @@ export function SpriteEditorCanvas() {
       ctx.strokeRect(hc * cellW + 0.5, hr * cellH + 0.5, cellW - 1, cellH - 1);
     }
 
-    // Selection highlight
+    // Selection highlight (draw LAST so it's on top)
     const selectedSet = new Set(selected);
     for (let i = 0; i < frames.length; i++) {
       if (!selectedSet.has(frames[i].id)) continue;
@@ -237,37 +309,6 @@ export function SpriteEditorCanvas() {
       ctx.strokeRect(sc * cellW, sr * cellH, cellW, cellH);
       ctx.fillStyle = 'rgba(74,144,217,0.2)';
       ctx.fillRect(sc * cellW, sr * cellH, cellW, cellH);
-    }
-
-    // Collider overlays
-    if (showColliders) {
-      for (let i = 0; i < frames.length; i++) {
-        const entry = frames[i];
-        if (!entry.frame.collider || entry.frame.collider.length === 0) continue;
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        drawColliderOverlay(
-          ctx,
-          entry.frame.collider,
-          col * cellW, row * cellH,
-          cellW, cellH,
-          false, // oneWay not yet supported in FrameData
-        );
-      }
-    } else {
-      // Draw small badges for frames that have colliders
-      for (let i = 0; i < frames.length; i++) {
-        const entry = frames[i];
-        if (!entry.frame.collider || entry.frame.collider.length === 0) continue;
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        drawColliderBadge(
-          ctx,
-          col * cellW, row * cellH,
-          cellW, cellH,
-          false, // oneWay not yet supported in FrameData
-        );
-      }
     }
 
     ctx.restore();
@@ -294,7 +335,6 @@ export function SpriteEditorCanvas() {
   }
 
   // ── List View drawing ───────────────────────────────────────
-
   function drawListView(
     ctx: CanvasRenderingContext2D,
     sheet: SpriteSheet,
@@ -357,35 +397,21 @@ export function SpriteEditorCanvas() {
           ctx.save();
           ctx.translate(dx + dw / 2, dy + dh / 2);
           ctx.rotate(-Math.PI / 2);
-          ctx.drawImage(
-            img,
-            fd.x, fd.y, fd.h, fd.w,
-            -dh / 2, -dw / 2, dh, dw,
-          );
+          ctx.drawImage(img, fd.x, fd.y, fd.h, fd.w, -dh / 2, -dw / 2, dh, dw);
           ctx.restore();
         } else {
-          ctx.drawImage(
-            img,
-            fd.x, fd.y, fd.w, fd.h,
-            dx, dy, dw, dh,
-          );
+          ctx.drawImage(img, fd.x, fd.y, fd.w, fd.h, dx, dy, dw, dh);
         }
       }
 
       // Collider overlay or badge
       if (showColliders) {
         if (entry.frame.collider && entry.frame.collider.length > 0) {
-          drawColliderOverlay(
-            ctx,
-            entry.frame.collider,
-            cx, cy,
-            cellSize, cellSize,
-            false, // oneWay not yet supported in FrameData
-          );
+          drawColliderOverlay(ctx, entry.frame.collider, cx, cy, cellSize, cellSize, false);
         }
       } else {
         if (entry.frame.collider && entry.frame.collider.length > 0) {
-          drawColliderBadge(ctx, cx, cy, cellSize, cellSize, false);
+          drawColliderBadge(ctx, cx, cy, cellSize, cellSize);
         }
       }
 
@@ -394,9 +420,7 @@ export function SpriteEditorCanvas() {
         ctx.fillStyle = '#bbb';
         ctx.font = '9px sans-serif';
         ctx.textAlign = 'center';
-        const label = entry.id.length > 10
-          ? entry.id.slice(0, 9) + '\u2026'
-          : entry.id;
+        const label = entry.id.length > 10 ? entry.id.slice(0, 9) + '…' : entry.id;
         ctx.fillText(label, cx + cellSize / 2, cy + cellSize - 2);
       }
     }
@@ -414,39 +438,7 @@ export function SpriteEditorCanvas() {
     }
   }
 
-  // ── Redraw on signal changes ────────────────────────────────
-
-  useEffect(() => {
-    draw();
-  }, [
-    activeSpriteSheetId.value,
-    spriteSheets.value,
-    spriteEditorMode.value,
-    spriteEditorZoom.value,
-    colliderEditMode.value,
-    spriteFilterText.value,
-    selectedFrameIds.value,
-    editorCam.value,
-  ]);
-
-  // ── ResizeObserver ──────────────────────────────────────────
-
-  useEffect(() => {
-    const el = containerRef.current!;
-    const ro = new ResizeObserver(() => draw());
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  // ── Reset camera on sheet change ───────────────────────────
-
-  useEffect(() => {
-    editorCam.value = { x: 0, y: 0 };
-    hoverIdx.current = -1;
-  }, [activeSpriteSheetId.value]);
-
   // ── Hit testing ─────────────────────────────────────────────
-
   const screenToIndex = (clientX: number, clientY: number): number => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
@@ -486,15 +478,12 @@ export function SpriteEditorCanvas() {
   };
 
   // ── Pointer events ──────────────────────────────────────────
-
   const onPointerDown = (e: PointerEvent) => {
-    // Close context menu on any click
     if (ctxMenu) {
       setCtxMenu(null);
       return;
     }
 
-    // Middle-click or Alt+left-click -> pan
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       e.preventDefault();
       const startCam = { ...editorCam.value };
@@ -515,7 +504,6 @@ export function SpriteEditorCanvas() {
       return;
     }
 
-    // Left click -> select
     if (e.button === 0) {
       const idx = screenToIndex(e.clientX, e.clientY);
       if (idx < 0) {
@@ -529,7 +517,6 @@ export function SpriteEditorCanvas() {
       selDragStart.current = idx;
 
       if (e.shiftKey) {
-        // Range select: from first selected to current
         const currentSelected = selectedFrameIds.value;
         if (currentSelected.length > 0) {
           const firstIdx = frames.findIndex((f) => f.id === currentSelected[0]);
@@ -544,7 +531,6 @@ export function SpriteEditorCanvas() {
           selectedFrameIds.value = [entry.id];
         }
       } else if (e.ctrlKey || e.metaKey) {
-        // Toggle select
         const cur = selectedFrameIds.value;
         if (cur.includes(entry.id)) {
           selectedFrameIds.value = cur.filter((id) => id !== entry.id);
@@ -559,19 +545,15 @@ export function SpriteEditorCanvas() {
 
   const onPointerMove = (e: PointerEvent) => {
     const idx = screenToIndex(e.clientX, e.clientY);
-
-    // Update hover
     if (idx !== hoverIdx.current) {
       hoverIdx.current = idx;
-      draw();
-
-      // Tooltip
+      setRenderTick(t => t + 1);
       if (idx >= 0) {
         const frames = filteredFrames.value;
         const entry = frames[idx];
         const rect = containerRef.current!.getBoundingClientRect();
         setTooltip({
-          text: `${entry.id}  (${entry.frame.w}\u00D7${entry.frame.h})`,
+          text: `${entry.id}  (${entry.frame.w}×${entry.frame.h})`,
           x: e.clientX - rect.left,
           y: e.clientY - rect.top,
         });
@@ -580,14 +562,8 @@ export function SpriteEditorCanvas() {
       }
     } else if (idx >= 0 && tooltip) {
       const rect = containerRef.current!.getBoundingClientRect();
-      setTooltip((prev) =>
-        prev
-          ? { ...prev, x: e.clientX - rect.left, y: e.clientY - rect.top }
-          : prev,
-      );
+      setTooltip((prev) => prev ? { ...prev, x: e.clientX - rect.left, y: e.clientY - rect.top } : prev);
     }
-
-    // Drag selection (left button, no alt)
     if ((e.buttons & 1) && !e.altKey && selDragStart.current !== null) {
       if (idx >= 0 && idx !== selDragStart.current) {
         const frames = filteredFrames.value;
@@ -605,12 +581,10 @@ export function SpriteEditorCanvas() {
   const onPointerLeave = () => {
     if (hoverIdx.current >= 0) {
       hoverIdx.current = -1;
-      draw();
+      setRenderTick(t => t + 1);
     }
     setTooltip(null);
   };
-
-  // ── Right-click -> context menu ─────────────────────────────
 
   const onContextMenu = (e: MouseEvent) => {
     e.preventDefault();
@@ -619,12 +593,9 @@ export function SpriteEditorCanvas() {
     if (idx < 0 || !sheet) return;
     const frames = filteredFrames.value;
     const entry = frames[idx];
-
-    // Ensure the right-clicked frame is selected
     if (!selectedFrameIds.value.includes(entry.id)) {
       selectedFrameIds.value = [entry.id];
     }
-
     const rect = containerRef.current!.getBoundingClientRect();
     setCtxMenu({
       x: e.clientX - rect.left,
@@ -634,16 +605,11 @@ export function SpriteEditorCanvas() {
     });
   };
 
-  // ── Wheel -> scroll / zoom ──────────────────────────────────
-
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
     if (e.ctrlKey || e.metaKey) {
-      // Zoom
-      const dir: -1 | 1 = e.deltaY > 0 ? -1 : 1;
-      stepZoom(dir);
+      stepZoom(e.deltaY > 0 ? -1 : 1);
     } else {
-      // Scroll
       const cam = editorCam.value;
       if (e.shiftKey) {
         editorCam.value = { ...cam, x: Math.max(0, cam.x + e.deltaY) };
@@ -653,19 +619,10 @@ export function SpriteEditorCanvas() {
     }
   };
 
-  // ── Render ──────────────────────────────────────────────────
-
   return (
     <div
       ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        overflow: 'hidden',
-        cursor: 'pointer',
-        imageRendering: 'pixelated',
-        position: 'relative',
-      }}
+      style={{ width: '100%', height: '100%', overflow: 'hidden', cursor: 'pointer', imageRendering: 'pixelated', position: 'relative' }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -673,41 +630,14 @@ export function SpriteEditorCanvas() {
       onContextMenu={onContextMenu}
       onWheel={onWheel}
     >
-      <canvas
-        ref={canvasRef}
-        style={{ display: 'block', imageRendering: 'pixelated' }}
-      />
-
-      {/* Tooltip */}
+      <canvas ref={canvasRef} style={{ display: 'block', imageRendering: 'pixelated' }} />
       {tooltip && (
-        <div
-          style={{
-            position: 'absolute',
-            left: tooltip.x + 12,
-            top: tooltip.y - 28,
-            background: 'rgba(0,0,0,0.85)',
-            color: '#ddd',
-            fontSize: 11,
-            padding: '3px 8px',
-            borderRadius: 4,
-            pointerEvents: 'none',
-            whiteSpace: 'nowrap',
-            zIndex: 10,
-          }}
-        >
+        <div style={{ position: 'absolute', left: tooltip.x + 12, top: tooltip.y - 28, background: 'rgba(0,0,0,0.85)', color: '#ddd', fontSize: 11, padding: '3px 8px', borderRadius: 4, pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10 }}>
           {tooltip.text}
         </div>
       )}
-
-      {/* Context menu */}
       {ctxMenu && (
-        <FrameContextMenu
-          x={ctxMenu.x}
-          y={ctxMenu.y}
-          frameId={ctxMenu.frameId}
-          sheetId={ctxMenu.sheetId}
-          onClose={() => setCtxMenu(null)}
-        />
+        <FrameContextMenu x={ctxMenu.x} y={ctxMenu.y} frameId={ctxMenu.frameId} sheetId={ctxMenu.sheetId} onClose={() => setCtxMenu(null)} />
       )}
     </div>
   );

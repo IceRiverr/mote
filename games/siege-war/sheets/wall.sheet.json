@@ -1,0 +1,37 @@
+{
+  "image": "assets/sprites/wall.png",
+  "imageWidth": 320,
+  "imageHeight": 48,
+  "frames": {
+    "wall_intact": {
+      "x": 0,
+      "y": 0,
+      "w": 64,
+      "h": 48
+    },
+    "wall_damaged_1": {
+      "x": 64,
+      "y": 0,
+      "w": 64,
+      "h": 48
+    },
+    "wall_damaged_2": {
+      "x": 128,
+      "y": 0,
+      "w": 64,
+      "h": 48
+    },
+    "wall_breached": {
+      "x": 192,
+      "y": 0,
+      "w": 64,
+      "h": 48
+    },
+    "wall_rubble": {
+      "x": 256,
+      "y": 0,
+      "w": 64,
+      "h": 48
+    }
+  }
+}

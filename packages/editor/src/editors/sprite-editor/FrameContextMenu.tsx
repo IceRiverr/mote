@@ -149,7 +149,7 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
   };
 
   return (
-    <div ref={ref} style={menuStyle}>
+    <div ref={ref} style={menuStyle} onClick={(e) => e.stopPropagation()}>
       {/* ── Header ── */}
       <div
         style={{
@@ -362,12 +362,26 @@ interface MenuItemProps {
 }
 
 function MenuItem({ icon, label, active, danger, disabled, onClick }: MenuItemProps) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  
+  useEffect(() => {
+    const btn = btnRef.current;
+    if (!btn || disabled) return;
+    
+    const handler = (e: MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      console.log('[MenuItem] native click:', label);
+      onClick();
+    };
+    
+    btn.addEventListener('click', handler);
+    return () => btn.removeEventListener('click', handler);
+  }, [disabled, label, onClick]);
+  
   return (
     <button
-      onClick={() => {
-        console.log('[MenuItem] clicked:', label);
-        if (!disabled) onClick();
-      }}
+      ref={btnRef}
       disabled={disabled}
       style={{
         padding: '5px 10px 5px 16px',

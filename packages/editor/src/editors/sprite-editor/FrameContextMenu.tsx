@@ -104,7 +104,9 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
 
   // ── Collider actions ──
   const applyColliderPreset = (shapes: ColliderShape[]) => {
+    console.log('[applyColliderPreset] called', { sheetId, frameId, shapes });
     setFrameCollider(sheetId, frameId, shapes);
+    onClose();
   };
 
   const clearCollider = () => {
@@ -179,7 +181,10 @@ export function FrameContextMenu({ x, y, frameId, sheetId, onClose }: Props) {
         icon={isPresetActive(COLLIDER_PRESETS.full) ? '\u25A0' : '\u25A1'}
         label="Full Tile"
         active={isPresetActive(COLLIDER_PRESETS.full)}
-        onClick={() => applyColliderPreset(COLLIDER_PRESETS.full)}
+        onClick={() => {
+          console.log('[MenuItem] Full Tile clicked');
+          applyColliderPreset(COLLIDER_PRESETS.full);
+        }}
       />
 
       {/* Half Top */}
@@ -359,7 +364,10 @@ interface MenuItemProps {
 function MenuItem({ icon, label, active, danger, disabled, onClick }: MenuItemProps) {
   return (
     <div
-      onClick={disabled ? undefined : onClick}
+      onClick={disabled ? undefined : () => {
+        console.log('[MenuItem] onClick triggered:', label);
+        onClick();
+      }}
       style={{
         padding: '5px 10px 5px 16px',
         cursor: disabled ? 'default' : 'pointer',

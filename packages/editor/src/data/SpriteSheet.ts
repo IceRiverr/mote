@@ -58,14 +58,21 @@ export interface FrameData {
   rotated?: boolean;
 }
 
+/** Frame data with ID for array export format */
+export interface FrameDataWithId extends FrameData {
+  id: string;
+}
+
 // ── SpriteSheet ───────────────────────────────────────────────
 
 /** Unified SpriteSheet — replaces both TileSet and SpriteAtlas */
 export interface SpriteSheet {
   id: string;
   name: string;
-  /** Path/URL to source image */
+  /** Path/URL to source image (runtime URL for display) */
   image: string;
+  /** Original source image path (relative to project) for export */
+  sourcePath?: string;
   imageWidth: number;
   imageHeight: number;
   /** How the image is sliced into frames */

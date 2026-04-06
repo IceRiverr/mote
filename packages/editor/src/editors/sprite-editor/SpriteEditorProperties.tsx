@@ -16,6 +16,8 @@ import {
 } from './state';
 import { COLLIDER_PRESETS } from '../../data/Collider';
 import type { ColliderShape } from '../../data/Collider';
+import { spriteSheetToJson } from '../../data/io-v2';
+import { downloadJson } from '../../data/io-v2';
 
 // ── Collider Preset Button ────────────────────────────────────
 
@@ -59,6 +61,86 @@ function PresetButton({ label, icon, active, onClick }: PresetButtonProps) {
       <span style={{ fontSize: 14, width: 16, textAlign: 'center' }}>{icon}</span>
       <span>{label}</span>
       {active && <span style={{ marginLeft: 'auto', fontSize: 10 }}>✓</span>}
+    </button>
+  );
+}
+
+// ── Export Button ─────────────────────────────────────────────
+
+function ExportButton() {
+  const sheet = activeSpriteSheet.value;
+  if (!sheet) return null;
+
+  const handleExport = () => {
+    const json = spriteSheetToJson(sheet);
+    
+    // Custom JSON serialization: frames array with each element on one line
+    const header = JSON.stringify({
+      id: json.id,
+      name: json.name,
+      image: json.image,
+      slicing: json.slicing,
+    }, null, 2);
+    
+    // Remove the closing brace from header
+    const headerWithoutBrace = header.slice(0, -1).trimEnd();
+    
+    // Serialize frames array with each frame on one line
+    const framesLines = json.frames.map((frame: any) => {
+      // Only include defined fields
+      const fields: Record<string, unknown> = {
+        id: frame.id,
+        x: frame.x,
+        y: frame.y,
+        w: frame.w,
+        h: frame.h,
+      };
+      if (frame.collider) fields.collider = frame.collider;
+      if (frame.tags) fields.tags = frame.tags;
+      if (frame.properties) fields.properties = frame.properties;
+      if (frame.trimmed !== undefined) fields.trimmed = frame.trimmed;
+      if (frame.sourceWidth !== undefined) fields.sourceWidth = frame.sourceWidth;
+      if (frame.sourceHeight !== undefined) fields.sourceHeight = frame.sourceHeight;
+      if (frame.offsetX !== undefined) fields.offsetX = frame.offsetX;
+      if (frame.offsetY !== undefined) fields.offsetY = frame.offsetY;
+      if (frame.rotated !== undefined) fields.rotated = frame.rotated;
+      
+      // Compact single-line JSON
+      return JSON.stringify(fields);
+    });
+    
+    // Build final JSON
+    let output = headerWithoutBrace + ',\n  "frames": [\n';
+    output += framesLines.map((line: string) => '    ' + line).join(',\n');
+    output += '\n  ]\n}';
+    
+    // Download
+    const blob = new Blob([output], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeName = sheet.name.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    a.href = url;
+    a.download = `${safeName}.mote-sprite.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <button
+      onClick={handleExport}
+      title="导出精灵图 JSON"
+      style={{
+        background: 'var(--accent)',
+        border: 'none',
+        borderRadius: 3,
+        cursor: 'pointer',
+        color: '#fff',
+        fontSize: 10,
+        padding: '3px 8px',
+        fontWeight: 'bold',
+      }}
+    >
+      导出
     </button>
   );
 }
@@ -404,22 +486,25 @@ export function SpriteEditorProperties() {
         <span style={{ fontSize: 11, fontWeight: 'bold', color: 'var(--text-primary)' }}>
           属性
         </span>
-        <button
-          onClick={() => {
-            propertiesPanelVisible.value = false;
-          }}
-          title="隐藏属性面板 (N)"
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            color: 'var(--text-secondary)',
-            fontSize: 12,
-            padding: '2px 4px',
-          }}
-        >
-          ×
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <ExportButton />
+          <button
+            onClick={() => {
+              propertiesPanelVisible.value = false;
+            }}
+            title="隐藏属性面板 (N)"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-secondary)',
+              fontSize: 12,
+              padding: '2px 4px',
+            }}
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       {/* Content */}

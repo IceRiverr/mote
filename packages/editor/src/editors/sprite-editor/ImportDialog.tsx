@@ -214,24 +214,24 @@ export function ImportDialog({ onClose }: Props) {
       if (mode === 'tilesheet') {
         const imgFile = selectedFiles.find(f => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
         if (!imgFile) throw new Error('未找到图片文件');
-        const { sheet, img } = await importGridSpriteSheet(imgFile, tileW, tileH, margin, spacing);
+        const { sheet, img } = await importGridSpriteSheet(imgFile, tileW, tileH, margin, spacing, undefined, imgFile.name);
         addSpriteSheet(sheet, img);
       } else if (mode === 'packed') {
         const jsonFile = selectedFiles.find(f => f.name.endsWith('.json'));
         const imgFile = selectedFiles.find(f => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
         if (!jsonFile || !imgFile) throw new Error('需要 JSON + 图片文件');
-        const { sheet, img } = await importPackedSpriteSheet(jsonFile, imgFile);
+        const { sheet, img } = await importPackedSpriteSheet(jsonFile, imgFile, undefined, imgFile.name);
         addSpriteSheet(sheet, img);
       } else if (mode === 'xml') {
         const xmlFile = selectedFiles.find(f => /\.(xml|txt)$/i.test(f.name));
         const imgFile = selectedFiles.find(f => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
         if (!xmlFile || !imgFile) throw new Error('需要 XML + 图片文件');
-        const { sheet, img } = await importXmlSpriteSheet(xmlFile, imgFile);
+        const { sheet, img } = await importXmlSpriteSheet(xmlFile, imgFile, undefined, imgFile.name);
         addSpriteSheet(sheet, img);
       } else {
         const imgFiles = selectedFiles.filter(f => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
         if (imgFiles.length < 2) throw new Error('至少需要 2 张图片');
-        const { sheet, img } = await importLooseSpriteSheet(imgFiles);
+        const { sheet, img } = await importLooseSpriteSheet(imgFiles, undefined, 1, 'atlas.png');
         addSpriteSheet(sheet, img);
       }
       

@@ -48,6 +48,9 @@ export interface ProjectManifest {
 
 /** Convert a runtime SpriteSheet to its JSON representation */
 export function spriteSheetToJson(sheet: SpriteSheet): SpriteSheetJson {
+  // Use sourcePath (relative path) if available, otherwise fallback to image URL
+  const imagePath = sheet.sourcePath ?? sheet.image;
+  
   const slicing: SpriteSheetJson['slicing'] = { mode: sheet.slicing.mode };
 
   if (sheet.slicing.mode === 'grid') {
@@ -65,9 +68,11 @@ export function spriteSheetToJson(sheet: SpriteSheet): SpriteSheetJson {
   }
   // 'manual' has no extra fields
 
-  const frames: SpriteSheetJson['frames'] = {};
+  // Convert frames from Record to Array format (one frame per line in JSON)
+  const frames: SpriteSheetJson['frames'] = [];
   for (const [frameId, frame] of Object.entries(sheet.frames)) {
-    const entry: SpriteSheetJson['frames'][string] = {
+    const entry: SpriteSheetJson['frames'][number] = {
+      id: frameId,
       x: frame.x,
       y: frame.y,
       w: frame.w,
@@ -86,13 +91,13 @@ export function spriteSheetToJson(sheet: SpriteSheet): SpriteSheetJson {
     if (frame.offsetX !== undefined) entry.offsetX = frame.offsetX;
     if (frame.offsetY !== undefined) entry.offsetY = frame.offsetY;
     if (frame.rotated !== undefined) entry.rotated = frame.rotated;
-    frames[frameId] = entry;
+    frames.push(entry);
   }
 
   return {
     id: sheet.id,
     name: sheet.name,
-    image: sheet.image,
+    image: imagePath,
     slicing,
     frames,
   };
@@ -136,8 +141,13 @@ export function spriteSheetFromJson(
       break;
   }
 
+  // Handle both array format (new) and object format (legacy)
   const frames: Record<string, FrameData> = {};
-  for (const [frameId, f] of Object.entries(json.frames)) {
+  const frameArray = Array.isArray(json.frames) 
+    ? json.frames 
+    : Object.entries(json.frames as Record<string, FrameData>).map(([id, f]) => ({ id, ...f }));
+  
+  for (const f of frameArray) {
     const frame: FrameData = {
       x: f.x,
       y: f.y,
@@ -157,7 +167,7 @@ export function spriteSheetFromJson(
     if (f.offsetX !== undefined) frame.offsetX = f.offsetX;
     if (f.offsetY !== undefined) frame.offsetY = f.offsetY;
     if (f.rotated !== undefined) frame.rotated = f.rotated;
-    frames[frameId] = frame;
+    frames[f.id] = frame;
   }
 
   // Compute imageWidth/imageHeight from frames if grid mode
@@ -172,6 +182,7 @@ export function spriteSheetFromJson(
     id: json.id,
     name: json.name,
     image: imageUrl,
+    sourcePath: json.image, // Store original image path for export
     imageWidth,
     imageHeight,
     slicing,

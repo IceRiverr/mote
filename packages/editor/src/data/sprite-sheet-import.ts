@@ -68,6 +68,7 @@ export async function importGridSpriteSheet(
   margin = 0,
   spacing = 0,
   name?: string,
+  sourcePath?: string,
 ): Promise<{ sheet: SpriteSheet; img: HTMLImageElement }> {
   const { url, img } = await loadImageFromFile(imageFile);
   const sheetName = name ?? imageFile.name.replace(/\.[^.]+$/, "");
@@ -101,6 +102,7 @@ export async function importGridSpriteSheet(
     id,
     name: sheetName,
     image: url,
+    sourcePath: sourcePath ?? imageFile.name, // Store source path for export
     imageWidth,
     imageHeight,
     slicing: {
@@ -123,6 +125,7 @@ export async function importPackedSpriteSheet(
   jsonFile: File,
   imageFile: File,
   name?: string,
+  imageSourcePath?: string,
 ): Promise<{ sheet: SpriteSheet; img: HTMLImageElement }> {
   const jsonData = await readJsonFile(jsonFile) as TexturePackerJson;
 
@@ -157,6 +160,7 @@ export async function importPackedSpriteSheet(
     id,
     name: sheetName,
     image: url,
+    sourcePath: imageSourcePath ?? imageFile.name,
     imageWidth: jsonData.meta.size.w,
     imageHeight: jsonData.meta.size.h,
     slicing: {
@@ -176,6 +180,7 @@ export async function importLooseSpriteSheet(
   imageFiles: File[],
   name?: string,
   padding = 1,
+  sourcePath?: string,
 ): Promise<{ sheet: SpriteSheet; img: HTMLImageElement }> {
   // Load all images
   const loaded: Array<{ name: string; img: HTMLImageElement }> = [];
@@ -211,6 +216,7 @@ export async function importLooseSpriteSheet(
     id,
     name: sheetName,
     image: dataUrl,
+    sourcePath: sourcePath ?? `${sheetName}.png`, // Generated atlas image name
     imageWidth: canvas.width,
     imageHeight: canvas.height,
     slicing: {
@@ -229,6 +235,7 @@ export async function importXmlSpriteSheet(
   xmlFile: File,
   imageFile: File,
   name?: string,
+  imageSourcePath?: string,
 ): Promise<{ sheet: SpriteSheet; img: HTMLImageElement }> {
   const xmlText = await readTextFile(xmlFile);
   const xmlData = parseSparrowXml(xmlText);
@@ -252,6 +259,7 @@ export async function importXmlSpriteSheet(
     id,
     name: sheetName,
     image: url,
+    sourcePath: imageSourcePath ?? imageFile.name,
     imageWidth: img.naturalWidth,
     imageHeight: img.naturalHeight,
     slicing: {

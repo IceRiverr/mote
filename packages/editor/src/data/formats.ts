@@ -29,7 +29,7 @@ export interface ProjectJson {
 export interface SpriteSheetJson {
   id: string;
   name: string;
-  image: string;  // relative path to image
+  image: string;  // relative path to image (relative to this JSON file)
   slicing: {
     mode: 'grid' | 'packed' | 'xml' | 'manual';
     tileWidth?: number;
@@ -38,7 +38,9 @@ export interface SpriteSheetJson {
     spacing?: number;
     source?: string;
   };
-  frames: Record<string, {
+  /** Frames as array for better readability and diff-friendliness */
+  frames: Array<{
+    id: string;
     x: number;
     y: number;
     w: number;

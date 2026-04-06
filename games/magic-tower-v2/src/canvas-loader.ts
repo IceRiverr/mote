@@ -27,8 +27,10 @@ export interface Canvas2DAssets {
 export async function loadProject(
   projectUrl: string
 ): Promise<{ runtime: ProjectRuntime; assets: Canvas2DAssets }> {
-  const basePath = projectUrl.substring(0, projectUrl.lastIndexOf('/') + 1);
-  const project = await fetchJson(projectUrl);
+  // Resolve to absolute URL for proper relative path resolution
+  const absoluteProjectUrl = new URL(projectUrl, window.location.href).href;
+  const basePath = absoluteProjectUrl.substring(0, absoluteProjectUrl.lastIndexOf('/') + 1);
+  const project = await fetchJson(absoluteProjectUrl);
 
   const images = new Map<string, HTMLImageElement>();
   const spriteSheets = new Map<string, SpriteSheetRuntime>();
@@ -37,7 +39,8 @@ export async function loadProject(
   for (const path of project.spriteSheets) {
     const json = await fetchJson(basePath + path);
     // Resolve the image URL relative to the sprite sheet JSON location
-    const imgUrl = new URL(json.image, basePath + path).href;
+    const sheetUrl = basePath + path;
+    const imgUrl = new URL(json.image, sheetUrl).href;
 
     const img = await loadImage(imgUrl);
     images.set(json.id, img);

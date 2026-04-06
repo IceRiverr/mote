@@ -69,7 +69,7 @@ async function init(): Promise<void> {
 
   // 1. Load mote project
   const { runtime, assets: loadedAssets } = await loadProject(
-    '/project.mote.json',
+    'project.mote.json',
   );
   assets = loadedAssets;
 

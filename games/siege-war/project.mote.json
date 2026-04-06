@@ -1,0 +1,31 @@
+{
+  "name": "Siege War",
+  "version": "1.0.0",
+  "engine": "mote-0.1",
+  "tileWidth": 32,
+  "tileHeight": 32,
+  "spriteSheets": [
+    "sheets/units-attacker.sheet.json",
+    "sheets/units-defender.sheet.json",
+    "sheets/wall.sheet.json",
+    "sheets/terrain.sheet.json",
+    "sheets/siege-engines.sheet.json",
+    "sheets/projectiles.sheet.json",
+    "sheets/effects.sheet.json",
+    "sheets/tunnel-misc.sheet.json",
+    "sheets/ui-icons.sheet.json"
+  ],
+  "entities": [
+    "entities/soldier.entity.json",
+    "entities/siege-engine.entity.json",
+    "entities/wall-segment.entity.json",
+    "entities/projectile.entity.json",
+    "entities/fire-effect.entity.json",
+    "entities/listening-pot.entity.json",
+    "entities/messenger.entity.json",
+    "entities/tunnel-entrance.entity.json"
+  ],
+  "scenes": [],
+  "scripts": "scripts",
+  "startScene": ""
+}

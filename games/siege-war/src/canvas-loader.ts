@@ -103,7 +103,7 @@ interface SpriteSheetJson {
 interface EntityDefJson {
   id: string;
   name: string;
-  sprite?: string | null; // "sheetId:frameId" or null
+  sprite?: string | { sheetId: string; frameId: string } | null; // "sheetId:frameId" or {sheetId, frameId} or null
   shape?: 'point' | 'rect';
   width?: number;
   height?: number;
@@ -123,19 +123,36 @@ export async function loadProject(
   projectUrl: string,
 ): Promise<{ runtime: ProjectRuntime; assets: Canvas2DAssets }> {
   const basePath = projectUrl.substring(0, projectUrl.lastIndexOf('/') + 1);
+  console.log('[CanvasLoader] Loading project from:', projectUrl);
+  console.log('[CanvasLoader] Base path:', basePath);
   const project = await fetchJson<ProjectJson>(projectUrl);
 
   const images = new Map<string, HTMLImageElement>();
   const spriteSheets = new Map<string, SpriteSheetRuntime>();
 
   // ── Load sprite sheets (parallel) ─────────────────────────────────────
+  console.log('[CanvasLoader] Sheet paths:', project.spriteSheets);
+  console.log('[CanvasLoader] Full sheet URLs:', project.spriteSheets.map((path) => basePath + path));
 
   const sheetJsons = await Promise.all(
     project.spriteSheets.map((path) => fetchJson<SpriteSheetJson>(basePath + path)),
   );
 
-  // Resolve image URLs (image path is relative to project root)
-  const imgUrls: string[] = sheetJsons.map((json) => basePath + json.image);
+  // Resolve image URLs (image path is relative to project root = basePath)
+  const imgUrls: string[] = sheetJsons.map((json) => {
+    // json.image is like "assets/sprites/units-attacker.png"
+    // Sheet JSON path is like "sheets/units-attacker.sheet.json"
+    // The image path in JSON is relative to project root, same as sheets/
+    // So we need to resolve it relative to the sheet location or use absolute path
+    
+    // Get the directory depth of the sheet to resolve relative path
+    // If sheet is at "sheets/foo.json", images are at "assets/..." relative to project root
+    // So image path should be "../assets/..." relative to sheets/, or "/assets/..." absolute
+    
+    const imagePath = json.image.startsWith('/') ? json.image : '/' + json.image;
+    console.log('[CanvasLoader] Image URL:', imagePath, '(image:', json.image + ')');
+    return imagePath;
+  });
 
   const loadedImgs = await Promise.all(imgUrls.map(loadImage));
 
@@ -203,11 +220,20 @@ export async function loadProject(
   for (const json of defJsons) {
     let sprite: { sheetId: string; frameId: string } | undefined;
     if (json.sprite) {
-      const colonIdx = json.sprite.indexOf(':');
-      if (colonIdx >= 0) {
+      if (typeof json.sprite === 'string') {
+        // Format: "sheetId:frameId"
+        const colonIdx = json.sprite.indexOf(':');
+        if (colonIdx >= 0) {
+          sprite = {
+            sheetId: json.sprite.substring(0, colonIdx),
+            frameId: json.sprite.substring(colonIdx + 1),
+          };
+        }
+      } else if (typeof json.sprite === 'object' && json.sprite.sheetId && json.sprite.frameId) {
+        // Format: { sheetId: "...", frameId: "..." }
         sprite = {
-          sheetId: json.sprite.substring(0, colonIdx),
-          frameId: json.sprite.substring(colonIdx + 1),
+          sheetId: json.sprite.sheetId,
+          frameId: json.sprite.frameId,
         };
       }
     }

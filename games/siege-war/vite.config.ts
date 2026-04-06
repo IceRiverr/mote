@@ -23,6 +23,7 @@ export default defineConfig({
       '@mote/engine': resolve(__dirname, '../../packages/engine/src/index.ts'),
     },
   },
+  publicDir: 'public',
   build: {
     outDir: 'dist',
     // Disable tree-shaking minification so all exports survive

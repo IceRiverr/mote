@@ -1,0 +1,17 @@
+{
+  "id": "wall-segment", "name": "城墙段", "shape": "rect", "width": 32, "height": 128,
+  "sprite": { "sheetId": "wall", "frameId": "wall_intact" },
+  "collider": [{ "type": "aabb", "x": 0, "y": 0, "w": 32, "h": 128 }],
+  "fields": [
+    { "id": "segmentId", "type": "string", "default": "" },
+    { "id": "segmentType", "type": "string", "default": "normal" },
+    { "id": "hp", "type": "number", "default": 100 },
+    { "id": "maxHp", "type": "number", "default": 100 },
+    { "id": "breached", "type": "boolean", "default": false },
+    { "id": "garrisonIds", "type": "string", "default": "[]" },
+    { "id": "ladderCount", "type": "number", "default": 0 },
+    { "id": "onFire", "type": "boolean", "default": false },
+    { "id": "repairActive", "type": "boolean", "default": false }
+  ],
+  "scriptPath": "scripts/wall-segment.ts"
+}

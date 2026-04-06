@@ -363,11 +363,12 @@ interface MenuItemProps {
 
 function MenuItem({ icon, label, active, danger, disabled, onClick }: MenuItemProps) {
   return (
-    <div
-      onClick={disabled ? undefined : () => {
-        console.log('[MenuItem] onClick triggered:', label);
-        onClick();
+    <button
+      onClick={() => {
+        console.log('[MenuItem] clicked:', label);
+        if (!disabled) onClick();
       }}
+      disabled={disabled}
       style={{
         padding: '5px 10px 5px 16px',
         cursor: disabled ? 'default' : 'pointer',
@@ -384,6 +385,9 @@ function MenuItem({ icon, label, active, danger, disabled, onClick }: MenuItemPr
               : 'var(--text-primary)',
         opacity: disabled ? 0.5 : 1,
         background: 'transparent',
+        border: 'none',
+        width: '100%',
+        textAlign: 'left',
       }}
       onMouseEnter={(e) => {
         if (!disabled) (e.currentTarget as HTMLElement).style.background = 'var(--bg-input)';
@@ -397,6 +401,6 @@ function MenuItem({ icon, label, active, danger, disabled, onClick }: MenuItemPr
       {active && !disabled && (
         <span style={{ marginLeft: 'auto', fontSize: 9, opacity: 0.6 }}>{'\u2713'}</span>
       )}
-    </div>
+    </button>
   );
 }

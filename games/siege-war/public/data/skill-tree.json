@@ -1,0 +1,12 @@
+{
+  "defender": {
+    "坚壁": { "id": "fortify", "effect": { "wallBaseHp": 1.10 }, "cost": 1, "children": { "铁壁": { "id": "iron_wall", "effect": { "wallHp": 1.25 }, "cost": 2 }, "速修": { "id": "quick_repair", "effect": { "repairSpeed": 1.30 }, "cost": 2 } } },
+    "神射": { "id": "marksman", "effect": { "archerRange": 1.15 }, "cost": 1, "children": { "齐射": { "id": "volley", "effect": { "focusedFireDmg": 1.40 }, "cost": 2 }, "火箭": { "id": "fire_arrow", "effect": { "unlockAbility": "fire_arrow" }, "cost": 2 } } },
+    "运筹": { "id": "strategist", "effect": { "transmissionDelay": 0.80 }, "cost": 1, "children": { "料敌": { "id": "foresight", "effect": { "showEnemyOverview": true }, "cost": 2 }, "伏兵": { "id": "ambush", "effect": { "unlockAbility": "improved_sortie" }, "cost": 2 } } },
+    "厚积": { "id": "stockpile", "effect": { "resourceGain": 1.20 }, "cost": 1, "children": { "屯粮": { "id": "food_reserve", "effect": { "startingFood": 1.50 }, "cost": 2 }, "军工": { "id": "arsenal", "effect": { "reloadSpeed": 1.25 }, "cost": 2 } } }
+  },
+  "attacker": {
+    "猛攻": { "id": "fierce_attack", "effect": { "chargeDmg": 1.10 }, "cost": 1, "children": { "破城": { "id": "breach", "effect": { "ramDmg": 1.30 }, "cost": 2 }, "登墙": { "id": "wall_climb", "effect": { "climbSpeed": 1.25 }, "cost": 2 } } },
+    "工程": { "id": "engineering", "effect": { "buildSpeed": 1.15 }, "cost": 1, "children": { "穿地": { "id": "tunneling", "effect": { "digSpeed": 1.30 }, "cost": 2 }, "坚盾": { "id": "shield_wall", "effect": { "engineHp": 1.25 }, "cost": 2 } } }
+  }
+}

@@ -26,6 +26,7 @@ import type {
   EntityInstanceRuntime,
   ProjectRuntime,
   AABB,
+  SceneData,
 } from '@mote/engine';
 
 import { loadProject } from './canvas-loader';
@@ -690,6 +691,7 @@ async function init(): Promise<void> {
     },
     input,
   );
+  input.addMap(actionMap);
   actionMap.enable();
 
   // 7. HTML overlay UI
@@ -772,6 +774,118 @@ async function init(): Promise<void> {
 }
 
 // ============================================================================
+// Scene generation
+// ============================================================================
+
+/**
+ * Generate a scene for a level dynamically.
+ * Creates terrain, wall segments, gate, and defensive positions based on level config.
+ */
+function generateLevelScene(levelId: string, levelConfig: LevelConfig): SceneData {
+  const sceneId = levelConfig.scene;
+  const width = 80; // tiles
+  const height = 45; // tiles
+  
+  // Create terrain layer (empty grass background)
+  const terrainData: string[] = new Array(width * height).fill('grass');
+  
+  const terrainLayer = {
+    id: 'terrain',
+    name: 'Terrain',
+    type: 'tile' as const,
+    visible: true,
+    opacity: 1,
+    spriteSheet: 'terrain',
+    data: terrainData,
+    encoding: 'names' as const,
+  };
+
+  // Generate wall layout based on level
+  const entities: EntityInstanceRuntime[] = [];
+  const isDefenderSide = levelConfig.side === 'defender';
+  
+  // Wall configuration - simple linear wall with gate for now
+  const wallY = 15; // Row where wall sits
+  const gateX = 40; // Center gate position
+  
+  for (let x = 10; x < 70; x++) {
+    const isGate = x >= gateX - 2 && x <= gateX + 2;
+    const segmentType = isGate ? 'gate' : 'normal';
+    
+    entities.push({
+      id: `wall-${x}`,
+      template: 'wall-segment',
+      name: isGate ? 'Gate' : 'Wall',
+      x: x * 32,
+      y: wallY * 32,
+      width: 32,
+      height: 128,
+      fields: {
+        segmentId: `wall-${x}`,
+        segmentType: segmentType,
+        hp: isGate ? 500 : 200,
+        maxHp: isGate ? 500 : 200,
+      },
+    });
+  }
+
+  // Add some defensive positions (towers at ends)
+  entities.push({
+    id: 'tower-left',
+    template: 'wall-segment',
+    name: 'Left Tower',
+    x: 8 * 32,
+    y: (wallY - 2) * 32,
+    width: 64,
+    height: 192,
+    fields: {
+      segmentId: 'tower-left',
+      segmentType: 'tower',
+      hp: 300,
+      maxHp: 300,
+    },
+  });
+
+  entities.push({
+    id: 'tower-right',
+    template: 'wall-segment',
+    name: 'Right Tower',
+    x: 70 * 32,
+    y: (wallY - 2) * 32,
+    width: 64,
+    height: 192,
+    fields: {
+      segmentId: 'tower-right',
+      segmentType: 'tower',
+      hp: 300,
+      maxHp: 300,
+    },
+  });
+
+  const structuresLayer: EntityLayerRuntime = {
+    id: 'structures',
+    name: 'structures',
+    type: 'entity',
+    visible: true,
+    opacity: 1,
+    entities,
+  };
+
+  const scene: SceneData = {
+    id: sceneId,
+    name: levelConfig.name,
+    width,
+    height,
+    tileWidth: 32,
+    tileHeight: 32,
+    spriteSheets: ['terrain', 'wall', 'units-defender', 'units-attacker'],
+    layers: [terrainLayer, structuresLayer as any],
+  };
+
+  return scene;
+}
+
+// ============================================================================
 // Level loading
 // ============================================================================
 
@@ -821,6 +935,13 @@ async function loadLevel(levelId: string): Promise<void> {
 
   // Clear scripts from previous level
   scriptRuntime.destroyAll();
+
+  // Generate scene dynamically if not already registered
+  if (!projectRuntime.scenes.has(levelConfig.scene)) {
+    const generatedScene = generateLevelScene(levelId, levelConfig);
+    projectRuntime.scenes.set(levelConfig.scene, generatedScene);
+    console.log(`[Siege War] Generated scene: ${levelConfig.scene}`);
+  }
 
   // Load the scene
   sceneManager.loadScene(levelConfig.scene);

@@ -1,0 +1,12 @@
+{
+  "id": "messenger", "name": "传令兵", "shape": "rect", "width": 20, "height": 28,
+  "sprite": { "sheetId": "units-defender", "frameId": "messenger_run_0" },
+  "fields": [
+    { "id": "entityType", "type": "string", "default": "messenger" },
+    { "id": "targetX", "type": "number", "default": 0 },
+    { "id": "targetY", "type": "number", "default": 0 },
+    { "id": "commandId", "type": "string", "default": "" },
+    { "id": "speed", "type": "number", "default": 120 }
+  ],
+  "scriptPath": "scripts/messenger.ts"
+}

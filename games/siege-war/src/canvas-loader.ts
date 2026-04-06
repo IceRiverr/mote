@@ -134,12 +134,8 @@ export async function loadProject(
     project.spriteSheets.map((path) => fetchJson<SpriteSheetJson>(basePath + path)),
   );
 
-  // Resolve image URLs relative to each sheet JSON path, then load in parallel
-  const imgUrls: string[] = sheetJsons.map((json, i) => {
-    const sheetPath = project.spriteSheets[i];
-    const sheetDir = sheetPath.substring(0, sheetPath.lastIndexOf('/') + 1);
-    return basePath + sheetDir + json.image;
-  });
+  // Resolve image URLs (image path is relative to project root)
+  const imgUrls: string[] = sheetJsons.map((json) => basePath + json.image);
 
   const loadedImgs = await Promise.all(imgUrls.map(loadImage));
 

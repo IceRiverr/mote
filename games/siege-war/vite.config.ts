@@ -22,14 +22,25 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    // Disable tree-shaking minification so all exports survive
+    minify: false,
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
         ...scriptEntries,
       },
       output: {
-        preserveEntrySignatures: 'exports-only',
+        // Keep script entry exports intact for ScriptRuntime dynamic loading
+        manualChunks: undefined,
+        entryFileNames: (chunkInfo) => {
+          if (chunkInfo.name.startsWith('scripts/')) {
+            return 'assets/[name]-[hash].js';
+          }
+          return 'assets/[name]-[hash].js';
+        },
       },
+      // Keep all exports from entry points — critical for ScriptRuntime
+      preserveEntrySignatures: 'exports-only',
     },
   },
 });

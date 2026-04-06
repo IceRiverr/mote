@@ -630,7 +630,7 @@ async function init(): Promise<void> {
   ctx2d.imageSmoothingEnabled = false;
 
   // 2. Load mote project (sprite sheets, entity defs, etc.)
-  const loaded = await loadProject('/project.mote.json');
+  const loaded = await loadProject('./project.mote.json');
   projectRuntime = loaded.runtime;
   assets = loaded.assets;
 

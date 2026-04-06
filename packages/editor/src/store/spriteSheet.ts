@@ -63,15 +63,20 @@ export function updateFrame(sheetId: string, frameId: string, patch: Partial<Fra
 
 /** Set collider on a frame */
 export function setFrameCollider(sheetId: string, frameId: string, collider: ColliderShape[] | undefined): void {
+  console.log('[setFrameCollider]', sheetId, frameId, collider);
   updateSpriteSheet(sheetId, sheet => {
     const frame = sheet.frames[frameId];
-    if (!frame) return sheet;
+    if (!frame) {
+      console.log('[setFrameCollider] frame not found:', frameId);
+      return sheet;
+    }
     const newFrame = { ...frame };
     if (collider) {
       newFrame.collider = collider;
     } else {
       delete newFrame.collider;
     }
+    console.log('[setFrameCollider] updated frame:', newFrame);
     return { ...sheet, frames: { ...sheet.frames, [frameId]: newFrame } };
   });
 }

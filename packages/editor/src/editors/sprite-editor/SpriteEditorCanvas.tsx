@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { useRef, useEffect, useState } from 'preact/hooks';
+import { effect } from '@preact/signals';
 import type { SpriteSheet, FrameData } from '../../data/SpriteSheet';
 import { drawColliderOverlay } from './ColliderOverlay';
 import { FrameContextMenu } from './FrameContextMenu';
@@ -117,27 +118,22 @@ export function SpriteEditorCanvas() {
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const [renderTick, setRenderTick] = useState(0);
 
-  // Force re-render when signals change
+  // Force re-render when signals change using effect
   useEffect(() => {
-    const unsubSheets = spriteSheets.subscribe(() => setRenderTick(t => t + 1));
-    const unsubMode = spriteEditorMode.subscribe(() => setRenderTick(t => t + 1));
-    const unsubZoom = spriteEditorZoom.subscribe(() => setRenderTick(t => t + 1));
-    const unsubColl = colliderEditMode.subscribe(() => setRenderTick(t => t + 1));
-    const unsubFilter = spriteFilterText.subscribe(() => setRenderTick(t => t + 1));
-    const unsubSelect = selectedFrameIds.subscribe(() => setRenderTick(t => t + 1));
-    const unsubCam = editorCam.subscribe(() => setRenderTick(t => t + 1));
-    const unsubActive = activeSpriteSheetId.subscribe(() => setRenderTick(t => t + 1));
-    
-    return () => {
-      unsubSheets();
-      unsubMode();
-      unsubZoom();
-      unsubColl();
-      unsubFilter();
-      unsubSelect();
-      unsubCam();
-      unsubActive();
-    };
+    const dispose = effect(() => {
+      // Access all signals to track dependencies
+      spriteSheets.value;
+      spriteEditorMode.value;
+      spriteEditorZoom.value;
+      colliderEditMode.value;
+      spriteFilterText.value;
+      selectedFrameIds.value;
+      editorCam.value;
+      activeSpriteSheetId.value;
+      
+      setRenderTick(t => t + 1);
+    });
+    return dispose;
   }, []);
 
   // Draw function
@@ -277,11 +273,14 @@ export function SpriteEditorCanvas() {
       }
     } else {
       // Draw badges for frames that have colliders
+      console.log('[drawGridView] Checking colliders for', frames.length, 'frames');
       for (let i = 0; i < frames.length; i++) {
         const entry = frames[i];
+        console.log('[drawGridView] Frame', entry.id, 'collider:', entry.frame.collider);
         if (!entry.frame.collider || entry.frame.collider.length === 0) continue;
         const col = i % cols;
         const row = Math.floor(i / cols);
+        console.log('[drawGridView] Drawing badge for', entry.id);
         drawColliderBadge(ctx, col * cellW, row * cellH, cellW, cellH);
       }
     }

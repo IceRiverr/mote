@@ -14,7 +14,9 @@ import {
   activeSpriteSheet,
   activeSpriteSheetImage,
   spriteEditorMode,
-  colliderEditMode,
+  editorMode,
+  colliderTool,
+  showColliderOverlay,
   spriteEditorZoom,
   spriteFilterText,
   selectedFrameIds,
@@ -22,7 +24,10 @@ import {
   filteredFrames,
   spriteSheets,
   stepZoom,
+  setFrameCollider,
+  statusBarMessage,
 } from './state';
+import { COLLIDER_PRESETS } from '../../data/Collider';
 
 // ── Grid layout helpers ───────────────────────────────────────
 
@@ -85,7 +90,7 @@ interface CtxMenuState {
 
 type FrameEntry = { id: string; frame: FrameData };
 
-// ── Draw collider badge directly (simpler version) ────────────
+// ── Draw collider badge ───────────────────────────────────────
 
 function drawColliderBadge(
   ctx: CanvasRenderingContext2D,
@@ -94,14 +99,12 @@ function drawColliderBadge(
   cw: number,
   ch: number,
 ): void {
-  // Draw a bright red filled rect in top-right corner
   const size = Math.max(6, Math.min(12, Math.min(cw, ch) / 3));
   const padding = 2;
   
   ctx.fillStyle = '#ff3333';
   ctx.fillRect(cx + cw - size - padding, cy + padding, size, size);
   
-  // White border
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 1;
   ctx.strokeRect(cx + cw - size - padding + 0.5, cy + padding + 0.5, size - 1, size - 1);
@@ -125,7 +128,9 @@ export function SpriteEditorCanvas() {
       spriteSheets.value;
       spriteEditorMode.value;
       spriteEditorZoom.value;
-      colliderEditMode.value;
+      editorMode.value;
+      colliderTool.value;
+      showColliderOverlay.value;
       spriteFilterText.value;
       selectedFrameIds.value;
       editorCam.value;
@@ -147,9 +152,11 @@ export function SpriteEditorCanvas() {
     const mode = spriteEditorMode.value;
     const zoom = spriteEditorZoom.value;
     const cam = editorCam.value;
-    const showColliders = colliderEditMode.value;
     const frames = filteredFrames.value;
     const selected = selectedFrameIds.value;
+
+    // Use new state system
+    const showColliders = showColliderOverlay.value || editorMode.value === 'collider';
 
     const dpr = window.devicePixelRatio || 1;
     const w = container.clientWidth;
@@ -204,6 +211,30 @@ export function SpriteEditorCanvas() {
     editorCam.value = { x: 0, y: 0 };
     hoverIdx.current = -1;
   }, [activeSpriteSheetId.value]);
+
+  // ── Apply collider tool to frame ────────────────────────────
+  const applyColliderTool = (frameId: string) => {
+    const sheet = activeSpriteSheet.value;
+    if (!sheet) return;
+    
+    const tool = colliderTool.value;
+    let shapes;
+    
+    switch (tool) {
+      case 'full': shapes = COLLIDER_PRESETS.full; break;
+      case 'halfTop': shapes = COLLIDER_PRESETS.halfTop; break;
+      case 'halfBottom': shapes = COLLIDER_PRESETS.halfBottom; break;
+      case 'slopeNE': shapes = COLLIDER_PRESETS.slopeNE; break;
+      case 'slopeNW': shapes = COLLIDER_PRESETS.slopeNW; break;
+      case 'slopeSE': shapes = COLLIDER_PRESETS.slopeSE; break;
+      case 'slopeSW': shapes = COLLIDER_PRESETS.slopeSW; break;
+      case 'eraser': shapes = undefined; break;
+      default: return;
+    }
+    
+    setFrameCollider(sheet.id, frameId, shapes);
+    statusBarMessage.value = `已${shapes ? '添加' : '移除'}碰撞体: ${frameId}`;
+  };
 
   // ── Grid View drawing ───────────────────────────────────────
   function drawGridView(
@@ -273,14 +304,11 @@ export function SpriteEditorCanvas() {
       }
     } else {
       // Draw badges for frames that have colliders
-      console.log('[drawGridView] Checking colliders for', frames.length, 'frames');
       for (let i = 0; i < frames.length; i++) {
         const entry = frames[i];
-        console.log('[drawGridView] Frame', entry.id, 'collider:', entry.frame.collider);
         if (!entry.frame.collider || entry.frame.collider.length === 0) continue;
         const col = i % cols;
         const row = Math.floor(i / cols);
-        console.log('[drawGridView] Drawing badge for', entry.id);
         drawColliderBadge(ctx, col * cellW, row * cellH, cellW, cellH);
       }
     }
@@ -483,6 +511,7 @@ export function SpriteEditorCanvas() {
       return;
     }
 
+    // Pan with middle mouse or Alt+Left
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       e.preventDefault();
       const startCam = { ...editorCam.value };
@@ -505,16 +534,30 @@ export function SpriteEditorCanvas() {
 
     if (e.button === 0) {
       const idx = screenToIndex(e.clientX, e.clientY);
+      
+      // Click on empty area
       if (idx < 0) {
         if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
           selectedFrameIds.value = [];
         }
         return;
       }
+      
       const frames = filteredFrames.value;
       const entry = frames[idx];
       selDragStart.current = idx;
 
+      // Collider mode: apply collider tool on click
+      if (editorMode.value === 'collider') {
+        applyColliderTool(entry.id);
+        // Also select the frame
+        if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+          selectedFrameIds.value = [entry.id];
+        }
+        return;
+      }
+
+      // Selection logic
       if (e.shiftKey) {
         const currentSelected = selectedFrameIds.value;
         if (currentSelected.length > 0) {
@@ -551,8 +594,15 @@ export function SpriteEditorCanvas() {
         const frames = filteredFrames.value;
         const entry = frames[idx];
         const rect = containerRef.current!.getBoundingClientRect();
+        
+        // Add tool hint when in collider mode
+        let text = `${entry.id}  (${entry.frame.w}×${entry.frame.h})`;
+        if (editorMode.value === 'collider') {
+          text += ' — 点击应用';
+        }
+        
         setTooltip({
-          text: `${entry.id}  (${entry.frame.w}×${entry.frame.h})`,
+          text,
           x: e.clientX - rect.left,
           y: e.clientY - rect.top,
         });
@@ -621,7 +671,14 @@ export function SpriteEditorCanvas() {
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', height: '100%', overflow: 'hidden', cursor: 'pointer', imageRendering: 'pixelated', position: 'relative' }}
+      style={{ 
+        width: '100%', 
+        height: '100%', 
+        overflow: 'hidden', 
+        cursor: editorMode.value === 'collider' ? 'crosshair' : 'pointer', 
+        imageRendering: 'pixelated', 
+        position: 'relative' 
+      }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

@@ -1,13 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// state.ts — Sprite Editor UI state signals
+// state.ts — Sprite Editor UI state signals (Blender-style)
 // ═══════════════════════════════════════════════════════════════
 
 import { signal, computed } from '@preact/signals';
 import type { SpriteSheet, FrameData } from '../../data/SpriteSheet';
+import type { ColliderShape } from '../../data/Collider';
 
 // ── Re-export store signals ───────────────────────────────────
-// Data-level signals live in the real store; we re-export them
-// so existing imports from this module keep working.
 
 export {
   spriteSheets,
@@ -15,6 +14,8 @@ export {
   activeSpriteSheetId,
   selectedFrameIds,
   activeSpriteSheet,
+  setFrameCollider,
+  setFrameTags,
 } from '../../store/spriteSheet';
 
 // Import for local use in computed signals
@@ -25,13 +26,36 @@ import {
   selectedFrameIds,
 } from '../../store/spriteSheet';
 
-// ── UI-only State ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// Blender-Style Editor Modes
+// ═══════════════════════════════════════════════════════════════
+
+/** Editor interaction mode - Blender style */
+export type EditorMode = 'select' | 'collider' | 'tag';
+
+export const editorMode = signal<EditorMode>('select');
+
+/** Collider tool for collider mode */
+export type ColliderTool = 'rect' | 'circle' | 'polygon' | 'eraser' | 'full' | 'halfTop' | 'halfBottom' | 'slopeNE' | 'slopeNW' | 'slopeSE' | 'slopeSW';
+
+export const colliderTool = signal<ColliderTool>('full');
+
+/** Whether to always show collider overlay (Blender viewport overlay style) */
+export const showColliderOverlay = signal(true);
+
+// ═══════════════════════════════════════════════════════════════
+// Legacy compatibility (to be removed)
+// ═══════════════════════════════════════════════════════════════
+
+/** @deprecated Use editorMode === 'collider' instead */
+export const colliderEditMode = computed(() => editorMode.value === 'collider');
+
+// ═══════════════════════════════════════════════════════════════
+// UI State
+// ═══════════════════════════════════════════════════════════════
 
 /** View mode: grid (tile-palette style) or list (sprite-panel style) */
 export const spriteEditorMode = signal<'grid' | 'list'>('grid');
-
-/** Whether collider editing overlay is active */
-export const colliderEditMode = signal(false);
 
 /** Display zoom level */
 export const spriteEditorZoom = signal(2);
@@ -41,6 +65,12 @@ export const spriteFilterText = signal('');
 
 /** Camera pan offset for the editor canvas */
 export const editorCam = signal({ x: 0, y: 0 });
+
+/** Whether the Properties panel (N-Panel) is visible */
+export const propertiesPanelVisible = signal(true);
+
+/** Whether the Toolbar (T-Panel) is visible */
+export const toolbarVisible = signal(true);
 
 // ── Zoom helpers ──────────────────────────────────────────────
 
@@ -115,3 +145,58 @@ export const activeFrame = computed(
     return { id: ids[0], frame };
   },
 );
+
+// ═══════════════════════════════════════════════════════════════
+// Mode & Tool Helpers (Blender-style)
+// ═══════════════════════════════════════════════════════════════
+
+export const MODE_NAMES: Record<EditorMode, string> = {
+  select: '选择模式',
+  collider: '碰撞编辑',
+  tag: '标签编辑',
+};
+
+export const TOOL_NAMES: Record<ColliderTool, { name: string; icon: string; desc: string }> = {
+  rect: { name: '矩形', icon: '▭', desc: '绘制矩形碰撞体 (R)' },
+  circle: { name: '圆形', icon: '○', desc: '绘制圆形碰撞体 (C)' },
+  polygon: { name: '多边形', icon: '⬡', desc: '绘制多边形碰撞体 (P)' },
+  eraser: { name: '擦除', icon: '⌫', desc: '删除碰撞体 (X)' },
+  full: { name: '完整', icon: '▪', desc: '完整矩形碰撞体 (1)' },
+  halfTop: { name: '上半', icon: '▰', desc: '上半部分碰撞体 (2)' },
+  halfBottom: { name: '下半', icon: '▰', desc: '下半部分碰撞体 (3)' },
+  slopeNE: { name: '斜坡NE', icon: '◿', desc: '东北方向斜坡 (4)' },
+  slopeNW: { name: '斜坡NW', icon: '◸', desc: '西北方向斜坡 (5)' },
+  slopeSE: { name: '斜坡SE', icon: '◹', desc: '东南方向斜坡 (6)' },
+  slopeSW: { name: '斜坡SW', icon: '◺', desc: '西南方向斜坡 (7)' },
+};
+
+/** Status bar message - Blender style hint system */
+export const statusBarMessage = signal<string>('就绪');
+
+/** Toggle editor mode (Tab key behavior) */
+export function toggleEditorMode(): void {
+  const modes: EditorMode[] = ['select', 'collider', 'tag'];
+  const idx = modes.indexOf(editorMode.value);
+  editorMode.value = modes[(idx + 1) % modes.length];
+  statusBarMessage.value = `已切换到: ${MODE_NAMES[editorMode.value]}`;
+}
+
+/** Set editor mode directly */
+export function setEditorMode(mode: EditorMode): void {
+  editorMode.value = mode;
+  statusBarMessage.value = `已切换到: ${MODE_NAMES[mode]}`;
+}
+
+/** Get help text for current mode */
+export const currentModeHelp = computed(() => {
+  switch (editorMode.value) {
+    case 'select':
+      return '左键: 选择 | Ctrl+左键: 多选 | Shift+左键: 范围 | 中键: 平移 | Tab: 切换模式';
+    case 'collider':
+      return `${TOOL_NAMES[colliderTool.value].desc} | 左键: 应用到帧 | 中键: 平移 | Tab: 切换模式 | N: 属性面板`;
+    case 'tag':
+      return '左键: 选择帧并编辑标签 | Tab: 切换模式';
+    default:
+      return '';
+  }
+});

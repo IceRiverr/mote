@@ -1,7 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
-// SpriteEditorHeader.tsx — Top toolbar for the Sprite Editor.
-// Includes sheet selector, size info, search, view mode toggle,
-// collider mode toggle, zoom controls, and import button.
+// SpriteEditorHeader.tsx — Blender-style top toolbar
+// Includes sheet selector, mode selector, zoom controls, and import
 // ═══════════════════════════════════════════════════════════════
 
 import { useRef, useState } from 'preact/hooks';
@@ -11,13 +10,18 @@ import {
   activeSpriteSheetId,
   activeSpriteSheet,
   spriteEditorMode,
-  colliderEditMode,
   spriteEditorZoom,
   spriteFilterText,
   selectedFrameIds,
   editorCam,
   stepZoom,
   formatZoom,
+  editorMode,
+  setEditorMode,
+  showColliderOverlay,
+  propertiesPanelVisible,
+  MODE_NAMES,
+  EditorMode,
 } from './state';
 import {
   importGridSpriteSheet,
@@ -27,7 +31,59 @@ import {
 } from '../../data/sprite-sheet-import';
 import { addSpriteSheet } from '../../store/spriteSheet';
 
-// ── Import Popover ────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// Mode Selector — Blender-style dropdown with tooltips
+// ═══════════════════════════════════════════════════════════════
+
+const MODE_TOOLTIPS: Record<EditorMode, string> = {
+  select: '选择模式: 左键选择, Ctrl多选, Shift范围, 中键平移 (快捷键: 1)',
+  collider: '碰撞编辑: 选择工具后点击帧应用碰撞体 (快捷键: 2)',
+  tag: '标签编辑: 选择帧后在属性面板编辑标签 (快捷键: 3)',
+};
+
+function ModeSelector() {
+  const currentMode = editorMode.value;
+  const modes: EditorMode[] = ['select', 'collider', 'tag'];
+  
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        background: 'var(--bg-input)',
+        border: '1px solid var(--border)',
+        borderRadius: 3,
+        padding: '2px',
+      }}
+    >
+      {modes.map((mode) => (
+        <button
+          key={mode}
+          onClick={() => setEditorMode(mode)}
+          title={MODE_TOOLTIPS[mode]}
+          style={{
+            padding: '3px 10px',
+            fontSize: 11,
+            fontWeight: currentMode === mode ? 'bold' : 'normal',
+            background: currentMode === mode ? 'var(--accent)' : 'transparent',
+            color: currentMode === mode ? '#fff' : 'var(--text-secondary)',
+            border: 'none',
+            borderRadius: 2,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          {MODE_NAMES[mode]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Import Popover
+// ═══════════════════════════════════════════════════════════════
 
 type ImportMode = 'tilesheet' | 'packed' | 'xml' | 'loose';
 
@@ -170,7 +226,7 @@ function ImportPopover({ onDone }: { onDone: () => void }) {
             cursor: loading ? 'wait' : 'pointer',
           }}
         >
-          {loading ? '导入中\u2026' : '导入'}
+          {loading ? '导入中…' : '导入'}
         </button>
         <button
           onClick={onDone}
@@ -223,15 +279,18 @@ function NumLabel({
   );
 }
 
-// ── Main Header Component ─────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// Main Header Component
+// ═══════════════════════════════════════════════════════════════
 
 export function SpriteEditorHeader() {
   const [showImport, setShowImport] = useState(false);
   const sheet = activeSpriteSheet.value;
   const sheets = spriteSheets.value;
   const mode = spriteEditorMode.value;
-  const colliderOn = colliderEditMode.value;
   const zoom = spriteEditorZoom.value;
+  const colliderMode = editorMode.value === 'collider';
+  const hasContent = !!sheet;
 
   return (
     <div
@@ -242,14 +301,14 @@ export function SpriteEditorHeader() {
         position: 'relative',
       }}
     >
-      {/* ── Row 1: Sheet selector + info + actions ── */}
+      {/* ── Row 1: Sheet selector + Mode selector + Actions ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 4,
+          gap: 8,
           padding: '0 8px',
-          height: 32,
+          height: 36,
         }}
       >
         {/* SpriteSheet selector */}
@@ -262,9 +321,9 @@ export function SpriteEditorHeader() {
             editorCam.value = { x: 0, y: 0 };
           }}
           style={{
-            flex: 1,
+            width: 180,
             minWidth: 0,
-            height: 22,
+            height: 24,
             fontSize: 11,
             background: 'var(--bg-input)',
             color: 'var(--text-bright)',
@@ -273,154 +332,177 @@ export function SpriteEditorHeader() {
             outline: 'none',
           }}
         >
-          {sheets.length === 0 && <option value="">(\u65E0\u56FE\u96C6)</option>}
+          {sheets.length === 0 && <option value="">(无图集)</option>}
           {sheets.map((s) => (
             <option key={s.id} value={s.id}>
-              {s.name} ({s.frames.length} \u5E27)
+              {s.name} ({s.frames.length} 帧)
             </option>
           ))}
         </select>
 
-        {/* Image dimensions */}
-        {sheet && (
-          <span
-            style={{
-              fontSize: 10,
-              color: 'var(--text-secondary)',
-              whiteSpace: 'nowrap',
-              fontFamily: 'monospace',
-            }}
-          >
-            {sheet.imageWidth}\u00D7{sheet.imageHeight}
-          </span>
+        {/* Divider */}
+        {hasContent && <div style={{ width: 1, height: 20, background: 'var(--border)' }} />}
+
+        {/* Mode Selector — Blender style (only when has content) */}
+        {hasContent && <ModeSelector />}
+
+        {/* Divider */}
+        {hasContent && <div style={{ width: 1, height: 20, background: 'var(--border)' }} />}
+
+        {/* View Controls (only when has content) */}
+        {hasContent && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {/* Overlay toggle */}
+            <button
+              onClick={() => {
+                showColliderOverlay.value = !showColliderOverlay.value;
+              }}
+              title={showColliderOverlay.value ? '隐藏碰撞体覆盖层' : '显示碰撞体覆盖层'}
+              style={{
+                padding: '3px 6px',
+                fontSize: 11,
+                background: showColliderOverlay.value ? 'rgba(220, 60, 60, 0.2)' : 'transparent',
+                color: showColliderOverlay.value ? '#e06060' : 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+                borderRadius: 3,
+                cursor: 'pointer',
+              }}
+            >
+              ⬣
+            </button>
+
+            {/* View mode toggle */}
+            <div
+              style={{
+                display: 'flex',
+                border: '1px solid var(--border)',
+                borderRadius: 3,
+                overflow: 'hidden',
+              }}
+            >
+              <button
+                onClick={() => {
+                  spriteEditorMode.value = 'grid';
+                }}
+                title="网格视图"
+                style={{
+                  padding: '3px 6px',
+                  fontSize: 11,
+                  background: mode === 'grid' ? 'var(--accent)' : 'transparent',
+                  color: mode === 'grid' ? '#fff' : 'var(--text-secondary)',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                ▦
+              </button>
+              <button
+                onClick={() => {
+                  spriteEditorMode.value = 'list';
+                }}
+                title="列表视图"
+                style={{
+                  padding: '3px 6px',
+                  fontSize: 11,
+                  background: mode === 'list' ? 'var(--accent)' : 'transparent',
+                  color: mode === 'list' ? '#fff' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderLeft: '1px solid var(--border)',
+                  cursor: 'pointer',
+                }}
+              >
+                ☰
+              </button>
+            </div>
+          </div>
         )}
 
-        {/* View mode toggle */}
-        <div
-          style={{
-            display: 'flex',
-            border: '1px solid var(--border)',
-            borderRadius: 3,
-            overflow: 'hidden',
-          }}
-        >
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* Zoom controls (only when has content) */}
+        {hasContent && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <button
+              onClick={() => stepZoom(-1)}
+              style={{
+                width: 20,
+                height: 22,
+                padding: 0,
+                fontSize: 11,
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+                borderRadius: '3px 0 0 3px',
+                cursor: 'pointer',
+              }}
+              title="缩小"
+            >
+              −
+            </button>
+            <span
+              style={{
+                minWidth: 32,
+                textAlign: 'center',
+                fontSize: 10,
+                fontFamily: 'monospace',
+                color: 'var(--text-bright)',
+                borderTop: '1px solid var(--border)',
+                borderBottom: '1px solid var(--border)',
+                height: 22,
+                lineHeight: '22px',
+              }}
+            >
+              {formatZoom(zoom)}
+            </span>
+            <button
+              onClick={() => stepZoom(1)}
+              style={{
+                width: 20,
+                height: 22,
+                padding: 0,
+                fontSize: 11,
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+                borderRadius: '0 3px 3px 0',
+                cursor: 'pointer',
+              }}
+              title="放大"
+            >
+              +
+            </button>
+          </div>
+        )}
+
+        {/* Properties Panel Toggle (only when has content) */}
+        {hasContent && (
           <button
             onClick={() => {
-              spriteEditorMode.value = 'grid';
+              propertiesPanelVisible.value = !propertiesPanelVisible.value;
             }}
-            title="\u7F51\u683C\u89C6\u56FE"
+            title="属性面板 (N)"
             style={{
-              padding: '2px 6px',
+              padding: '3px 8px',
               fontSize: 11,
-              background: mode === 'grid' ? 'var(--accent)' : 'transparent',
-              color: mode === 'grid' ? '#fff' : 'var(--text-secondary)',
-              border: 'none',
-              cursor: 'pointer',
-              lineHeight: 1,
-            }}
-          >
-            {'\u25A6'}
-          </button>
-          <button
-            onClick={() => {
-              spriteEditorMode.value = 'list';
-            }}
-            title="\u5217\u8868\u89C6\u56FE"
-            style={{
-              padding: '2px 6px',
-              fontSize: 11,
-              background: mode === 'list' ? 'var(--accent)' : 'transparent',
-              color: mode === 'list' ? '#fff' : 'var(--text-secondary)',
-              border: 'none',
-              borderLeft: '1px solid var(--border)',
-              cursor: 'pointer',
-              lineHeight: 1,
-            }}
-          >
-            {'\u2630'}
-          </button>
-        </div>
-
-        {/* Collider edit mode toggle */}
-        <button
-          onClick={() => {
-            colliderEditMode.value = !colliderEditMode.value;
-          }}
-          title={colliderOn ? '\u9000\u51FA\u78B0\u649E\u7F16\u8F91\u6A21\u5F0F' : '\u8FDB\u5165\u78B0\u649E\u7F16\u8F91\u6A21\u5F0F'}
-          style={{
-            padding: '2px 6px',
-            fontSize: 11,
-            background: colliderOn ? 'rgba(220, 60, 60, 0.3)' : 'transparent',
-            color: colliderOn ? '#e06060' : 'var(--text-secondary)',
-            border: colliderOn ? '1px solid rgba(220, 60, 60, 0.5)' : '1px solid var(--border)',
-            borderRadius: 3,
-            cursor: 'pointer',
-            lineHeight: 1,
-          }}
-        >
-          {'\u2B23'}
-        </button>
-
-        {/* Zoom controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <button
-            onClick={() => stepZoom(-1)}
-            style={{
-              width: 18,
-              height: 20,
-              padding: 0,
-              fontSize: 11,
-              background: 'transparent',
-              color: 'var(--text-secondary)',
+              background: propertiesPanelVisible.value ? 'var(--accent)' : 'transparent',
+              color: propertiesPanelVisible.value ? '#fff' : 'var(--text-secondary)',
               border: '1px solid var(--border)',
-              borderRadius: '3px 0 0 3px',
+              borderRadius: 3,
               cursor: 'pointer',
             }}
-            title="\u7F29\u5C0F"
           >
-            {'\u2212'}
+            N
           </button>
-          <span
-            style={{
-              minWidth: 28,
-              textAlign: 'center',
-              fontSize: 10,
-              fontFamily: 'monospace',
-              color: 'var(--text-bright)',
-              borderTop: '1px solid var(--border)',
-              borderBottom: '1px solid var(--border)',
-              height: 20,
-              lineHeight: '20px',
-            }}
-          >
-            {formatZoom(zoom)}
-          </span>
-          <button
-            onClick={() => stepZoom(1)}
-            style={{
-              width: 18,
-              height: 20,
-              padding: 0,
-              fontSize: 11,
-              background: 'transparent',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border)',
-              borderRadius: '0 3px 3px 0',
-              cursor: 'pointer',
-            }}
-            title="\u653E\u5927"
-          >
-            +
-          </button>
-        </div>
+        )}
 
         {/* Import */}
         <button
           onClick={() => setShowImport(!showImport)}
           style={{
             fontSize: 11,
-            padding: '2px 8px',
-            height: 22,
+            padding: '3px 10px',
+            height: 24,
             background: showImport ? 'var(--accent)' : 'transparent',
             color: showImport ? '#fff' : 'var(--text-primary)',
             border: '1px solid var(--border)',
@@ -432,54 +514,71 @@ export function SpriteEditorHeader() {
         </button>
       </div>
 
-      {/* ── Row 2: Search bar ── */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          padding: '0 8px 4px',
-          height: 24,
-        }}
-      >
-        <input
-          type="text"
-          placeholder="\u641C\u7D22\u5E27\u540D\u2026"
-          value={spriteFilterText.value}
-          onInput={(e) => {
-            spriteFilterText.value = (e.target as HTMLInputElement).value;
-          }}
+      {/* ── Row 2: Search bar + Image dimensions (only when has content) ── */}
+      {hasContent && (
+        <div
           style={{
-            flex: 1,
-            height: 20,
-            background: 'var(--bg-input)',
-            color: 'var(--text-bright)',
-            border: '1px solid var(--border)',
-            borderRadius: 3,
-            fontSize: 11,
-            paddingLeft: 6,
-            outline: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '0 8px 6px',
+            height: 26,
           }}
-        />
-        {spriteFilterText.value && (
-          <button
-            onClick={() => {
-              spriteFilterText.value = '';
+        >
+          <input
+            type="text"
+            placeholder="搜索帧名…"
+            value={spriteFilterText.value}
+            onInput={(e) => {
+              spriteFilterText.value = (e.target as HTMLInputElement).value;
             }}
             style={{
-              fontSize: 10,
-              padding: '0 4px',
-              height: 18,
-              background: 'transparent',
-              color: 'var(--text-secondary)',
-              border: 'none',
-              cursor: 'pointer',
+              flex: 1,
+              maxWidth: 200,
+              height: 22,
+              background: 'var(--bg-input)',
+              color: 'var(--text-bright)',
+              border: '1px solid var(--border)',
+              borderRadius: 3,
+              fontSize: 11,
+              paddingLeft: 8,
+              outline: 'none',
             }}
-          >
-            {'\u2715'}
-          </button>
-        )}
-      </div>
+          />
+          {spriteFilterText.value && (
+            <button
+              onClick={() => {
+                spriteFilterText.value = '';
+              }}
+              style={{
+                fontSize: 10,
+                padding: '0 4px',
+                height: 18,
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              ✕
+            </button>
+          )}
+
+          {/* Image dimensions */}
+          {sheet && (
+            <span
+              style={{
+                fontSize: 10,
+                color: 'var(--text-secondary)',
+                whiteSpace: 'nowrap',
+                fontFamily: 'monospace',
+              }}
+            >
+              {sheet.imageWidth}×{sheet.imageHeight}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* ── Import Popover ── */}
       {showImport && <ImportPopover onDone={() => setShowImport(false)} />}

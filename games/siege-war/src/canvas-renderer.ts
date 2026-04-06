@@ -136,13 +136,9 @@ export class SiegeRenderer {
     ctx.fillStyle = '#0d0d1a';
     ctx.fillRect(0, 0, this.canvasW, this.canvasH);
 
-    // 2. Apply camera transform
+    // 2. Apply camera transform (centered on viewport)
     ctx.save();
-    const zoom = this.camera.zoom;
-    const camX = this.camera.x;
-    const camY = this.camera.y;
-    ctx.scale(zoom, zoom);
-    ctx.translate(-camX, -camY);
+    this.camera.applyTransform(ctx);
 
     // 3. Render layers based on viewMode
     switch (state.viewMode) {

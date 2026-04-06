@@ -595,6 +595,23 @@ function createBattlefieldCamera(): BattlefieldCamera {
       if (cam.y + vpH > cam.bounds.bottom) cam.y = cam.bounds.bottom - vpH;
     },
 
+    applyTransform(ctx: CanvasRenderingContext2D): void {
+      const cx = Math.round(cam.x + cam.shakeOffsetX);
+      const cy = Math.round(cam.y + cam.shakeOffsetY);
+      const halfW = cam.viewportWidth * 0.5;
+      const halfH = cam.viewportHeight * 0.5;
+      ctx.setTransform(
+        cam.zoom, 0,
+        0, cam.zoom,
+        halfW - cx * cam.zoom,
+        halfH - cy * cam.zoom,
+      );
+    },
+
+    resetTransform(ctx: CanvasRenderingContext2D): void {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    },
+
     getVisibleTileRange(tileW: number, tileH: number, mapCols: number, mapRows: number) {
       const vpW = cam.viewportWidth / cam.zoom;
       const vpH = cam.viewportHeight / cam.zoom;
@@ -791,7 +808,7 @@ function generateLevelScene(levelId: string, levelConfig: LevelConfig): SceneDat
   
   const terrainLayer = {
     id: 'terrain',
-    name: 'Terrain',
+    name: 'ground',
     type: 'tile' as const,
     visible: true,
     opacity: 1,
@@ -1471,6 +1488,7 @@ function render(_alpha: number): void {
         else if (tl.name === 'wall') tileLayers.wall = tl;
       }
     }
+    console.log('[Render] Scene layers:', scene.layers.length, 'Ground layer:', tileLayers.ground?.name, 'Data length:', tileLayers.ground?.data?.length);
   }
 
   // Build wall segment render data

@@ -1,0 +1,10 @@
+client:495 [vite] connecting...
+client:618 [vite] connected.
+main.ts:679 Road Rash init failed: TypeError: Failed to construct 'URL': Invalid base URL
+    at canvas-loader.ts:101:12
+    at Array.map (<anonymous>)
+    at loadProject (canvas-loader.ts:98:40)
+    at async init (main.ts:90:18)
+(anonymous) @ main.ts:679
+Promise.catch
+(anonymous) @ main.ts:678

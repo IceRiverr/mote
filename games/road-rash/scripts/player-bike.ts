@@ -235,6 +235,12 @@ export default class PlayerBikeScript implements ScriptLifecycle {
         this.doAttack('left');
       } else if (atkR.pressed) {
         this.doAttack('right');
+      } else if (this.ctx.attackRequested === 'right') {
+        this.doAttack('right');
+        this.ctx.attackRequested = null; // consume the request
+      } else if (this.ctx.attackRequested === 'left') {
+        this.doAttack('left');
+        this.ctx.attackRequested = null; // consume the request
       }
     }
 

@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "mote-engine": "*"
+    "@mote/engine": "file:../../packages/engine"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

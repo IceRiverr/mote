@@ -308,8 +308,8 @@ export function generateSceneFromTrack(track: TrackConfig): SceneData {
   return {
     id: track.id,
     name: track.name,
-    width: mapCols,
-    height: mapRows,
+    width: mapCols * tileW,    // pixel width
+    height: mapRows * tileH,   // pixel height
     tileWidth: tileW,
     tileHeight: tileH,
     spriteSheets: ['road-tiles'],

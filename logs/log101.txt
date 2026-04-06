@@ -1,0 +1,30 @@
+client:495 [vite] connecting...
+client:618 [vite] connected.
+[Violation] 'requestAnimationFrame' handler took <N>ms
+[Violation] 'requestAnimationFrame' handler took <N>ms
+[Violation] 'requestAnimationFrame' handler took <N>ms
+[Violation] 'requestAnimationFrame' handler took <N>ms
+[Violation] 'requestAnimationFrame' handler took <N>ms
+[Violation] 'requestAnimationFrame' handler took <N>ms
+[Violation] 'requestAnimationFrame' handler took <N>ms
+[Violation] 'requestAnimationFrame' handler took <N>ms
+[Violation] 'requestAnimationFrame' handler took <N>ms
+[Violation] 'requestAnimationFrame' handler took <N>ms
+[Violation] 'requestAnimationFrame' handler took <N>ms
+[Violation] 'requestAnimationFrame' handler took <N>ms
+[Violation] 'requestAnimationFrame' handler took <N>ms
+GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 54ms
+GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 51ms
+GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 55ms
+GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 52ms
+GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 59ms
+GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 64ms
+GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 57ms
+GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 63ms
+GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 67ms
+GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 60ms
+GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 58ms
+GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 64ms
+GameLoop.ts:29 [Violation] 'requestAnimationFrame' handler took 68ms
+[Violation] 'requestIdleCallback' handler took 54ms
+[Violation] 'requestIdleCallback' handler took 67ms

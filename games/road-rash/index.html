@@ -20,7 +20,7 @@
     #nitro-bar { height: 100%; background: #4af; transition: width 0.2s; }
     #position-display { position: absolute; right: 10px; top: 10px; font-size: 36px; font-weight: bold; text-shadow: 2px 2px #000; }
     #position-suffix { font-size: 16px; }
-    #weapon-display { position: absolute; right: 10px; bottom: 10px; font-size: 14px; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px; }
+    #weapon-display { position: absolute; right: 10px; bottom: 10px; font-size: 14px; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px; cursor: pointer; pointer-events: auto; user-select: none; }
     #distance-display { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 14px; color: #ccc; text-shadow: 1px 1px #000; }
     #minimap { position: absolute; right: 10px; top: 60px; width: 20px; height: 200px; background: rgba(0,0,0,0.5); border: 1px solid #444; border-radius: 3px; }
     
@@ -46,7 +46,7 @@
       <div id="nitro-bar-container"><div id="nitro-bar" style="width:0%"></div></div>
       <div id="speed-display">0 <span id="speed-unit">km/h</span></div>
       <div id="position-display">6<span id="position-suffix">th</span></div>
-      <div id="weapon-display">&#x1F44A; Fist</div>
+      <button id="weapon-display">&#x1F44A; Fist</button>
       <div id="distance-display">4.5 km to finish</div>
       <div id="minimap"></div>
     </div>

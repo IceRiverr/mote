@@ -14,9 +14,9 @@ if (fs.existsSync(scriptsDir)) {
 
 export default defineConfig({
   resolve: {
-    alias: { '@mote/engine': path.resolve(__dirname, '../packages/engine/src') },
+    alias: { '@mote/engine': path.resolve(__dirname, '../../packages/engine/src') },
   },
-  server: { port: 3003 },
+  server: { port: 3006 },
   assetsInclude: ['**/*.wgsl'],
   build: {
     rollupOptions: {

@@ -59,6 +59,10 @@ export class RoadRashContext {
   private _onDamageFlash: DamageFlashCallback | null = null;
   private _onCountdown: CountdownCallback | null = null;
 
+  // ── Touch / UI attack trigger ─────────────────────────────────────────
+  /** Set by main.ts when attack button is clicked; consumed by player script. */
+  attackRequested: 'left' | 'right' | null = null;
+
   constructor(
     sceneManager: SceneManager,
     scriptRuntime: ScriptRuntime,

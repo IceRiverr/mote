@@ -149,6 +149,7 @@ async function init(): Promise<void> {
     },
     input,
   );
+  input.addMap(actionMap);
   actionMap.enable();
 
   // Expose input on the context so scripts can read actions
@@ -182,6 +183,15 @@ async function init(): Promise<void> {
       const overlay = document.getElementById('result-overlay');
       if (overlay) overlay.style.display = 'none';
       await restartRace();
+    });
+  }
+
+  // Attack button (weapon display) - triggers attack via context flag
+  const attackBtn = document.getElementById('weapon-display');
+  if (attackBtn) {
+    attackBtn.addEventListener('click', () => {
+      // Set attack request flag for player script to consume
+      context.attackRequested = 'right';
     });
   }
 }

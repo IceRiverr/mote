@@ -345,7 +345,7 @@ export function ImportDialog({ onClose }: Props) {
     }
   };
 
-  // Handle import using File System Access API - file picker for Mote format
+  // Handle import using File System Access API - file picker for Mote format or PNG
   const handleImportWithPicker = async () => {
     if (!isFileSystemAccessSupported()) {
       setError('您的浏览器不支持文件系统访问 API');
@@ -356,16 +356,90 @@ export function ImportDialog({ onClose }: Props) {
     setError(null);
     
     try {
-      // Step 1: Pick the JSON file
-      const [jsonHandle] = await window.showOpenFilePicker({
+      // Step 1: Pick JSON or Image file
+      const [fileHandle] = await window.showOpenFilePicker({
         types: [
+          { description: 'All Supported', accept: { 
+            'application/json': ['.json'],
+            'image/png': ['.png'],
+            'image/jpeg': ['.jpg', '.jpeg'],
+            'image/webp': ['.webp'],
+            'image/gif': ['.gif'],
+          }},
           { description: 'Mote Sprite JSON', accept: { 'application/json': ['.json'] } },
+          { description: 'Image Files', accept: { 
+            'image/png': ['.png'],
+            'image/jpeg': ['.jpg', '.jpeg'],
+            'image/webp': ['.webp'],
+            'image/gif': ['.gif'],
+          }},
         ],
         multiple: false,
       });
       
-      const jsonFile = await jsonHandle.getFile();
-      const jsonRaw = JSON.parse(await jsonFile.text()) as {
+      const file = await fileHandle.getFile();
+      const fileName = file.name.toLowerCase();
+      
+      // Check if it's an image file (PNG/JPG/WEBP/GIF)
+      if (/\.(png|jpg|jpeg|webp|gif)$/i.test(fileName)) {
+        // Import as grid/tilesheet with current params
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = reject;
+          img.src = url;
+        });
+        
+        const imageWidth = img.naturalWidth;
+        const imageHeight = img.naturalHeight;
+        
+        // Calculate grid
+        const columns = Math.floor(
+          (imageWidth - margin * 2 + spacing) / (tileW + spacing)
+        );
+        const rows = Math.floor(
+          (imageHeight - margin * 2 + spacing) / (tileH + spacing)
+        );
+        
+        // Generate frames
+        const frames: Record<string, any> = {};
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < columns; col++) {
+            const idx = row * columns + col;
+            frames[`frame_${idx}`] = {
+              x: margin + col * (tileW + spacing),
+              y: margin + row * (tileH + spacing),
+              w: tileW,
+              h: tileH,
+            };
+          }
+        }
+        
+        const sheet = {
+          id: `sheet_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          name: file.name.replace(/\.[^.]+$/, ''),
+          image: url,
+          sourcePath: file.name,
+          imageWidth,
+          imageHeight,
+          slicing: {
+            mode: 'grid' as const,
+            tileWidth: tileW,
+            tileHeight: tileH,
+            margin: margin || undefined,
+            spacing: spacing || undefined,
+          },
+          frames,
+        };
+        
+        addSpriteSheet(sheet, img);
+        onClose();
+        return;
+      }
+      
+      // Otherwise, treat as JSON file (Mote format)
+      const jsonRaw = JSON.parse(await file.text()) as {
         type?: string;
         version?: string;
         id: string;
@@ -555,7 +629,7 @@ export function ImportDialog({ onClose }: Props) {
               
               {isFileSystemAccessSupported() && (
                 <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, textAlign: 'center' }}>
-                  先选 .mote-sprite.json，再选对应图片
+                  支持 .json 或 .png/.jpg/.webp/.gif
                 </div>
               )}
               

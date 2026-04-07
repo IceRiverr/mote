@@ -133,10 +133,12 @@ export function CornerHandles({ areaId, onSplit, onMerge, canMerge }: Props) {
             const direction = Math.abs(dx) > Math.abs(dy) ? 'vertical' : 'horizontal';
             
             let ratio: number;
-            if (direction === 'horizontal') {
+            if (direction === 'vertical') {
+              // Vertical split (left/right): ratio based on X position
               const localX = e.clientX - rect.left;
               ratio = localX / rect.width;
             } else {
+              // Horizontal split (top/bottom): ratio based on Y position
               const localY = e.clientY - rect.top;
               ratio = localY / rect.height;
             }

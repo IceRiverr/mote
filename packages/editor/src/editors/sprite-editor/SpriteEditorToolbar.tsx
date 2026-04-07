@@ -271,7 +271,7 @@ function ViewOptions() {
 }
 
 // ── Main Toolbar Component ────────────────────────────────────
-// Note: Empty state is handled in SpriteEditorEditor.tsx
+// Note: Empty state is handled in SpriteEditor.tsx
 // This component is only rendered when there IS content
 
 export function SpriteEditorToolbar() {

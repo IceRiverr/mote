@@ -1,1 +1,1 @@
-import './SpriteEditorEditor';
+import './SpriteEditor';

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// SpriteEditorEditor.tsx — Blender-style sprite editor
+// SpriteEditor.tsx — Blender-style sprite editor
 // Layout: [Toolbar | Canvas | Properties] — only visible when content exists
 // Modes: Select / Collider / Tag
 // ═══════════════════════════════════════════════════════════════
@@ -179,7 +179,7 @@ function useKeyboardShortcuts() {
 // Main Editor — Blender-style layout
 // ═══════════════════════════════════════════════════════════════
 
-function SpriteEditorEditor({ areaId }: { areaId: string }) {
+function SpriteEditor({ areaId }: { areaId: string }) {
   useKeyboardShortcuts();
 
   const sheet = activeSpriteSheet.value;
@@ -281,7 +281,7 @@ registerEditor({
   id: 'sprite-editor',
   name: '精灵编辑器',
   icon: '🎨',
-  component: SpriteEditorEditor,
+  component: SpriteEditor,
 });
 
-export { SpriteEditorEditor };
+export { SpriteEditor };

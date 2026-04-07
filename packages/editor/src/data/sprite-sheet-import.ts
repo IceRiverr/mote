@@ -13,6 +13,7 @@ import {
   parseSparrowXml,
   packLooseImages,
 } from "./SpriteAtlas";
+import { spriteSheetFromJson } from "./io-v2";
 
 /** Load an image from a File object */
 function loadImageFromFile(file: File): Promise<{ url: string; img: HTMLImageElement }> {
@@ -273,20 +274,104 @@ export async function importXmlSpriteSheet(
 }
 
 // ============================================================
+// Mode 5: Mote Native Format (.mote-sprite.json)
+// ============================================================
+
+/** Mote sprite sheet JSON format (exported by this editor) */
+export interface MoteSpriteJson {
+  id: string;
+  name: string;
+  image: string;
+  slicing?: {
+    mode: 'grid' | 'packed' | 'xml' | 'manual';
+    tileWidth?: number;
+    tileHeight?: number;
+    margin?: number;
+    spacing?: number;
+    source?: string;
+  };
+  frames: Array<{
+    id: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    collider?: FrameData["collider"];
+    tags?: string[];
+    properties?: Record<string, unknown>;
+    trimmed?: boolean;
+    sourceWidth?: number;
+    sourceHeight?: number;
+    offsetX?: number;
+    offsetY?: number;
+    rotated?: boolean;
+  }>;
+}
+
+export async function importMoteSpriteSheet(
+  jsonFile: File,
+  imageFile: File,
+  name?: string,
+  imageSourcePath?: string,
+): Promise<{ sheet: SpriteSheet; img: HTMLImageElement }> {
+  const jsonData = await readJsonFile(jsonFile) as MoteSpriteJson;
+
+  // Validate basic structure
+  if (!jsonData.frames || !Array.isArray(jsonData.frames)) {
+    throw new Error("Invalid Mote sprite JSON: missing frames array");
+  }
+
+  const { url, img } = await loadImageFromFile(imageFile);
+  
+  // Build the JSON format expected by spriteSheetFromJson
+  const spriteSheetJson = {
+    id: jsonData.id ?? `sheet_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    name: name ?? jsonData.name ?? jsonFile.name.replace(/\.[^.]+$/, ""),
+    image: imageSourcePath ?? imageFile.name,
+    slicing: jsonData.slicing ?? { mode: "packed" as const },
+    frames: jsonData.frames,
+  };
+  
+  // Use io-v2's conversion function for consistency
+  const sheet = spriteSheetFromJson(spriteSheetJson, url);
+
+  return { sheet, img };
+}
+
+/** Check if a JSON file is in Mote format (vs TexturePacker) */
+function isMoteSpriteJson(json: unknown): json is MoteSpriteJson {
+  if (typeof json !== "object" || json === null) return false;
+  const obj = json as Record<string, unknown>;
+  // Mote format has "frames" as an array, TexturePacker has it as an object
+  if (!Array.isArray(obj.frames)) return false;
+  // Mote format has slicing info
+  if (obj.slicing && typeof obj.slicing === "object") return true;
+  // Or check for id/name at root level
+  if (typeof obj.id === "string" && typeof obj.name === "string") return true;
+  return false;
+}
+
+// ============================================================
 // Auto-detect import mode
 // ============================================================
 export function detectImportMode(
   files: File[],
-): "grid" | "packed" | "xml" | "loose" | "unknown" {
-  const hasJson = files.some((f) => f.name.endsWith(".json"));
+): "grid" | "packed" | "xml" | "loose" | "mote" | "unknown" {
+  const jsonFile = files.find((f) => f.name.endsWith(".json"));
   const hasXml = files.some((f) => /\.(xml|txt)$/i.test(f.name));
   const imageCount = files.filter((f) =>
     /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name)
   ).length;
 
-  if (hasJson && imageCount === 1) return "packed";
+  // Check for Mote format first (by filename pattern or content)
+  if (jsonFile && imageCount === 1) {
+    // If filename contains .mote-sprite, it's likely our format
+    if (jsonFile.name.includes(".mote-sprite")) return "mote";
+  }
+
+  if (jsonFile && imageCount === 1) return "packed";
   if (hasXml && imageCount === 1) return "xml";
-  if (!hasJson && !hasXml && imageCount > 1) return "loose";
-  if (!hasJson && !hasXml && imageCount === 1) return "grid";
+  if (!jsonFile && !hasXml && imageCount > 1) return "loose";
+  if (!jsonFile && !hasXml && imageCount === 1) return "grid";
   return "unknown";
 }

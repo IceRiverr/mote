@@ -67,16 +67,18 @@ interface ListLayout {
   thumbSize: number;
   padding: number;
   rows: number;
+  innerPad: number;
 }
 
 function getListLayout(containerW: number, frameCount: number, zoom: number): ListLayout {
-  const baseCellSize = 64;
-  const cellSize = Math.max(32, Math.round(baseCellSize * zoom));
-  const padding = 4;
+  const baseCellSize = 96; // Increased from 64 for better visibility
+  const cellSize = Math.max(48, Math.round(baseCellSize * zoom));
+  const padding = 8; // Increased padding
   const cols = Math.max(1, Math.floor((containerW + padding) / (cellSize + padding)));
   const rows = Math.ceil(frameCount / cols);
-  const thumbSize = cellSize - 8;
-  return { cols, cellSize, thumbSize, padding, rows };
+  const innerPad = 8; // Padding inside cell for thumbnail
+  const thumbSize = cellSize - innerPad * 2;
+  return { cols, cellSize, thumbSize, padding, rows, innerPad };
 }
 
 // ── Context menu state ────────────────────────────────────────
@@ -89,26 +91,6 @@ interface CtxMenuState {
 }
 
 type FrameEntry = { id: string; frame: FrameData };
-
-// ── Draw collider badge ───────────────────────────────────────
-
-function drawColliderBadge(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  cw: number,
-  ch: number,
-): void {
-  const size = Math.max(6, Math.min(12, Math.min(cw, ch) / 3));
-  const padding = 2;
-  
-  ctx.fillStyle = '#ff3333';
-  ctx.fillRect(cx + cw - size - padding, cy + padding, size, size);
-  
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(cx + cw - size - padding + 0.5, cy + padding + 0.5, size - 1, size - 1);
-}
 
 // ── Component ─────────────────────────────────────────────────
 
@@ -302,15 +284,6 @@ export function SpriteEditorCanvas() {
           false,
         );
       }
-    } else {
-      // Draw badges for frames that have colliders
-      for (let i = 0; i < frames.length; i++) {
-        const entry = frames[i];
-        if (!entry.frame.collider || entry.frame.collider.length === 0) continue;
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        drawColliderBadge(ctx, col * cellW, row * cellH, cellW, cellH);
-      }
     }
 
     // Hover highlight
@@ -375,7 +348,7 @@ export function SpriteEditorCanvas() {
     showColliders: boolean,
   ): void {
     const layout = getListLayout(viewW, frames.length, zoom);
-    const { cols, cellSize, thumbSize, padding } = layout;
+    const { cols, cellSize, thumbSize, padding, innerPad } = layout;
     const selectedSet = new Set(selected);
 
     ctx.save();
@@ -410,45 +383,40 @@ export function SpriteEditorCanvas() {
         ctx.fillRect(cx, cy, cellSize, cellSize);
       }
 
+      // Calculate thumbnail draw area (same logic for both image and collider)
+      // Scale to fill the available area (upscale small images, downscale large ones)
+      const drawArea = thumbSize;
+      const thumbScale = Math.min(drawArea / fd.w, drawArea / fd.h);
+      const thumbW = fd.w * thumbScale;
+      const thumbH = fd.h * thumbScale;
+      const thumbX = cx + innerPad + (drawArea - thumbW) / 2;
+      const thumbY = cy + innerPad + (drawArea - thumbH) / 2;
+
       // Draw frame thumbnail
       if (img) {
-        const innerPad = 4;
-        const drawArea = thumbSize;
-        const scale = Math.min(drawArea / fd.w, drawArea / fd.h, 1);
-        const dw = fd.w * scale;
-        const dh = fd.h * scale;
-        const dx = cx + innerPad + (drawArea - dw) / 2;
-        const dy = cy + innerPad + (drawArea - dh) / 2;
-
         if (fd.rotated) {
           ctx.save();
-          ctx.translate(dx + dw / 2, dy + dh / 2);
+          ctx.translate(thumbX + thumbW / 2, thumbY + thumbH / 2);
           ctx.rotate(-Math.PI / 2);
-          ctx.drawImage(img, fd.x, fd.y, fd.h, fd.w, -dh / 2, -dw / 2, dh, dw);
+          ctx.drawImage(img, fd.x, fd.y, fd.h, fd.w, -thumbH / 2, -thumbW / 2, thumbH, thumbW);
           ctx.restore();
         } else {
-          ctx.drawImage(img, fd.x, fd.y, fd.w, fd.h, dx, dy, dw, dh);
+          ctx.drawImage(img, fd.x, fd.y, fd.w, fd.h, thumbX, thumbY, thumbW, thumbH);
         }
       }
 
-      // Collider overlay or badge
-      if (showColliders) {
-        if (entry.frame.collider && entry.frame.collider.length > 0) {
-          drawColliderOverlay(ctx, entry.frame.collider, cx, cy, cellSize, cellSize, false);
-        }
-      } else {
-        if (entry.frame.collider && entry.frame.collider.length > 0) {
-          drawColliderBadge(ctx, cx, cy, cellSize, cellSize);
-        }
+      // Collider overlay (drawn in thumbnail area, not full cell)
+      if (showColliders && entry.frame.collider && entry.frame.collider.length > 0) {
+        drawColliderOverlay(ctx, entry.frame.collider, thumbX, thumbY, thumbW, thumbH, false);
       }
 
-      // Frame name label
-      if (cellSize >= 48) {
+      // Frame name label (positioned below thumbnail area)
+      if (cellSize >= 64) {
         ctx.fillStyle = '#bbb';
-        ctx.font = '9px sans-serif';
+        ctx.font = '10px sans-serif';
         ctx.textAlign = 'center';
-        const label = entry.id.length > 10 ? entry.id.slice(0, 9) + '…' : entry.id;
-        ctx.fillText(label, cx + cellSize / 2, cy + cellSize - 2);
+        const label = entry.id.length > 12 ? entry.id.slice(0, 11) + '…' : entry.id;
+        ctx.fillText(label, cx + cellSize / 2, cy + cellSize - 6);
       }
     }
 

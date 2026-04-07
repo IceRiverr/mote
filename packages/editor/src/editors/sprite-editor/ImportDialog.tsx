@@ -9,11 +9,12 @@ import {
   importPackedSpriteSheet,
   importXmlSpriteSheet,
   importLooseSpriteSheet,
+  importMoteSpriteSheet,
 } from '../../data/sprite-sheet-import';
 import { addSpriteSheet } from '../../store/spriteSheet';
 import { createGridSpriteSheet } from '../../data/SpriteSheet';
 
-type ImportMode = 'tilesheet' | 'packed' | 'xml' | 'loose';
+type ImportMode = 'tilesheet' | 'packed' | 'xml' | 'loose' | 'mote';
 
 interface Props {
   onClose: () => void;
@@ -30,6 +31,7 @@ const MODE_LABELS: Record<ImportMode, { name: string; desc: string; icon: string
   packed: { name: 'JSON (Packed)', desc: 'TexturePacker 格式', icon: '{ }' },
   xml: { name: 'XML', desc: 'Sparrow/Starling 格式', icon: '</>' },
   loose: { name: '散图 (Loose)', desc: '多张图片合并成图集', icon: '📁' },
+  mote: { name: 'Mote', desc: 'Mote 精灵格式 (支持碰撞体和标签)', icon: '◈' },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -143,6 +145,11 @@ export function ImportDialog({ onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // For Mote format: auto-matched image file
+  const [moteJsonData, setMoteJsonData] = useState<{ image: string } | null>(null);
+  const [autoMatchedImage, setAutoMatchedImage] = useState<File | null>(null);
+  const [needsManualImage, setNeedsManualImage] = useState(false);
+  
   // Grid params
   const [tileW, setTileW] = useState(16);
   const [tileH, setTileH] = useState(16);
@@ -150,18 +157,77 @@ export function ImportDialog({ onClose }: Props) {
   const [spacing, setSpacing] = useState(0);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // Read file as JSON
+  const readFileAsJson = (file: File): Promise<unknown> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try { resolve(JSON.parse(reader.result as string)); }
+        catch (e) { reject(e); }
+      };
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
+  };
 
   // Handle file selection
-  const handleFileSelect = (e: Event) => {
+  const handleFileSelect = async (e: Event) => {
     const files = Array.from((e.target as HTMLInputElement).files || []);
     if (files.length === 0) return;
     
     setSelectedFiles(files);
     setError(null);
+    setMoteJsonData(null);
+    setAutoMatchedImage(null);
+    setNeedsManualImage(false);
     
-    // Create preview for image files
-    const imageFile = files.find(f => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
-    if (imageFile) {
+    // Find JSON file and image files
+    const jsonFile = files.find(f => f.name.endsWith('.json'));
+    const imageFiles = files.filter(f => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
+    
+    // If Mote JSON found, try to auto-match image
+    if (jsonFile && jsonFile.name.includes('.mote-sprite')) {
+      try {
+        const json = await readFileAsJson(jsonFile) as { image?: string };
+        if (json.image) {
+          setMoteJsonData({ image: json.image });
+          
+          // Try to find matching image file
+          // json.image could be "foo.png" or "path/to/foo.png"
+          const imageName = json.image.split('/').pop() || json.image;
+          const matchedImage = imageFiles.find(f => 
+            f.name.toLowerCase() === imageName.toLowerCase()
+          );
+          
+          if (matchedImage) {
+            setAutoMatchedImage(matchedImage);
+            // Create preview
+            const url = URL.createObjectURL(matchedImage);
+            const img = new Image();
+            img.onload = () => {
+              setPreview({
+                imageUrl: url,
+                width: img.width,
+                height: img.height,
+              });
+            };
+            img.src = url;
+          } else {
+            setNeedsManualImage(true);
+            setPreview(null);
+          }
+          return; // Skip default preview logic
+        }
+      } catch (e) {
+        // Ignore parse error, continue with normal flow
+      }
+    }
+    
+    // Default: create preview for first image file
+    if (imageFiles.length > 0) {
+      const imageFile = imageFiles[0];
       const url = URL.createObjectURL(imageFile);
       const img = new Image();
       img.onload = () => {
@@ -172,18 +238,45 @@ export function ImportDialog({ onClose }: Props) {
         });
       };
       img.src = url;
+    } else {
+      setPreview(null);
     }
+  };
+
+  // Handle manual image selection for Mote format
+  const handleManualImageSelect = (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    
+    setAutoMatchedImage(file);
+    setNeedsManualImage(false);
+    
+    // Create preview
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      setPreview({
+        imageUrl: url,
+        width: img.width,
+        height: img.height,
+      });
+    };
+    img.src = url;
   };
 
   // Detect mode from files (smart detection)
   useEffect(() => {
     if (selectedFiles.length === 0) return;
     
-    const hasJson = selectedFiles.some(f => f.name.endsWith('.json'));
+    const jsonFile = selectedFiles.find(f => f.name.endsWith('.json'));
     const hasXml = selectedFiles.some(f => /\.(xml|txt)$/i.test(f.name));
     const hasImage = selectedFiles.some(f => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
+    const isMoteJson = jsonFile && jsonFile.name.includes('.mote-sprite');
     
-    if (hasJson && hasImage) {
+    // Check for Mote format: can be just JSON (auto-match) or JSON+Image
+    if (isMoteJson) {
+      setMode('mote');
+    } else if (jsonFile && hasImage) {
       setMode('packed');
     } else if (hasXml && hasImage) {
       setMode('xml');
@@ -215,6 +308,14 @@ export function ImportDialog({ onClose }: Props) {
         const imgFile = selectedFiles.find(f => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
         if (!imgFile) throw new Error('未找到图片文件');
         const { sheet, img } = await importGridSpriteSheet(imgFile, tileW, tileH, margin, spacing, undefined, imgFile.name);
+        addSpriteSheet(sheet, img);
+      } else if (mode === 'mote') {
+        const jsonFile = selectedFiles.find(f => f.name.endsWith('.json'));
+        // Use auto-matched image or manually selected image
+        const imgFile = autoMatchedImage || selectedFiles.find(f => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
+        if (!jsonFile) throw new Error('需要 Mote JSON 文件');
+        if (!imgFile) throw new Error('需要图片文件，请选择 ' + (moteJsonData?.image || '对应的 PNG 文件'));
+        const { sheet, img } = await importMoteSpriteSheet(jsonFile, imgFile, undefined, imgFile.name);
         addSpriteSheet(sheet, img);
       } else if (mode === 'packed') {
         const jsonFile = selectedFiles.find(f => f.name.endsWith('.json'));
@@ -362,6 +463,52 @@ export function ImportDialog({ onClose }: Props) {
                   {selectedFiles.map(f => (
                     <div key={f.name} style={{ marginBottom: 2 }}>• {f.name}</div>
                   ))}
+                </div>
+              )}
+              
+              {/* Mote format: auto-match status */}
+              {mode === 'mote' && moteJsonData && (
+                <div style={{ marginTop: 12, padding: '8px', background: 'var(--bg-input)', borderRadius: 4 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                    JSON 中指定的图片:
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-bright)', fontFamily: 'monospace' }}>
+                    {moteJsonData.image}
+                  </div>
+                  
+                  {autoMatchedImage ? (
+                    <div style={{ marginTop: 8, fontSize: 10, color: '#60c060', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>✓</span>
+                      <span>已自动匹配: {autoMatchedImage.name}</span>
+                    </div>
+                  ) : needsManualImage ? (
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ fontSize: 10, color: '#e06060', marginBottom: 6 }}>
+                        ⚠ 未找到同名图片文件
+                      </div>
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept=".png,.jpg,.jpeg,.webp,.gif"
+                        onChange={handleManualImageSelect}
+                        style={{ display: 'none' }}
+                      />
+                      <button
+                        onClick={() => imageInputRef.current?.click()}
+                        style={{
+                          padding: '4px 8px',
+                          background: 'var(--accent)',
+                          border: 'none',
+                          borderRadius: 3,
+                          color: '#fff',
+                          cursor: 'pointer',
+                          fontSize: 10,
+                        }}
+                      >
+                        + 选择图片文件
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>

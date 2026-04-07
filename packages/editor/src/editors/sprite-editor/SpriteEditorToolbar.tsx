@@ -6,7 +6,6 @@
 import {
   editorMode,
   colliderTool,
-  showColliderOverlay,
   selectedFrameIds,
   setFrameCollider,
   MODE_NAMES,
@@ -241,35 +240,6 @@ function TagTools() {
   );
 }
 
-// ── View Options ──────────────────────────────────────────────
-
-function ViewOptions() {
-  return (
-    <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-      <label
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          fontSize: 10,
-          color: 'var(--text-secondary)',
-          cursor: 'pointer',
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={showColliderOverlay.value}
-          onChange={(e) => {
-            showColliderOverlay.value = (e.target as HTMLInputElement).checked;
-          }}
-          style={{ margin: 0 }}
-        />
-        显示碰撞体
-      </label>
-    </div>
-  );
-}
-
 // ── Main Toolbar Component ────────────────────────────────────
 // Note: Empty state is handled in SpriteEditor.tsx
 // This component is only rendered when there IS content
@@ -298,8 +268,7 @@ export function SpriteEditorToolbar() {
       {mode === 'collider' && <ColliderTools />}
       {mode === 'tag' && <TagTools />}
       
-      {/* View options at bottom */}
-      <ViewOptions />
+
     </div>
   );
 }

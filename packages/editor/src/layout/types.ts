@@ -30,3 +30,6 @@ export interface SplitInfo {
 }
 
 export type RectMap = Map<string, Rect>;
+
+/** Corner positions for area splitting */
+export type Corner = 'tl' | 'tr' | 'bl' | 'br';

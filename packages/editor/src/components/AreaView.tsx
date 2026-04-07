@@ -1,7 +1,8 @@
-import { Rect } from '../layout/types';
+import { Rect, Corner } from '../layout/types';
 import { getEditor, getAllEditors } from '../editors/registry';
-import { setEditorType } from '../layout/tree';
+import { setEditorType, splitAreaFromCorner } from '../layout/tree';
 import { layoutTree } from '../store/layout';
+import { CornerHandles } from './CornerHandles';
 
 interface Props {
   areaId: string;
@@ -18,10 +19,15 @@ export function AreaView({ areaId, editorType, rect }: Props) {
     layoutTree.value = setEditorType(layoutTree.value, areaId, val);
   };
 
+  const handleSplit = (corner: Corner, direction: 'horizontal' | 'vertical', ratio: number) => {
+    layoutTree.value = splitAreaFromCorner(layoutTree.value, areaId, corner, direction, ratio);
+  };
+
   const Comp = editor?.component;
 
   return (
     <div
+      className="area-view"
       style={{
         position: 'absolute',
         left: rect.x,
@@ -71,6 +77,9 @@ export function AreaView({ areaId, editorType, rect }: Props) {
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
         {Comp ? <Comp areaId={areaId} /> : <div style={{ padding: 12, color: '#666' }}>Unknown editor: {editorType}</div>}
       </div>
+
+      {/* Corner Split Handles */}
+      <CornerHandles areaId={areaId} onSplit={handleSplit} />
     </div>
   );
 }

@@ -71,3 +71,13 @@ canvas {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
+
+/* Area View Corner Handles */
+.area-view:hover .corner-handle {
+  opacity: 0.6;
+}
+
+.corner-handle:hover {
+  opacity: 1;
+  background: #0af;
+}

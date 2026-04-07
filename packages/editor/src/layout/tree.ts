@@ -133,30 +133,117 @@ export function shouldMerge(
   return false;
 }
 
-/** Merge an area with its sibling - keeps the target area, removes sibling */
+/** Find the nearest area in a subtree from a specific edge */
+function findNearestArea(node: LayoutNode, fromEdge: 'start' | 'end'): AreaNode | null {
+  if (node.type === 'area') return node;
+  const childIndex = fromEdge === 'start' ? 0 : 1;
+  return findNearestArea(node.children[childIndex], fromEdge);
+}
+
+/** Check if a node contains any areas */
+function containsArea(node: LayoutNode): boolean {
+  if (node.type === 'area') return true;
+  return containsArea(node.children[0]) || containsArea(node.children[1]);
+}
+
+/** Merge an area with its sibling - keeps the target area, removes/adjusts sibling
+ * If sibling is an area: sibling is removed, target expands
+ * If sibling is a split: the nearest area in sibling is removed, target expands into that space
+ */
 export function mergeArea(
   root: LayoutNode,
   areaId: string
 ): LayoutNode {
   const parentInfo = findParent(root, areaId);
-  if (!parentInfo) return root; // Can't merge root or orphan
+  if (!parentInfo) return root;
 
   const { node: parent, index } = parentInfo;
-  const targetArea = parent.children[index]; // Keep this
+  const siblingIndex = index === 0 ? 1 : 0;
+  const sibling = parent.children[siblingIndex];
 
-  // Replace parent with target area (removing the sibling)
-  function replaceParent(node: LayoutNode): LayoutNode {
+  // If sibling is an area, simple merge: replace parent with target area
+  if (sibling.type === 'area') {
+    const targetArea = parent.children[index];
+    function simpleReplace(node: LayoutNode): LayoutNode {
+      if (node.type === 'split' && node.id === parent.id) {
+        return targetArea;
+      }
+      if (node.type === 'area') return node;
+      return {
+        ...node,
+        children: [simpleReplace(node.children[0]), simpleReplace(node.children[1])] as [LayoutNode, LayoutNode],
+      };
+    }
+    return simpleReplace(root);
+  }
+
+  // Sibling is a split - we need to remove the nearest area from sibling
+  // and let target area take that space
+  // For index=0 (target on left/top), remove first area from sibling (leftmost/topmost)
+  // For index=1 (target on right/bottom), remove last area from sibling (rightmost/bottommost)
+  const edgeToRemove: 'start' | 'end' = index === 0 ? 'start' : 'end';
+
+  function removeNearestArea(node: LayoutNode, edge: 'start' | 'end'): LayoutNode | null {
+    if (node.type === 'area') {
+      // Found the area to remove
+      return null;
+    }
+    const childIndex = edge === 'start' ? 0 : 1;
+    const otherIndex = edge === 'start' ? 1 : 0;
+    const result = removeNearestArea(node.children[childIndex], edge);
+    
+    if (result === null) {
+      // This child was removed, promote the other child
+      return node.children[otherIndex];
+    } else {
+      // Child was modified, return updated split
+      if (edge === 'start') {
+        const newChildren: [LayoutNode, LayoutNode] = [result, node.children[otherIndex]];
+        return { ...node, children: newChildren };
+      } else {
+        const newChildren: [LayoutNode, LayoutNode] = [node.children[otherIndex], result];
+        return { ...node, children: newChildren };
+      }
+    }
+  }
+
+  const modifiedSibling = removeNearestArea(sibling, edgeToRemove);
+  
+  // If sibling became null or empty, just return target
+  if (!modifiedSibling || !containsArea(modifiedSibling)) {
+    const targetArea = parent.children[index];
+    function removeParent(node: LayoutNode): LayoutNode {
+      if (node.type === 'split' && node.id === parent.id) {
+        return targetArea;
+      }
+      if (node.type === 'area') return node;
+      return {
+        ...node,
+        children: [removeParent(node.children[0]), removeParent(node.children[1])] as [LayoutNode, LayoutNode],
+      };
+    }
+    return removeParent(root);
+  }
+
+  // Type assertion: modifiedSibling is LayoutNode (not null)
+  const validSibling = modifiedSibling as LayoutNode;
+
+  // Replace sibling with modified version
+  function replaceSibling(node: LayoutNode): LayoutNode {
     if (node.type === 'split' && node.id === parent.id) {
-      return targetArea;
+      const newChildren: [LayoutNode, LayoutNode] = index === 0
+        ? [node.children[0], validSibling]
+        : [validSibling, node.children[1]];
+      return { ...node, children: newChildren };
     }
     if (node.type === 'area') return node;
     return {
       ...node,
-      children: [replaceParent(node.children[0]), replaceParent(node.children[1])] as [LayoutNode, LayoutNode],
+      children: [replaceSibling(node.children[0]), replaceSibling(node.children[1])] as [LayoutNode, LayoutNode],
     };
   }
 
-  return replaceParent(root);
+  return replaceSibling(root);
 }
 
 /** Split an area from a specific corner with a direction */

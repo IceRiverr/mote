@@ -22,7 +22,7 @@ const defaultLayout: LayoutNode = {
   direction: 'horizontal',
   ratio: 0.65,
   children: [
-    // Top row
+    // Top row - flattened structure for better merge support
     {
       type: 'split',
       id: 'top',
@@ -32,9 +32,9 @@ const defaultLayout: LayoutNode = {
         { type: 'area', id: 'area_scene_tree', editorType: 'scene-tree' },
         {
           type: 'split',
-          id: 'top_right',
+          id: 'top_middle',
           direction: 'vertical',
-          ratio: 0.75,
+          ratio: 0.6,
           children: [
             { type: 'area', id: 'area_viewport', editorType: 'viewport' },
             { type: 'area', id: 'area_inspector', editorType: 'inspector' },

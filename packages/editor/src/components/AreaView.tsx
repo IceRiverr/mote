@@ -27,12 +27,17 @@ export function AreaView({ areaId, editorType, rect }: Props) {
     layoutTree.value = mergeArea(layoutTree.value, areaId);
   };
 
-  // Check if this area can be merged (has a parent with area sibling)
+  // Check if this area can be merged (has adjacent area in the layout)
   const canMerge = (() => {
     const parentInfo = findParent(layoutTree.value, areaId);
     if (!parentInfo) return false;
-    const siblingIndex = parentInfo.index === 0 ? 1 : 0;
-    return parentInfo.node.children[siblingIndex].type === 'area';
+
+    const { index } = parentInfo;
+    const siblingIndex = index === 0 ? 1 : 0;
+    const sibling = parentInfo.node.children[siblingIndex];
+
+    // Can merge if sibling is an area or a split containing areas
+    return sibling.type === 'area' || sibling.type === 'split';
   })();
 
   const Comp = editor?.component;

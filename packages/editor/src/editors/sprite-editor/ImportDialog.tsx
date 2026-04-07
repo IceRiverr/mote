@@ -11,6 +11,7 @@ import {
   importLooseSpriteSheet,
   importMoteSpriteSheet,
 } from '../../data/sprite-sheet-import';
+import { isFileSystemAccessSupported } from '../../data/fs-access';
 import { addSpriteSheet } from '../../store/spriteSheet';
 import { createGridSpriteSheet } from '../../data/SpriteSheet';
 
@@ -293,7 +294,7 @@ export function ImportDialog({ onClose }: Props) {
       Math.floor((preview.height - margin * 2 + spacing) / (tileH + spacing))
     : null;
 
-  // Handle import
+  // Handle import using legacy file input
   const handleImport = async () => {
     if (selectedFiles.length === 0) {
       setError('请选择文件');
@@ -339,6 +340,85 @@ export function ImportDialog({ onClose }: Props) {
       onClose();
     } catch (e: any) {
       setError(e.message || String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle import using File System Access API - file picker for Mote format
+  const handleImportWithPicker = async () => {
+    if (!isFileSystemAccessSupported()) {
+      setError('您的浏览器不支持文件系统访问 API');
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Step 1: Pick the JSON file
+      const [jsonHandle] = await window.showOpenFilePicker({
+        types: [
+          { description: 'Mote Sprite JSON', accept: { 'application/json': ['.json'] } },
+        ],
+        multiple: false,
+      });
+      
+      const jsonFile = await jsonHandle.getFile();
+      const jsonData = JSON.parse(await jsonFile.text()) as {
+        id: string;
+        name: string;
+        image: string;
+        slicing?: unknown;
+        frames: unknown[];
+      };
+      
+      // Extract image filename from JSON
+      const imageName = jsonData.image.split('/').pop() || jsonData.image;
+      
+      // Step 2: Pick the image file (show expected filename to user)
+      setLoading(false);
+      setError(`请选择对应的图片文件: ${imageName}`);
+      
+      const [imageHandle] = await window.showOpenFilePicker({
+        types: [
+          { description: `Image Files (looking for: ${imageName})`, accept: { 
+            'image/png': ['.png'],
+            'image/jpeg': ['.jpg', '.jpeg'],
+            'image/webp': ['.webp'],
+            'image/gif': ['.gif'],
+          }},
+        ],
+        multiple: false,
+      });
+      
+      setLoading(true);
+      setError(null);
+      
+      const imageFile = await imageHandle.getFile();
+      const url = URL.createObjectURL(imageFile);
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = url;
+      });
+      
+      const { spriteSheetFromJson } = await import('../../data/io-v2');
+      const sheet = spriteSheetFromJson({
+        id: jsonData.id,
+        name: jsonData.name,
+        image: imageFile.name,
+        slicing: (jsonData.slicing as any) || { mode: 'packed' },
+        frames: jsonData.frames as any,
+      }, url);
+      
+      addSpriteSheet(sheet, img);
+      onClose();
+    } catch (e: any) {
+      if (e.name !== 'AbortError') {
+        setError(e.message || String(e));
+      }
     } finally {
       setLoading(false);
     }
@@ -432,6 +512,37 @@ export function ImportDialog({ onClose }: Props) {
               <div style={{ fontSize: 11, fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase' }}>
                 文件
               </div>
+              
+              {/* File picker button for Mote format */}
+              {isFileSystemAccessSupported() && (
+                <button
+                  onClick={handleImportWithPicker}
+                  disabled={loading}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: 'var(--accent)',
+                    border: 'none',
+                    borderRadius: 4,
+                    color: '#fff',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: 12,
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                    marginBottom: 12,
+                    opacity: loading ? 0.7 : 1,
+                  }}
+                >
+                  {loading ? '导入中...' : '📂 打开文件选择器...'}
+                </button>
+              )}
+              
+              {isFileSystemAccessSupported() && (
+                <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 8, textAlign: 'center' }}>
+                  先选 .mote-sprite.json，再选对应图片
+                </div>
+              )}
+              
               <input
                 ref={fileInputRef}
                 type="file"

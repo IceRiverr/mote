@@ -88,6 +88,8 @@ function ExportButton() {
         const json = spriteSheetToJson(sheet);
         
         const header = JSON.stringify({
+          type: json.type,
+          version: json.version,
           id: json.id,
           name: json.name,
           image: json.image,

@@ -454,6 +454,8 @@ export async function exportSpriteSheetWithPicker(
 
   // Format JSON with compact frames array
   const header = JSON.stringify({
+    type: json.type,
+    version: json.version,
     id: json.id,
     name: json.name,
     image: json.image,
@@ -531,6 +533,8 @@ export async function exportSpriteSheetToHandle(
 
   // Format and write JSON
   const header = JSON.stringify({
+    type: json.type,
+    version: json.version,
     id: json.id,
     name: json.name,
     image: json.image,

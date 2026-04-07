@@ -95,6 +95,8 @@ export function spriteSheetToJson(sheet: SpriteSheet): SpriteSheetJson {
   }
 
   return {
+    type: 'mote-sprite',
+    version: '1.0.0',
     id: sheet.id,
     name: sheet.name,
     image: imagePath,

@@ -27,6 +27,10 @@ export interface ProjectJson {
 
 /** Schema for .sprite.json — a sprite sheet definition */
 export interface SpriteSheetJson {
+  /** File format identifier */
+  type: 'mote-sprite';
+  /** File format version (semver) */
+  version: '1.0.0';
   id: string;
   name: string;
   image: string;  // relative path to image (relative to this JSON file)

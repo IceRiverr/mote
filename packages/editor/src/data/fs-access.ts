@@ -189,6 +189,8 @@ export async function importMoteSpriteSheetWithPicker(
 
   // Convert to SpriteSheet
   const sheet = spriteSheetFromJson({
+    type: 'mote-sprite',
+    version: '1.0.0',
     id: jsonData.id,
     name: jsonData.name,
     image: imageFile.name,

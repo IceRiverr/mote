@@ -365,13 +365,27 @@ export function ImportDialog({ onClose }: Props) {
       });
       
       const jsonFile = await jsonHandle.getFile();
-      const jsonData = JSON.parse(await jsonFile.text()) as {
+      const jsonRaw = JSON.parse(await jsonFile.text()) as {
+        type?: string;
+        version?: string;
         id: string;
         name: string;
         image: string;
         slicing?: unknown;
         frames: unknown[];
       };
+      
+      // Validate file type
+      if (jsonRaw.type && jsonRaw.type !== 'mote-sprite') {
+        throw new Error(`不支持的文件类型: ${jsonRaw.type}，需要 mote-sprite`);
+      }
+      
+      // Warn about version mismatch (but still try to load)
+      if (jsonRaw.version && jsonRaw.version !== '1.0.0') {
+        console.warn(`文件版本 ${jsonRaw.version} 可能与当前编辑器不兼容`);
+      }
+      
+      const jsonData = jsonRaw;
       
       // Extract image filename from JSON
       const imageName = jsonData.image.split('/').pop() || jsonData.image;
@@ -406,6 +420,8 @@ export function ImportDialog({ onClose }: Props) {
       
       const { spriteSheetFromJson } = await import('../../data/io-v2');
       const sheet = spriteSheetFromJson({
+        type: 'mote-sprite',
+        version: '1.0.0',
         id: jsonData.id,
         name: jsonData.name,
         image: imageFile.name,

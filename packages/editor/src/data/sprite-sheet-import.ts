@@ -325,6 +325,8 @@ export async function importMoteSpriteSheet(
   
   // Build the JSON format expected by spriteSheetFromJson
   const spriteSheetJson = {
+    type: 'mote-sprite' as const,
+    version: '1.0.0' as const,
     id: jsonData.id ?? `sheet_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     name: name ?? jsonData.name ?? jsonFile.name.replace(/\.[^.]+$/, ""),
     image: imageSourcePath ?? imageFile.name,

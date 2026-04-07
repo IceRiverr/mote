@@ -1,6 +1,6 @@
 import { Rect, Corner } from '../layout/types';
 import { getEditor, getAllEditors } from '../editors/registry';
-import { setEditorType, splitAreaFromCorner } from '../layout/tree';
+import { setEditorType, splitAreaFromCorner, mergeArea, findParent } from '../layout/tree';
 import { layoutTree } from '../store/layout';
 import { CornerHandles } from './CornerHandles';
 
@@ -22,6 +22,18 @@ export function AreaView({ areaId, editorType, rect }: Props) {
   const handleSplit = (corner: Corner, direction: 'horizontal' | 'vertical', ratio: number) => {
     layoutTree.value = splitAreaFromCorner(layoutTree.value, areaId, corner, direction, ratio);
   };
+
+  const handleMerge = () => {
+    layoutTree.value = mergeArea(layoutTree.value, areaId);
+  };
+
+  // Check if this area can be merged (has a parent with area sibling)
+  const canMerge = (() => {
+    const parentInfo = findParent(layoutTree.value, areaId);
+    if (!parentInfo) return false;
+    const siblingIndex = parentInfo.index === 0 ? 1 : 0;
+    return parentInfo.node.children[siblingIndex].type === 'area';
+  })();
 
   const Comp = editor?.component;
 
@@ -79,7 +91,7 @@ export function AreaView({ areaId, editorType, rect }: Props) {
       </div>
 
       {/* Corner Split Handles */}
-      <CornerHandles areaId={areaId} onSplit={handleSplit} />
+      <CornerHandles areaId={areaId} onSplit={handleSplit} onMerge={handleMerge} canMerge={canMerge} />
     </div>
   );
 }

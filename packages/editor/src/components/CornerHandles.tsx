@@ -5,6 +5,8 @@ import { useDrag } from '../hooks/useDrag';
 interface Props {
   areaId: string;
   onSplit: (corner: Corner, direction: 'horizontal' | 'vertical', ratio: number) => void;
+  onMerge?: () => void;
+  canMerge?: boolean;
 }
 
 const CORNER_SIZE = 12;
@@ -35,10 +37,11 @@ const getHitAreaOffset = (corner: Corner) => {
   }
 };
 
-export function CornerHandles({ areaId, onSplit }: Props) {
+export function CornerHandles({ areaId, onSplit, onMerge, canMerge }: Props) {
   const [draggingCorner, setDraggingCorner] = useState<Corner | null>(null);
   const [previewDirection, setPreviewDirection] = useState<'horizontal' | 'vertical' | null>(null);
   const [previewPosition, setPreviewPosition] = useState<number>(50); // percentage
+  const [isMergeMode, setIsMergeMode] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; y: number; corner: Corner } | null>(null);
 
@@ -68,23 +71,46 @@ export function CornerHandles({ areaId, onSplit }: Props) {
       if (distance > DRAG_THRESHOLD && container) {
         // Determine direction based on drag vector
         const direction = Math.abs(dx) > Math.abs(dy) ? 'vertical' : 'horizontal';
+        const corner = dragStartRef.current.corner;
+        
+        // Check if this should be a merge operation
+        // Merge when dragging toward adjacent panel (same corner side as drag direction)
+        const isDraggingRight = dx > 0;
+        const isDraggingLeft = dx < 0;
+        const isDraggingDown = dy > 0;
+        const isDraggingUp = dy < 0;
+        
+        let mergePossible = false;
+        if (canMerge && direction === 'vertical') {
+          // Vertical drag: check left/right corners
+          if ((corner === 'tr' || corner === 'br') && isDraggingRight) mergePossible = true; // Right corners drag right
+          if ((corner === 'tl' || corner === 'bl') && isDraggingLeft) mergePossible = true;  // Left corners drag left
+        }
+        if (canMerge && direction === 'horizontal') {
+          // Horizontal drag: check top/bottom corners  
+          if ((corner === 'bl' || corner === 'br') && isDraggingDown) mergePossible = true;  // Bottom corners drag down
+          if ((corner === 'tl' || corner === 'tr') && isDraggingUp) mergePossible = true;    // Top corners drag up
+        }
+        
+        setIsMergeMode(mergePossible);
         setPreviewDirection(direction);
         
-        // Calculate preview position based on mouse position
-        const rect = container.getBoundingClientRect();
-        let position: number;
-        if (direction === 'horizontal') {
-          // Horizontal split line - position is vertical percentage
-          const localY = e.clientY - rect.top;
-          position = (localY / rect.height) * 100;
-        } else {
-          // Vertical split line - position is horizontal percentage
-          const localX = e.clientX - rect.left;
-          position = (localX / rect.width) * 100;
+        if (!mergePossible) {
+          // Calculate preview position based on mouse position
+          const rect = container.getBoundingClientRect();
+          let position: number;
+          if (direction === 'horizontal') {
+            const localY = e.clientY - rect.top;
+            position = (localY / rect.height) * 100;
+          } else {
+            const localX = e.clientX - rect.left;
+            position = (localX / rect.width) * 100;
+          }
+          setPreviewPosition(Math.max(10, Math.min(90, position)));
         }
-        setPreviewPosition(Math.max(10, Math.min(90, position)));
       } else {
         setPreviewDirection(null);
+        setIsMergeMode(false);
       }
     },
     onEnd(e) {
@@ -96,29 +122,28 @@ export function CornerHandles({ areaId, onSplit }: Props) {
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance > DRAG_THRESHOLD) {
-        // Calculate ratio based on direction and container size
-        const container = containerRef.current.parentElement;
-        if (container) {
-          const rect = container.getBoundingClientRect();
-          const direction = Math.abs(dx) > Math.abs(dy) ? 'vertical' : 'horizontal';
-          
-          // Calculate ratio based on drag end position relative to container
-          // The new area will take up space based on how far we dragged
-          let ratio: number;
-          if (direction === 'horizontal') {
-            // Vertical split line - ratio is horizontal position
-            const localX = e.clientX - rect.left;
-            ratio = localX / rect.width;
-          } else {
-            // Horizontal split line - ratio is vertical position  
-            const localY = e.clientY - rect.top;
-            ratio = localY / rect.height;
+        if (isMergeMode && onMerge) {
+          // Perform merge
+          onMerge();
+        } else {
+          // Perform split
+          const container = containerRef.current.parentElement;
+          if (container) {
+            const rect = container.getBoundingClientRect();
+            const direction = Math.abs(dx) > Math.abs(dy) ? 'vertical' : 'horizontal';
+            
+            let ratio: number;
+            if (direction === 'horizontal') {
+              const localX = e.clientX - rect.left;
+              ratio = localX / rect.width;
+            } else {
+              const localY = e.clientY - rect.top;
+              ratio = localY / rect.height;
+            }
+            
+            ratio = Math.max(0.2, Math.min(0.8, ratio));
+            onSplit(corner, direction, ratio);
           }
-          
-          // Clamp between 0.2 and 0.8 to prevent too small panels
-          ratio = Math.max(0.2, Math.min(0.8, ratio));
-          
-          onSplit(corner, direction, ratio);
         }
       }
 
@@ -126,6 +151,7 @@ export function CornerHandles({ areaId, onSplit }: Props) {
       setDraggingCorner(null);
       setPreviewDirection(null);
       setPreviewPosition(50);
+      setIsMergeMode(false);
     },
   });
 
@@ -165,7 +191,7 @@ export function CornerHandles({ areaId, onSplit }: Props) {
       ))}
       
       {/* Preview line */}
-      {previewDirection && draggingCorner && (
+      {previewDirection && draggingCorner && !isMergeMode && (
         <div
           style={{
             position: 'absolute',
@@ -176,6 +202,19 @@ export function CornerHandles({ areaId, onSplit }: Props) {
               ? { left: 0, right: 0, top: `${previewPosition}%`, height: 2, transform: 'translateY(-1px)' }
               : { top: 0, bottom: 0, left: `${previewPosition}%`, width: 2, transform: 'translateX(-1px)' }
             ),
+          }}
+        />
+      )}
+      
+      {/* Merge indicator */}
+      {isMergeMode && draggingCorner && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: '#f0a030',
+            opacity: 0.2,
+            pointerEvents: 'none',
           }}
         />
       )}

@@ -98,6 +98,67 @@ export function findParent(root: LayoutNode, areaId: string): { node: SplitNode;
   return null;
 }
 
+/** Check if drag from corner should merge with adjacent panel instead of splitting */
+export function shouldMerge(
+  parentInfo: { node: SplitNode; index: 0 | 1 } | null,
+  corner: import('./types').Corner,
+  direction: 'horizontal' | 'vertical'
+): boolean {
+  if (!parentInfo) return false;
+  
+  const { node: parent, index } = parentInfo;
+  const isFirstChild = index === 0;
+  
+  // Merge when drag direction points toward the sibling
+  if (parent.direction === 'vertical' && direction === 'vertical') {
+    // Vertical split: children are [left, right]
+    // Left child (index=0): tr/br corners drag right → merge to right
+    // Right child (index=1): tl/bl corners drag left → merge to left
+    const isLeftCorner = corner === 'tl' || corner === 'bl';
+    const isRightCorner = corner === 'tr' || corner === 'br';
+    if (isFirstChild && isRightCorner) return true; // Left panel drag right
+    if (!isFirstChild && isLeftCorner) return true; // Right panel drag left
+  }
+  
+  if (parent.direction === 'horizontal' && direction === 'horizontal') {
+    // Horizontal split: children are [top, bottom]
+    // Top child (index=0): bl/br corners drag down → merge to bottom
+    // Bottom child (index=1): tl/tr corners drag up → merge to top
+    const isTopCorner = corner === 'tl' || corner === 'tr';
+    const isBottomCorner = corner === 'bl' || corner === 'br';
+    if (isFirstChild && isBottomCorner) return true; // Top panel drag down
+    if (!isFirstChild && isTopCorner) return true; // Bottom panel drag up
+  }
+  
+  return false;
+}
+
+/** Merge an area with its sibling - keeps the target area, removes sibling */
+export function mergeArea(
+  root: LayoutNode,
+  areaId: string
+): LayoutNode {
+  const parentInfo = findParent(root, areaId);
+  if (!parentInfo) return root; // Can't merge root or orphan
+
+  const { node: parent, index } = parentInfo;
+  const targetArea = parent.children[index]; // Keep this
+
+  // Replace parent with target area (removing the sibling)
+  function replaceParent(node: LayoutNode): LayoutNode {
+    if (node.type === 'split' && node.id === parent.id) {
+      return targetArea;
+    }
+    if (node.type === 'area') return node;
+    return {
+      ...node,
+      children: [replaceParent(node.children[0]), replaceParent(node.children[1])] as [LayoutNode, LayoutNode],
+    };
+  }
+
+  return replaceParent(root);
+}
+
 /** Split an area from a specific corner with a direction */
 export function splitAreaFromCorner(
   root: LayoutNode,

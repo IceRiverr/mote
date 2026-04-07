@@ -1,4 +1,6 @@
 {
+  "type": "mote-sprite",
+  "version": "1.0.0",
   "id": "sheet_1775488516523_ilxr",
   "name": "tiny-dungeon_tilemap_packed",
   "image": "tiny-dungeon_tilemap_packed.png",

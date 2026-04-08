@@ -5,52 +5,45 @@ import { computeRects } from '../layout/rect';
 /**
  * Default layout (6 panels) — Blender-style:
  *
- * ┌──────────┬──────────────────┬──────────┐
- * │          │                  │          │
- * │ Scene    │     Viewport     │Inspector │
- * │ Tree     │                  │          │
- * │          │                  │          │
- * ├──────────┴────────┬─────────┴──────────┤
- * │                   │                    │
- * │  Sprite Editor    │  Assets Browser    │
- * │                   │                    │
- * └───────────────────┴────────────────────┘
+ * ┌──────────────────┬───────────┐
+ * │                  │  Scene    │
+ * │                  │  Tree     │
+ * │    Viewport      ├───────────┤
+ * │                  │ Inspector │
+ * │                  │ (Props)   │
+ * ├──────────────────┼───────────┤
+ * │  Sprite Editor   │  Assets   │
+ * └──────────────────┴───────────┘
+ *
+ * Right side: Scene Tree (top) + Inspector (bottom)
+ * Left side: Viewport (top) + Sprite Editor (bottom)
  */
 const defaultLayout: LayoutNode = {
   type: 'split',
   id: 'root',
-  direction: 'horizontal',
-  ratio: 0.65,
+  direction: 'vertical',  // Main split: left vs right
+  ratio: 0.75,            // 75% for left (viewport area), 25% for right (panels)
   children: [
-    // Top row - flattened structure for better merge support
+    // Left side: Viewport (top) + Sprite Editor (bottom)
     {
       type: 'split',
-      id: 'top',
-      direction: 'vertical',
-      ratio: 0.18,
+      id: 'left',
+      direction: 'horizontal',
+      ratio: 0.65,
       children: [
-        { type: 'area', id: 'area_scene_tree', editorType: 'scene-tree' },
-        {
-          type: 'split',
-          id: 'top_middle',
-          direction: 'vertical',
-          ratio: 0.6,
-          children: [
-            { type: 'area', id: 'area_viewport', editorType: 'viewport' },
-            { type: 'area', id: 'area_inspector', editorType: 'inspector' },
-          ],
-        },
+        { type: 'area', id: 'area_viewport', editorType: 'viewport' },
+        { type: 'area', id: 'area_sprite_editor', editorType: 'sprite-editor' },
       ],
     },
-    // Bottom row
+    // Right side: Scene Tree (top) + Inspector (bottom)
     {
       type: 'split',
-      id: 'bottom',
-      direction: 'vertical',
-      ratio: 0.55,
+      id: 'right',
+      direction: 'horizontal',
+      ratio: 0.45,
       children: [
-        { type: 'area', id: 'area_sprite_editor', editorType: 'sprite-editor' },
-        { type: 'area', id: 'area_assets', editorType: 'assets' },
+        { type: 'area', id: 'area_scene_tree', editorType: 'scene-tree' },
+        { type: 'area', id: 'area_inspector', editorType: 'inspector' },
       ],
     },
   ],

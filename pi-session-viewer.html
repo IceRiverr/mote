@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi Session Viewer - JSONL 对话阅读器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --border-color: #30363d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-yellow: #d29922;
+            --accent-red: #f85149;
+            --accent-purple: #a371f7;
+            --user-bg: #1f4d7a;
+            --assistant-bg: #21262d;
+            --tool-bg: #2d2413;
+            --bash-bg: #1a2f1a;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .header h1::before {
+            content: '🥧';
+            font-size: 1.2rem;
+        }
+        
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            margin: 2rem;
+            background: var(--bg-secondary);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--accent-blue);
+            background: var(--bg-tertiary);
+        }
+        
+        .upload-area input {
+            display: none;
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .upload-text {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+        
+        .session-info {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 2rem;
+        }
+        
+        .session-info h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--accent-blue);
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .info-value {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem 2rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+            padding: 0.6rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+        
+        .search-box:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        
+        .filter-btn:hover, .filter-btn.active {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+        
+        .messages-container {
+            padding: 0 2rem 2rem;
+        }
+        
+        .message {
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message-header {
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.85rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .role-badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .role-user { background: var(--user-bg); color: var(--accent-blue); }
+        .role-assistant { background: var(--assistant-bg); color: var(--accent-green); }
+        .role-tool { background: var(--tool-bg); color: var(--accent-yellow); }
+        .role-bash { background: var(--bash-bg); color: var(--accent-green); }
+        .role-custom { background: var(--bg-tertiary); color: var(--accent-purple); }
+        .role-summary { background: var(--bg-tertiary); color: var(--text-secondary); }
+        
+        .message-time {
+            color: var(--text-secondary);
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+        
+        .message-id {
+            margin-left: auto;
+            color: var(--text-secondary);
+            font-family: monospace;
+            font-size: 0.75rem;
+            opacity: 0.6;
+        }
+        
+        .message-body {
+            padding: 1rem;
+            background: var(--bg-secondary);
+        }
+        
+        .message-content {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .message-content code {
+            background: var(--bg-tertiary);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.9em;
+        }
+        
+        .message-content pre {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 0.75rem 0;
+        }
+        
+        .message-content pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        /* Code block syntax highlighting */
+        .code-block {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin: 0.75rem 0;
+            overflow: hidden;
+        }
+        
+        .code-header {
+            background: rgba(255,255,255,0.05);
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .code-content {
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        .thinking-block {
+            background: rgba(163, 113, 247, 0.1);
+            border-left: 3px solid var(--accent-purple);
+            padding: 1rem;
+            margin: 0.75rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .thinking-label {
+            color: var(--accent-purple);
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .tool-call {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.75rem 0;
+        }
+        
+        .tool-name {
+            color: var(--accent-yellow);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .tool-args {
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .bash-output {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.85rem;
+        }
+        
+        .bash-command {
+            color: var(--accent-green);
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(63, 185, 80, 0.1);
+            border-radius: 4px;
+        }
+        
+        .bash-exitcode {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+        
+        .bash-exitcode.success { color: var(--accent-green); }
+        .bash-exitcode.error { color: var(--accent-red); }
+        
+        .compaction-box {
+            background: linear-gradient(135deg, rgba(88, 166, 255, 0.1), rgba(163, 113, 247, 0.1));
+            border: 1px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.75rem 0;
+        }
+        
+        .compaction-title {
+            color: var(--accent-blue);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .stats-bar {
+            display: flex;
+            gap: 2rem;
+            padding: 1rem 2rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+        
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .stat-value {
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+        
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 5px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Pi Session Viewer</h1>
+    </div>
+    
+    <div class="upload-area" id="uploadArea">
+        <input type="file" id="fileInput" accept=".jsonl">
+        <div class="upload-icon">📁</div>
+        <div class="upload-text">
+            <strong>点击选择或拖拽 JSONL 文件到此处</strong><br>
+            支持 pi 生成的会话文件 (~/.pi/agent/sessions/)
+        </div>
+    </div>
+    
+    <div id="sessionContainer" class="hidden">
+        <div class="session-info">
+            <h2>📋 会话信息</h2>
+            <div class="info-grid" id="sessionInfo"></div>
+        </div>
+        
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-item">
+                <span>💬 消息数:</span>
+                <span class="stat-value" id="msgCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span>🌿 分支数:</span>
+                <span class="stat-value" id="branchCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span>📦 Compaction:</span>
+                <span class="stat-value" id="compactionCount">0</span>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <input type="text" class="search-box" id="searchBox" placeholder="🔍 搜索消息内容...">
+            <button class="filter-btn active" data-filter="all">全部</button>
+            <button class="filter-btn" data-filter="user">用户</button>
+            <button class="filter-btn" data-filter="assistant">助手</button>
+            <button class="filter-btn" data-filter="tool">工具</button>
+            <button class="filter-btn" data-filter="bash">终端</button>
+        </div>
+        
+        <div class="messages-container" id="messagesContainer"></div>
+    </div>
+    
+    <div class="empty-state" id="emptyState">
+        <div class="empty-state-icon">🥧</div>
+        <p>选择一个 JSONL 文件开始查看对话</p>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const sessionContainer = document.getElementById('sessionContainer');
+        const emptyState = document.getElementById('emptyState');
+        const messagesContainer = document.getElementById('messagesContainer');
+        const searchBox = document.getElementById('searchBox');
+        
+        let currentEntries = [];
+        let currentFilter = 'all';
+        
+        // File upload handling
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) loadFile(file);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) loadFile(e.target.files[0]);
+        });
+        
+        function loadFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    parseJsonl(e.target.result);
+                    uploadArea.classList.add('hidden');
+                    emptyState.classList.add('hidden');
+                    sessionContainer.classList.remove('hidden');
+                } catch (err) {
+                    alert('解析文件失败: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function parseJsonl(content) {
+            const lines = content.trim().split('\n');
+            currentEntries = [];
+            
+            lines.forEach((line, idx) => {
+                try {
+                    const entry = JSON.parse(line);
+                    entry._lineNumber = idx + 1;
+                    currentEntries.push(entry);
+                } catch (e) {
+                    console.warn(`Line ${idx + 1} parse error:`, e);
+                }
+            });
+            
+            renderSession();
+        }
+        
+        function renderSession() {
+            const header = currentEntries.find(e => e.type === 'session');
+            if (header) {
+                document.getElementById('sessionInfo').innerHTML = `
+                    <div class="info-item">
+                        <span class="info-label">会话 ID</span>
+                        <span class="info-value">${header.id}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">版本</span>
+                        <span class="info-value">${header.version || 1}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">工作目录</span>
+                        <span class="info-value">${header.cwd}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">创建时间</span>
+                        <span class="info-value">${formatTime(header.timestamp)}</span>
+                    </div>
+                `;
+            }
+            
+            const messages = currentEntries.filter(e => e.type === 'message');
+            const branchSummaries = currentEntries.filter(e => e.type === 'branch_summary');
+            const compactions = currentEntries.filter(e => e.type === 'compaction');
+            
+            document.getElementById('msgCount').textContent = messages.length;
+            document.getElementById('branchCount').textContent = branchSummaries.length;
+            document.getElementById('compactionCount').textContent = compactions.length;
+            
+            renderMessages();
+        }
+        
+        function renderMessages() {
+            const searchTerm = searchBox.value.toLowerCase();
+            const container = messagesContainer;
+            container.innerHTML = '';
+            
+            currentEntries.forEach(entry => {
+                if (entry.type === 'message') {
+                    const msg = entry.message;
+                    const role = msg.role;
+                    
+                    // Filter check
+                    if (currentFilter !== 'all' && role !== currentFilter) return;
+                    
+                    // Search check
+                    const content = extractContent(msg);
+                    if (searchTerm && !content.toLowerCase().includes(searchTerm)) return;
+                    
+                    const el = createMessageElement(entry);
+                    container.appendChild(el);
+                } else if (entry.type === 'compaction') {
+                    const el = createCompactionElement(entry);
+                    container.appendChild(el);
+                } else if (entry.type === 'branch_summary') {
+                    const el = createBranchSummaryElement(entry);
+                    container.appendChild(el);
+                }
+            });
+        }
+        
+        function createMessageElement(entry) {
+            const msg = entry.message;
+            const role = msg.role;
+            const div = document.createElement('div');
+            div.className = 'message';
+            
+            const roleClass = `role-${role}`;
+            const roleName = getRoleDisplayName(role);
+            const time = formatTime(entry.timestamp);
+            
+            let contentHtml = formatContent(msg);
+            
+            // Add model info for assistant
+            let modelInfo = '';
+            if (role === 'assistant' && msg.model) {
+                modelInfo = `<span style="margin-left:auto;color:var(--text-secondary);font-size:0.8rem">${msg.provider}/${msg.model}</span>`;
+            }
+            
+            div.innerHTML = `
+                <div class="message-header">
+                    <span class="role-badge ${roleClass}">${roleName}</span>
+                    <span class="message-time">${time}</span>
+                    ${modelInfo}
+                    <span class="message-id">#${entry.id}</span>
+                </div>
+                <div class="message-body">
+                    <div class="message-content">${contentHtml}</div>
+                </div>
+            `;
+            
+            return div;
+        }
+        
+        function createCompactionElement(entry) {
+            const div = document.createElement('div');
+            div.className = 'message';
+            div.innerHTML = `
+                <div class="message-header">
+                    <span class="role-badge role-summary">Compaction</span>
+                    <span class="message-time">${formatTime(entry.timestamp)}</span>
+                    <span class="message-id">#${entry.id}</span>
+                </div>
+                <div class="message-body">
+                    <div class="compaction-box">
+                        <div class="compaction-title">📦 上下文压缩</div>
+                        <div>压缩前 Token 数: <strong>${entry.tokensBefore?.toLocaleString() || 'N/A'}</strong></div>
+                        <div style="margin-top:0.5rem;color:var(--text-secondary)">${entry.summary}</div>
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+        
+        function createBranchSummaryElement(entry) {
+            const div = document.createElement('div');
+            div.className = 'message';
+            div.innerHTML = `
+                <div class="message-header">
+                    <span class="role-badge role-summary">分支摘要</span>
+                    <span class="message-time">${formatTime(entry.timestamp)}</span>
+                    <span class="message-id">#${entry.id}</span>
+                </div>
+                <div class="message-body">
+                    <div style="color:var(--text-secondary);font-size:0.9rem">
+                        <div>从节点 #${entry.fromId} 分支出:</div>
+                        <div style="margin-top:0.5rem;padding:0.75rem;background:var(--bg-tertiary);border-radius:6px">${entry.summary}</div>
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+        
+        function getRoleDisplayName(role) {
+            const names = {
+                'user': '用户',
+                'assistant': '助手',
+                'toolResult': '工具结果',
+                'bashExecution': '终端',
+                'custom': '自定义',
+                'branchSummary': '分支摘要',
+                'compactionSummary': '压缩摘要'
+            };
+            return names[role] || role;
+        }
+        
+        function extractContent(msg) {
+            if (!msg) return '';
+            if (typeof msg.content === 'string') return msg.content;
+            if (Array.isArray(msg.content)) {
+                return msg.content.map(c => {
+                    if (c.type === 'text') return c.text;
+                    if (c.type === 'thinking') return c.thinking;
+                    return '';
+                }).join(' ');
+            }
+            if (msg.summary) return msg.summary;
+            if (msg.command) return msg.command + ' ' + msg.output;
+            return JSON.stringify(msg);
+        }
+        
+        function formatContent(msg) {
+            if (!msg.content) {
+                if (msg.summary) return `<div class="thinking-block"><div class="thinking-label">💭 Summary</div>${escapeHtml(msg.summary)}</div>`;
+                if (msg.command) return formatBashMessage(msg);
+                return '<em>(无内容)</em>';
+            }
+            
+            if (typeof msg.content === 'string') {
+                return formatMarkdown(msg.content);
+            }
+            
+            if (Array.isArray(msg.content)) {
+                return msg.content.map(block => {
+                    switch (block.type) {
+                        case 'text':
+                            return formatMarkdown(block.text);
+                        case 'thinking':
+                            return `<div class="thinking-block"><div class="thinking-label">💭 Thinking</div>${formatMarkdown(block.thinking)}</div>`;
+                        case 'toolCall':
+                            return `<div class="tool-call"><div class="tool-name">🔧 ${block.name}</div><div class="tool-args">${escapeHtml(JSON.stringify(block.arguments, null, 2))}</div></div>`;
+                        case 'image':
+                            return `<div style="margin:0.75rem 0"><img src="data:${block.mimeType};base64,${block.data}" style="max-width:100%;border-radius:8px"></div>`;
+                        default:
+                            return escapeHtml(JSON.stringify(block));
+                    }
+                }).join('');
+            }
+            
+            return escapeHtml(JSON.stringify(msg.content));
+        }
+        
+        function formatBashMessage(msg) {
+            const exitCodeClass = msg.exitCode === 0 ? 'success' : 'error';
+            const exitCodeText = msg.exitCode !== undefined ? `exit code: ${msg.exitCode}` : 'running';
+            const cancelled = msg.cancelled ? ' (已取消)' : '';
+            const truncated = msg.truncated ? ' (已截断)' : '';
+            
+            return `
+                <div class="bash-output">
+                    <div class="bash-command">$ ${escapeHtml(msg.command)}</div>
+                    <pre style="background:none;padding:0;margin:0.5rem 0"><code>${escapeHtml(msg.output || '(无输出)')}</code></pre>
+                    <div class="bash-exitcode ${exitCodeClass}">${exitCodeText}${cancelled}${truncated}</div>
+                </div>
+            `;
+        }
+        
+        function formatMarkdown(text) {
+            if (!text) return '';
+            
+            // Escape HTML
+            let html = escapeHtml(text);
+            
+            // Code blocks
+            html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+                return `<div class="code-block"><div class="code-header">${lang || 'code'}</div><div class="code-content"><pre><code>${code.trim()}</code></pre></div></div>`;
+            });
+            
+            // Inline code
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // Bold
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            
+            // Italic
+            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            
+            // Line breaks
+            html = html.replace(/\n/g, '<br>');
+            
+            return html;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function formatTime(timestamp) {
+            if (!timestamp) return '-';
+            const date = new Date(timestamp);
+            return date.toLocaleString('zh-CN');
+        }
+        
+        // Search
+        searchBox.addEventListener('input', () => {
+            renderMessages();
+        });
+        
+        // Filter buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                renderMessages();
+            });
+        });
+    </script>
+</body>
+</html>

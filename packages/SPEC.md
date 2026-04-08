@@ -1,8 +1,11 @@
 # mote（微尘）— Web 2D 游戏编辑器 · 开发规格说明书
 
-> **版本**: 2.0-draft
-> **日期**: 2026-04-05
-> **状态**: 架构重设计阶段
+> **版本**: 2.1
+> **日期**: 2026-04-08
+> **状态**: 核心数据层完成，UI集成进行中
+>
+> **已完成**: SpriteSheet统一、碰撞体编辑、新JSON格式定义
+> **当前阶段**: EntityDef编辑器 + Scene系统集成 + Assets/SceneTree面板
 
 ---
 
@@ -127,7 +130,7 @@ Scene ───┤
     └── EntityLayer.entities[] ── 引用 EntityDef + 覆盖 Fields
 ```
 
-### 3.4 Tile 与 Sprite 的统一
+### 3.4 Tile 与 Sprite 的统一 ✅ 已实现
 
 **设计决策**：Tile 和 Sprite 在 mote 中是同一个东西 —— 都是 `Frame`。
 
@@ -136,12 +139,17 @@ Scene ───┤
 | `TileSet` — 等距网格，整数 ID | `SpriteSheet (mode=grid)` — 等距网格，字符串 ID |
 | `SpriteAtlas` — 打包图集，名称寻址 | `SpriteSheet (mode=packed/xml/manual)` — 同上 |
 | `TileData` — 碰撞/标签在 TileSet 上 | `FrameData` — 碰撞/标签在 Frame 上 |
-| TileLayer 按 GID 引用 | TileLayer 按 Frame ID 引用 |
+| TileLayer 按 GID 引用 | TileLayer 按 Frame ID 引用（新 Scene 系统） |
 
 区别仅在于**放置方式**：
 
 - **网格放置**（TileLayer）：Frame 对齐到网格，用于地形/背景
 - **自由放置**（EntityLayer）：EntityDef 引用 Frame，自由坐标放置
+
+**实现状态**：
+- ✅ `SpriteSheet` 类型统一了 TileSet 和 SpriteAtlas
+- ✅ `FrameData` 支持 collider/tags/properties
+- ⚠️ TileLayer 仍在使用旧 TileSet 系统（需迁移到 Scene 系统）
 
 ---
 
@@ -424,21 +432,21 @@ Frame.collider ──(若非 undefined)──→ 使用 Frame 的碰撞体
 
 | 模块 | 文件 | 状态 | 说明 |
 |---|---|---|---|
-| **渲染抽象** | `gfx/IGfxDevice.ts` | ✅ 已完成 | Buffer / Texture / Pipeline / BindGroup 接口 |
-| **WebGPU 后端** | `gfx/WebGPUDevice.ts` | ✅ 已完成 | 主渲染后端 |
-| **WebGL2 后端** | `gfx/WebGL2Device.ts` | ✅ 已完成 | 回退渲染后端 |
-| **设备工厂** | `gfx/createGfxDevice.ts` | ✅ 已完成 | 自动检测 + 创建最佳后端 |
-| **SpriteBatch** | `gfx/SpriteBatch.ts` | ✅ 已完成 | 10K quad/帧，自动 batch break |
-| **文本渲染** | `gfx/Font.ts` + `gfx/TextRenderer.ts` | ✅ 已完成 | BMFont 解析 + SpriteBatch 集成 |
-| **游戏循环** | `GameLoop.ts` | ✅ 已完成 | 半固定时间步长，防死亡螺旋 |
-| **输入** | `Input.ts` | ✅ 已完成 | 键盘 + 鼠标 + 手柄，ActionMap |
-| **相机** | `Camera2D.ts` | ✅ 已完成 | 正交投影，follow / shake / pixelSnap |
-| **音频** | `audio.ts` | ✅ 已完成 | SFX/Music 总线，SoundPool，多格式回退 |
-| **数学** | `Math.ts` | ✅ 已完成 | Vec2 / Mat4 / Color / Rect |
-| **资源加载器** | — | ❌ 未实现 | 加载 project.mote.json → 构建运行时资源 |
-| **场景管理** | — | ❌ 未实现 | 场景切换、TileMap 渲染、Entity 管理 |
-| **碰撞系统** | — | ❌ 未实现 | 碰撞检测 + 响应（基于 Collider 数据） |
-| **脚本运行时** | — | ❌ 未实现 | 动态加载 .ts 脚本并绑定到 Entity |
+| **渲染抽象** | `gfx/IGfxDevice.ts` | ✅ 完成 | Buffer / Texture / Pipeline / BindGroup 接口 |
+| **WebGPU 后端** | `gfx/WebGPUDevice.ts` | ✅ 完成 | 主渲染后端 |
+| **WebGL2 后端** | `gfx/WebGL2Device.ts` | ✅ 完成 | 回退渲染后端 |
+| **设备工厂** | `gfx/createGfxDevice.ts` | ✅ 完成 | 自动检测 + 创建最佳后端 |
+| **SpriteBatch** | `gfx/SpriteBatch.ts` | ✅ 完成 | 10K quad/帧，自动 batch break |
+| **文本渲染** | `gfx/Font.ts` + `gfx/TextRenderer.ts` | ✅ 完成 | BMFont 解析 + SpriteBatch 集成 |
+| **游戏循环** | `GameLoop.ts` | ✅ 完成 | 半固定时间步长，防死亡螺旋 |
+| **输入** | `Input.ts` | ✅ 完成 | 键盘 + 鼠标 + 手柄，ActionMap |
+| **相机** | `Camera2D.ts` | ✅ 完成 | 正交投影，follow / shake / pixelSnap |
+| **音频** | `audio.ts` | ✅ 完成 | SFX/Music 总线，SoundPool，多格式回退 |
+| **数学** | `Math.ts` | ✅ 完成 | Vec2 / Mat4 / Color / Rect |
+| **资源加载器** | — | ⚠️ 数据层 | `io-v2.ts` 格式定义完成，引擎侧未实现 |
+| **场景管理** | — | ❌ 缺失 | 场景切换、TileMap 渲染、Entity 管理 |
+| **碰撞系统** | — | ⚠️ 数据层 | `Collider.ts` 类型完成，运行时检测未实现 |
+| **脚本运行时** | — | ❌ 缺失 | 动态加载 .ts 脚本并绑定到 Entity |
 
 ### 5.2 引擎资源加载流程
 
@@ -505,12 +513,12 @@ engine.start();
 
 | 面板 ID | 名称 | 状态 | 功能 |
 |---|---|---|---|
-| `viewport` | 场景视口 | ✅ 已有 | 2D 场景渲染、Tile 绘制、Entity 放置/移动、碰撞可视化 |
-| `sprite-editor` | 精灵编辑器 | ⚠️ 需合并重构 | SpriteSheet 查看/编辑，Frame 碰撞/标签编辑 |
-| `inspector` | 属性检查器 | ✅ 已有，需扩展 | 选中内容的属性编辑（Frame / EntityDef / EntityInstance） |
-| `assets` | 资源浏览器 | ❌ 新增 | 项目文件系统浏览，导入/删除/重命名 |
-| `scene-tree` | 场景树 | ❌ 新增 | 图层列表、Entity 列表、可见性/锁定控制 |
-| `console` | 控制台 | ❌ 新增 | 日志输出、错误信息 |
+| `viewport` | 场景视口 | ⚠️ 旧格式 | 2D 场景渲染、Tile 绘制、Entity 放置（基于 TileMap） |
+| `sprite-editor` | 精灵编辑器 | ✅ 完成 | SpriteSheet 查看/编辑，Frame 碰撞/标签编辑，Blender 风格 |
+| `inspector` | 属性检查器 | ⚠️ 需扩展 | Map/Layer/Entity 面板完成，缺 EntityDef/Frame 面板 |
+| `assets` | 资源浏览器 | ❌ 占位 | 已注册，功能未实现 |
+| `scene-tree` | 场景树 | ❌ 占位 | 已注册，功能未实现 |
+| `console` | 控制台 | ✅ 基本 | 已注册，基础日志功能 |
 
 ### 6.3 面板职责映射
 
@@ -887,126 +895,181 @@ my-game/
 | Camera2D | ✅ 完成 | follow/shake/pixelSnap |
 | Audio | ✅ 完成 | SFX/Music 总线，SoundPool |
 | Math | ✅ 完成 | Vec2/Mat4/Color/Rect |
-| 资源加载器 | ❌ 缺失 | 需实现 project.mote.json 加载 |
+| 资源加载器 | ⚠️ 部分 | io-v2.ts 格式定义完成，引擎侧未实现 |
 | 场景管理 | ❌ 缺失 | 场景切换/TileMap 渲染 |
-| 碰撞系统 | ❌ 缺失 | AABB / 多边形碰撞检测 |
+| 碰撞系统 | ⚠️ 数据层 | Collider 类型完整，运行时检测未实现 |
 | 脚本运行时 | ❌ 缺失 | 动态 import + 生命周期调用 |
 
 ### 11.2 编辑器（packages/editor）— 51 文件
 
 | 模块 | 状态 | 说明 |
 |---|---|---|
-| AreaTree 布局 | ✅ 基本完成 | 分割有，合并缺失 |
-| Viewport | ✅ 基本完成 | Tile 绘制 + Entity 放置 |
-| Tile Palette | ✅ 基本完成 | 需合并入 Sprite Editor |
-| Sprite Panel | ✅ 基本完成 | 需合并入 Sprite Editor |
-| Inspector | ✅ 基本完成 | 需扩展 EntityDef / Frame 面板 |
-| Command History | ✅ 完成 | 5 个 Command 类 |
-| 暗色主题 | ✅ 完成 | CSS Variables |
-| 数据导入/导出 | ✅ 基本完成 | 需迁移到新 JSON 格式 |
-| Assets Browser | ❌ 缺失 | 新增面板 |
-| Scene Tree | ❌ 缺失 | 新增面板 |
-| Console | ❌ 缺失 | 新增面板 |
-| 碰撞编辑 UI | ❌ 缺失 | 需实现 |
-| EntityDef 外置 | ❌ 未完成 | 当前硬编码在 TileMap.ts |
-| SpriteSheet 统一 | ❌ 未完成 | TileSet + SpriteAtlas 需合并 |
+| AreaTree 布局 | ✅ 完成 | split/resize/merge/corner drag 完整 |
+| Viewport | ⚠️ 旧格式 | 基于 TileMap，需迁移到 Scene 系统 |
+| Sprite Editor | ✅ 完成 | Blender 风格，Grid/List 双视图，碰撞编辑 |
+| SpriteSheet 系统 | ✅ 完成 | 统一 TileSet+SpriteAtlas，5 种导入模式 |
+| Inspector | ⚠️ 需扩展 | Map/Layer/Entity 面板完成，缺 EntityDef/Frame 面板 |
+| Command History | ✅ 完成 | paint/layer/entity/selection/move 完整 |
+| 暗色主题 | ✅ 完成 | CSS Variables，Blender 风格 |
+| 数据导入/导出 | ⚠️ 双格式 | io.ts 旧格式完成，io-v2.ts 新格式完成但未切换 |
+| Assets Browser | ❌ 占位 | 编辑器注册，内容为空 |
+| Scene Tree | ❌ 占位 | 编辑器注册，内容为空 |
+| Console | ✅ 基本 | 编辑器注册，基础日志功能 |
+| 碰撞编辑 UI | ✅ 完成 | Sprite Editor 中右键菜单+画笔模式 |
+| EntityDef 系统 | ⚠️ 半完成 | 数据层完整(entityDefs.ts)，缺专用编辑器 |
+| Scene 系统 | ⚠️ 数据层 | Scene/TileLayer/EntityLayer 完成，视口未切换 |
+
+### 11.3 数据格式实现状态
+
+| 格式 | 读 | 写 | 说明 |
+|---|---|---|---|
+| `.sprite.json` (`.mote-sprite.json`) | ✅ | ✅ | `io-v2.ts` 完整实现，Frame 数组格式 |
+| `.entity.json` | ✅ | ✅ | `io-v2.ts` 完整实现，但 UI 未接入导出 |
+| `.map.json` (新 `.mote-scene.json`) | ✅ | ✅ | `io-v2.ts` 完整实现，但 UI 未切换 |
+| `project.mote.json` | ✅ | ✅ | `io-v2.ts` 完整实现 |
+| 旧 `mote.json` | ✅ | ✅ | `io.ts` 实现，当前视口使用 |
+| 旧 `mote-bundle.json` | ✅ | ✅ | `io.ts` 实现，当前导出使用 |
+
+### 11.4 关键文件清单
+
+| 文件 | 说明 |
+|---|---|
+| `data/SpriteSheet.ts` | 统一精灵表类型（grid/packed/xml/manual） |
+| `data/EntityDef.ts` | 实体模板 + 实例定义 |
+| `data/Scene.ts` | 新场景系统（TileLayer + EntityLayer） |
+| `data/Collider.ts` | 碰撞形状定义 + 3级继承链 |
+| `data/io-v2.ts` | 新格式 JSON 读写（Sprite/Entity/Scene/Project） |
+| `data/sprite-sheet-import.ts` | 5 种导入模式（Grid/Packed/XML/Loose/Mote） |
+| `store/spriteSheet.ts` | SpriteSheet 状态管理 |
+| `store/entityDefs.ts` | EntityDef 状态管理 |
+| `store/scene.ts` | Scene 状态管理 |
+| `editors/sprite-editor/` | 完整 Blender 风格编辑器 |
 
 ---
 
 ## 12. 迁移计划
 
-### Phase 1：数据模型统一（基础重构）
+### Phase 1：数据模型统一 ✅ 已完成
 
 **目标**：TileSet + SpriteAtlas → SpriteSheet，统一碰撞类型
 
-| 任务 | 涉及文件 | 说明 |
-|---|---|---|
-| 创建 `data/Collider.ts` | 新文件 | ColliderShape / ColliderData 类型 |
-| 创建 `data/SpriteSheet.ts` | 新文件 | 统一的 SpriteSheet / Frame 类型 |
-| TileSet.ts 标记为 deprecated | TileSet.ts | 保留但标注即将移除 |
-| SpriteAtlas.ts 标记为 deprecated | SpriteAtlas.ts | 保留但标注即将移除 |
-| 重构 store/atlas.ts → store/spriteSheet.ts | store/ | 统一 store |
+| 任务 | 状态 | 涉及文件 | 说明 |
+|---|---|---|---|
+| 创建 `data/Collider.ts` | ✅ | 新文件 | ColliderShape / ColliderData 类型 |
+| 创建 `data/SpriteSheet.ts` | ✅ | 新文件 | 统一的 SpriteSheet / Frame 类型 |
+| 创建 `data/EntityDef.ts` | ✅ | 新文件 | EntityDef / EntityInstance 类型 |
+| 创建 `data/Scene.ts` | ✅ | 新文件 | Scene / TileLayerData / EntityLayerData 类型 |
+| TileSet.ts 标记为 legacy | ⚠️ | TileSet.ts | 仍被 Viewport 使用，需迁移 |
+| SpriteAtlas.ts 标记为 legacy | ⚠️ | SpriteAtlas.ts | 已不再使用 |
+| 重构 store/atlas.ts → store/spriteSheet.ts | ✅ | store/spriteSheet.ts | 统一 store |
+| 创建 store/entityDefs.ts | ✅ | store/entityDefs.ts | EntityDef 状态管理 |
+| 创建 store/scene.ts | ✅ | store/scene.ts | Scene 状态管理 |
 
-### Phase 2：JSON 格式定义
+### Phase 2：JSON 格式定义 ✅ 已完成
 
 **目标**：定义并实现所有 JSON 格式的读写
 
-| 任务 | 涉及文件 | 说明 |
-|---|---|---|
-| 定义 `.sprite.json` 格式 | data/io.ts | 读写 SpriteSheet JSON |
-| 定义 `.entity.json` 格式 | data/io.ts | 读写 EntityDef JSON |
-| 定义 `.map.json` 新格式 | data/io.ts | Frame ID 字符串 data + 双编码 |
-| 定义 `project.mote.json` | data/io.ts | 项目清单读写 |
-| 向后兼容旧格式导入 | data/io.ts | 旧 GID 整数格式自动转换 |
+| 任务 | 状态 | 涉及文件 | 说明 |
+|---|---|---|---|
+| 定义 `.sprite.json` 格式 | ✅ | data/formats.ts + io-v2.ts | SpriteSheetJson 类型 + 读写函数 |
+| 定义 `.entity.json` 格式 | ✅ | data/formats.ts + io-v2.ts | EntityDefJson 类型 + 读写函数 |
+| 定义 `.map.json` 新格式 | ✅ | data/formats.ts + io-v2.ts | SceneJson 类型 + 读写函数 |
+| 定义 `project.mote.json` | ✅ | data/formats.ts + io-v2.ts | ProjectJson 类型 + 读写函数 |
+| 向后兼容旧格式导入 | ✅ | data/migrate.ts | 旧 GID 整数格式自动转换 |
 
-### Phase 3：Sprite Editor 合并
+### Phase 3：Sprite Editor 合并 ✅ 已完成
 
 **目标**：tile-palette + sprite-panel → 统一 Sprite Editor
 
-| 任务 | 涉及文件 | 说明 |
-|---|---|---|
-| 创建 `editors/sprite-editor/` | 新目录 | 统一的 Sprite Editor |
-| 实现 Grid View 模式 | SpriteEditorCanvas.tsx | 来自 PaletteCanvas |
-| 实现 List View 模式 | SpriteEditorCanvas.tsx | 来自 SpritePanelCanvas |
-| 统一右键菜单 | FrameContextMenu.tsx | 碰撞/标签/属性编辑 |
-| 碰撞形状叠加渲染 | SpriteEditorCanvas.tsx | 在 Frame 上渲染碰撞轮廓 |
-| 删除旧 tile-palette + sprite-panel | — | 迁移完成后移除 |
+| 任务 | 状态 | 涉及文件 | 说明 |
+|---|---|---|---|
+| 创建 `editors/sprite-editor/` | ✅ | 新目录 | 统一的 Sprite Editor |
+| 实现 Grid View 模式 | ✅ | SpriteEditorCanvas.tsx | 网格视图 |
+| 实现 List View 模式 | ✅ | SpriteEditorCanvas.tsx | 列表缩略图视图 |
+| 实现碰撞编辑画笔 | ✅ | SpriteEditorCanvas.tsx + state.ts | 工具栏 + 点击应用 |
+| 统一右键菜单 | ✅ | FrameContextMenu.tsx | 碰撞预设/标签/复制 |
+| 碰撞形状叠加渲染 | ✅ | ColliderOverlay.ts | 在 Frame 上渲染碰撞轮廓 |
+| 键盘快捷键系统 | ✅ | SpriteEditor.tsx | Tab/1/2/3/T/N 快捷键 |
+| 删除旧 tile-palette + sprite-panel | ⚠️ | — | 旧代码仍存在，待清理 |
 
-### Phase 4：新增面板
+### Phase 4：新增面板 🔴 当前阶段
 
-**目标**：Assets Browser + Scene Tree
+**目标**：Assets Browser + Scene Tree 功能实现
 
-| 任务 | 涉及文件 | 说明 |
-|---|---|---|
-| Assets Browser 面板 | `editors/assets/` | 文件树 + 搜索 + 右键菜单 |
-| Scene Tree 面板 | `editors/scene-tree/` | 图层列表 + Entity 列表 |
-| 注册到面板注册表 | editors/registry.ts | 注册新面板类型 |
+| 任务 | 状态 | 涉及文件 | 说明 |
+|---|---|---|---|
+| Assets Browser 注册 | ✅ | `editors/assets/register.ts` | 面板已注册 |
+| Assets Browser 功能实现 | ❌ | `editors/assets/AssetsEditor.tsx` | 文件树 + 搜索 + 右键菜单 |
+| Scene Tree 注册 | ✅ | `editors/scene-tree/register.ts` | 面板已注册 |
+| Scene Tree 功能实现 | ❌ | `editors/scene-tree/SceneTreeEditor.tsx` | 图层列表 + Entity 列表 |
 
-### Phase 5：EntityDef 外置
+### Phase 5：EntityDef 编辑器 🔴 当前阶段
 
-**目标**：BUILTIN_ENTITY_DEFS → .entity.json 文件
+**目标**：BUILTIN_ENTITY_DEFS → .entity.json 文件 + 可视化编辑器
 
-| 任务 | 涉及文件 | 说明 |
-|---|---|---|
-| 导出内置 EntityDef 为 JSON | — | 生成初始 .entity.json 文件 |
-| EntityDef 加载器 | data/io.ts | 扫描 entities/ 目录 |
-| EntityDef 增加 script 字段 | TileMap.ts → EntityDef | 引用 .ts 文件路径 |
-| Inspector EntityDef 面板 | inspector/panels/ | 可视化编辑 EntityDef |
+| 任务 | 状态 | 涉及文件 | 说明 |
+|---|---|---|---|
+| 导出内置 EntityDef 为 JSON | ⚠️ | — | 可导出，但无 UI |
+| EntityDef 加载器 | ✅ | data/io-v2.ts | entityDefFromJson 函数 |
+| EntityDef 增加 script 字段 | ✅ | data/EntityDef.ts | script?: string 字段已存在 |
+| Inspector EntityDef 面板 | ❌ | inspector/panels/EntityDefPanel.tsx | 可视化编辑 EntityDef |
+| Sprite 选择器组件 | ❌ | components/SpritePicker.tsx | 选择 sheetId:frameId |
+| 字段管理 UI | ❌ | components/FieldEditor.tsx | 增删改 EntityFieldDef |
 
-### Phase 6：引擎资源加载器
+### Phase 6：Scene 系统集成 🔴 当前阶段
+
+**目标**：Viewport 从 TileMap 迁移到 Scene 系统
+
+| 任务 | 状态 | 涉及文件 | 说明 |
+|---|---|---|---|
+| Viewport 切换 currentScene | ❌ | ViewportCanvas.tsx | 从 currentMap 切换到 currentScene |
+| TileLayer 渲染新格式 | ❌ | ViewportCanvas.tsx | 使用 SpriteSheet 而非 TileSet |
+| EntityInstance 渲染 | ❌ | ViewportCanvas.tsx | 显示实际 sprite 而非 gizmo |
+| 新格式导出 UI | ❌ | inspector/panels/ExportPanel.tsx | 导出 .mote-scene.json |
+
+### Phase 7：引擎资源加载器
 
 **目标**：引擎可独立加载项目 JSON 并运行
 
-| 任务 | 涉及文件 | 说明 |
-|---|---|---|
-| ProjectLoader | engine/src/ | 加载 project.mote.json |
-| SpriteSheetLoader | engine/src/ | 加载 .sprite.json + Image |
-| SceneLoader | engine/src/ | 加载 .map.json → 构建 TileMap |
-| ScriptLoader | engine/src/ | 动态 import .ts 脚本 |
-| TileMapRenderer | engine/src/ | 基于 SpriteBatch 渲染 TileMap |
+| 任务 | 状态 | 涉及文件 | 说明 |
+|---|---|---|---|
+| ProjectLoader | ❌ | engine/src/ | 加载 project.mote.json |
+| SpriteSheetLoader | ❌ | engine/src/ | 加载 .sprite.json + Image |
+| SceneLoader | ❌ | engine/src/ | 加载 .map.json → 构建 TileMap |
+| ScriptLoader | ❌ | engine/src/ | 动态 import .ts 脚本 |
+| TileMapRenderer | ❌ | engine/src/ | 基于 SpriteBatch 渲染 TileMap |
 
-### Phase 7：碰撞系统 + 视口叠加
+### Phase 8：碰撞系统 + 视口叠加
 
 **目标**：运行时碰撞 + 编辑器碰撞可视化
 
-| 任务 | 涉及文件 | 说明 |
-|---|---|---|
-| AABB 碰撞检测 | engine/src/ | 基础碰撞检测 |
-| 多边形碰撞检测 | engine/src/ | SAT 算法 |
-| 碰撞体合并（运行时） | engine/src/ | 相邻 full tile 合并为大矩形 |
-| Viewport 碰撞叠加 | ViewportCanvas.tsx | 可切换的碰撞形状显示层 |
+| 任务 | 状态 | 涉及文件 | 说明 |
+|---|---|---|---|
+| AABB 碰撞检测 | ❌ | engine/src/ | 基础碰撞检测 |
+| 多边形碰撞检测 | ❌ | engine/src/ | SAT 算法 |
+| 碰撞体合并（运行时） | ❌ | engine/src/ | 相邻 full tile 合并为大矩形 |
+| Viewport 碰撞叠加 | ❌ | ViewportCanvas.tsx | 可切换的碰撞形状显示层 |
 
 ### 优先级总览
 
 ```
-Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4
-  数据统一     JSON 格式    UI 合并      新面板
-                 │
-                 └──→ Phase 5 ──→ Phase 6 ──→ Phase 7
-                       EntityDef   引擎加载    碰撞系统
+✅ Phase 1 ──→ ✅ Phase 2 ──→ ✅ Phase 3 ──→ 🔴 Phase 4
+  数据统一       JSON 格式       UI 合并        新面板
+                                   │
+                                   ├──→ 🔴 Phase 5 ──→ 🔴 Phase 6
+                                   │     EntityDef       Scene
+                                   │           编辑器      系统集成
+                                   │
+                                   └──→ 🔴 Phase 7 ──→ 🔴 Phase 8
+                                         引擎加载         碰撞系统
 ```
 
-Phase 1-3 是编辑器侧重构，Phase 5-7 是引擎侧建设，可以部分并行。
+**当前阶段**: Phase 4-6 并行开发
+- Phase 4: Assets Browser + Scene Tree 功能实现
+- Phase 5: EntityDef 编辑器 + Sprite 选择器
+- Phase 6: Viewport 迁移到 Scene 系统
+
+**已完成**: Phase 1-3（数据层重构和 Sprite Editor）
 
 ---
 

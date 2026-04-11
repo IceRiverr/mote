@@ -11,18 +11,19 @@ const statusEl = document.getElementById('status') as HTMLDivElement;
 async function init(): Promise<void> {
   const world = new World();
 
-  // 注册插件
-  await world.use(RenderPlugin, { 
-    canvas, 
-    backend: 'auto',
-    width: 640, 
-    height: 480,
-    autoResize: true,
-  });
-
-  world.use(InputPlugin, { canvas });
-  world.use(PhysicsPlugin);
-  world.use(GamePlugin);
+  // 注册插件（注意顺序：PhysicsPlugin 必须在 GamePlugin 之前，因为 GamePlugin 依赖 Transform 等组件）
+  await world.use(
+    [RenderPlugin, { 
+      canvas, 
+      backend: 'auto',
+      width: 640, 
+      height: 480,
+      autoResize: true,
+    }],
+    [InputPlugin, { canvas }],
+    PhysicsPlugin,
+    GamePlugin
+  );
 
   statusEl.textContent = 'WASD 移动 · Space 攻击 · 碰药水拾取';
 

@@ -31,9 +31,8 @@ export type { AtlasRegion } from './SpriteBatch.js';
 
 // 字体和文本渲染
 export { TextRenderer } from './TextRenderer.js';
-export type { TextStyle, TextLayoutResult, BMFontJson } from './Font.js';
+export type { TextStyle, TextLayoutResult, BMFontJson, FontData } from './Font.js';
 export {
-  FontData,
   parseBMFont,
   parseBMFontJson,
   mergeFontData,

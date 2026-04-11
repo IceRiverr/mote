@@ -43,8 +43,8 @@ export type System = SystemFn | SystemObj;
 
 // ─── Plugin ───
 
-/** 插件就是一个接收 World 的函数 */
-export type Plugin = (world: any) => void;
+/** 插件函数，可同步或异步，可接受选项参数 */
+export type Plugin = (world: any, options?: any) => void | Promise<void>;
 
 // ─── Prefab ───
 

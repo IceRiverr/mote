@@ -237,16 +237,34 @@ export class World {
   // ─── 插件 ───
 
   /**
-   * 注册插件（支持链式 + 批量）
+   * 注册插件（支持链式 + 批量 + 带选项）
    *
    * ```ts
-   * world.use(InputPlugin).use(RenderPlugin);
-   * world.use(InputPlugin, AudioPlugin, RenderPlugin);
+   * // 简单插件
+   * world.use(PhysicsPlugin);
+   * 
+   * // 带选项的插件（使用数组元组）
+   * world.use([RenderPlugin, { canvas, width: 800, height: 600 }]);
+   * 
+   * // 混合使用（使用 await）
+   * await world.use(PhysicsPlugin, [RenderPlugin, { canvas }]);
+   * 
+   * // 链式调用
+   * await world.use(PhysicsPlugin).use([RenderPlugin, { canvas }]);
    * ```
    */
-  use(...plugins: Plugin[]): this {
-    for (const plugin of plugins) {
-      plugin(this);
+  async use(...plugins: Array<Plugin | [Plugin, any]>): Promise<this> {
+    for (const item of plugins) {
+      const isTuple = Array.isArray(item);
+      const plugin = isTuple ? item[0] : item;
+      const options = isTuple ? item[1] : undefined;
+      
+      if (typeof plugin !== 'function') {
+        console.error('[World.use] Invalid plugin:', plugin);
+        throw new TypeError(`plugin is not a function: ${plugin}`);
+      }
+      
+      await plugin(this, options);
     }
     return this;
   }

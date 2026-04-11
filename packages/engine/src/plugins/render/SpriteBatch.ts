@@ -48,14 +48,18 @@ export class TextureAtlas {
     const atlas = new TextureAtlas(texture, bindGroup);
 
     if (jsonUrl) {
-      const data = await fetch(jsonUrl).then(r => r.json()) as Record<string, { x: number; y: number; w: number; h: number }>;
+      const data = await fetch(jsonUrl).then(r => r.json()) as any;
       const tw = texture.width, th = texture.height;
-      for (const [name, frame] of Object.entries(data)) {
-        atlas.regions.set(name, {
-          u0: frame.x / tw,            v0: frame.y / th,
-          u1: (frame.x + frame.w) / tw, v1: (frame.y + frame.h) / th,
-          pixelWidth: frame.w,          pixelHeight: frame.h,
-        });
+      
+      // mote-sprite 格式: { frames: [{id, x, y, w, h}] }
+      if (data.frames && Array.isArray(data.frames)) {
+        for (const frame of data.frames) {
+          atlas.regions.set(frame.id, {
+            u0: frame.x / tw,            v0: frame.y / th,
+            u1: (frame.x + frame.w) / tw, v1: (frame.y + frame.h) / th,
+            pixelWidth: frame.w,          pixelHeight: frame.h,
+          });
+        }
       }
     } else {
       atlas.regions.set('__full__', { u0: 0, v0: 0, u1: 1, v1: 1, pixelWidth: texture.width, pixelHeight: texture.height });

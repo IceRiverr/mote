@@ -85,10 +85,10 @@ export async function RenderPlugin(world: World, options: RenderPluginOptions): 
   let gfxDevice;
   try {
     if (backend === 'webgpu') {
-      const { WebGPUDevice } = await import('../../gfx/WebGPUDevice');
+      const { WebGPUDevice } = await import('./WebGPUDevice.js');
       gfxDevice = await WebGPUDevice.create(canvas);
     } else if (backend === 'webgl2') {
-      const { WebGL2Device } = await import('../../gfx/WebGL2Device');
+      const { WebGL2Device } = await import('./WebGL2Device.js');
       gfxDevice = await WebGL2Device.create(canvas);
     } else {
       // auto

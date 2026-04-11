@@ -1,28 +1,63 @@
-// games/tiny-dungeon/src/GamePlugin.ts
-// 游戏插件 —— 使用 Prefab 的 ECS 架构
+// games/tiny-dungeon/src/systems.ts
+// 游戏插件 -- 使用 Prefab 的 ECS 架构
 
 import type { World } from '@mote/engine';
 import { Transform, Velocity, Camera, Sprite, BoxCollider, RigidBody } from '@mote/engine';
 import { initGameWorld, isSolidWorldPos } from './world-init.js';
-import { createGameRenderSystem } from './GameRenderSystem.js';
-import { PlayerTag, EnemyAI, Weapon, Health, Pickup } from './components.js';
+import { PlayerTag, EnemyAI, Weapon, Health, Pickup, WallTag, FloorTag } from './components.js';
 import { ALL_PREFABS } from './prefabs.js';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // 系统
 // ═════════════════════════════════════════════════════════════════════════════
 
-/** 输入系统 */
+/** 输入系统 - 直接移动玩家，绕过 Velocity */
 function inputSystem(world: World, dt: number): void {
   const input = world.getResource<InputManager>('input');
   if (!input) return;
 
-  for (const eid of world.query(PlayerTag, Velocity)) {
-    const vel = world.get(eid, Velocity);
+  const speed = 120 * dt;
+
+  for (const eid of world.query(PlayerTag, Transform)) {
+    const transform = world.get(eid, Transform);
+
+    // 计算移动向量（Y-up 坐标系：W/Up = Y 增加，S/Down = Y 减少）
+    let moveX = 0;
+    let moveY = 0;
     
-    const move = input.action('Move')?.vec2() ?? { x: 0, y: 0 };
-    vel.vx = move.x * 120;
-    vel.vy = move.y * 120;
+    if (input.isAnyDown(['KeyW', 'ArrowUp'])) moveY += 1;
+    if (input.isAnyDown(['KeyS', 'ArrowDown'])) moveY -= 1;
+    if (input.isAnyDown(['KeyA', 'ArrowLeft'])) moveX -= 1;
+    if (input.isAnyDown(['KeyD', 'ArrowRight'])) moveX += 1;
+
+    // 归一化对角线移动
+    if (moveX !== 0 && moveY !== 0) {
+      const inv = 1 / Math.SQRT2;
+      moveX *= inv;
+      moveY *= inv;
+    }
+
+    // 硬编码玩家碰撞尺寸
+    const PLAYER_HALF_W = 6;
+    const PLAYER_HALF_H = 6;
+
+    // 尝试 X 方向移动
+    const newX = transform.x + moveX * speed;
+    if (!isSolidWorldPos(newX - PLAYER_HALF_W + 1, transform.y - PLAYER_HALF_H + 1, world) &&
+        !isSolidWorldPos(newX + PLAYER_HALF_W - 1, transform.y - PLAYER_HALF_H + 1, world) &&
+        !isSolidWorldPos(newX - PLAYER_HALF_W + 1, transform.y + PLAYER_HALF_H - 1, world) &&
+        !isSolidWorldPos(newX + PLAYER_HALF_W - 1, transform.y + PLAYER_HALF_H - 1, world)) {
+      transform.x = newX;
+    }
+
+    // 尝试 Y 方向移动
+    const newY = transform.y + moveY * speed;
+    if (!isSolidWorldPos(transform.x - PLAYER_HALF_W + 1, newY - PLAYER_HALF_H + 1, world) &&
+        !isSolidWorldPos(transform.x + PLAYER_HALF_W - 1, newY - PLAYER_HALF_H + 1, world) &&
+        !isSolidWorldPos(transform.x - PLAYER_HALF_W + 1, newY + PLAYER_HALF_H - 1, world) &&
+        !isSolidWorldPos(transform.x + PLAYER_HALF_W - 1, newY + PLAYER_HALF_H - 1, world)) {
+      transform.y = newY;
+    }
   }
 }
 
@@ -31,11 +66,11 @@ function attackSystem(world: World, dt: number): void {
   const input = world.getResource<InputManager>('input');
   if (!input) return;
 
-  const pressed = input.action('Attack')?.pressed ?? false;
+  const pressed = input.isAnyPressed(['Space']);
 
   for (const eid of world.query(Weapon, Transform)) {
     const weapon = world.get(eid, Weapon);
-    
+
     if (pressed && !weapon.attacking) {
       weapon.attacking = true;
       weapon.angle = 0;
@@ -59,7 +94,7 @@ function attackSystem(world: World, dt: number): void {
 /** 武器跟随系统 */
 function weaponFollowSystem(world: World, dt: number): void {
   let playerPos: Transform | null = null;
-  
+
   for (const eid of world.query(PlayerTag, Transform)) {
     playerPos = world.get(eid, Transform);
     break;
@@ -70,7 +105,7 @@ function weaponFollowSystem(world: World, dt: number): void {
   for (const eid of world.query(Weapon, Transform)) {
     const weapon = world.get(eid, Weapon);
     const transform = world.get(eid, Transform);
-    
+
     transform.x = playerPos.x + Math.cos(weapon.angle) * weapon.orbitRadius;
     transform.y = playerPos.y + Math.sin(weapon.angle) * weapon.orbitRadius;
     transform.rotation = weapon.angle;
@@ -93,12 +128,12 @@ function weaponCollisionSystem(world: World, dt: number): void {
     const wx = playerPos.x + Math.cos(weapon.angle) * weapon.orbitRadius;
     const wy = playerPos.y + Math.sin(weapon.angle) * weapon.orbitRadius;
 
-    // 检查与敌人碰撞（查询 EnemyAI 而不是 EntityDef）
+    // 检查与敌人碰撞(查询 EnemyAI 而不是 EntityDef)
     for (const enemyEid of world.query(EnemyAI, Transform, Health)) {
       if (weapon.hitThisSwing.has(enemyEid)) continue;
 
       const enemyTransform = world.get(enemyEid, Transform);
-      
+
       // 简单的距离检测
       const dx = wx - enemyTransform.x;
       const dy = wy - enemyTransform.y;
@@ -152,7 +187,7 @@ function pickupSystem(world: World, dt: number): void {
 /** 相机跟随系统 */
 function cameraFollowSystem(world: World, dt: number): void {
   let target: Transform | null = null;
-  
+
   for (const eid of world.query(PlayerTag, Transform)) {
     target = world.get(eid, Transform);
     break;
@@ -178,44 +213,6 @@ function cameraFollowSystem(world: World, dt: number): void {
   }
 }
 
-/** 碰撞检测与瓦片地图 */
-function tileCollisionSystem(world: World, dt: number): void {
-  // 硬编码玩家碰撞尺寸
-  const PLAYER_HALF_W = 6;
-  const PLAYER_HALF_H = 6;
-
-  for (const eid of world.query(PlayerTag, Transform, Velocity)) {
-    const transform = world.get(eid, Transform);
-    const vel = world.get(eid, Velocity);
-
-    // 尝试 X 方向移动
-    const newX = transform.x + vel.vx * dt;
-    const testXMin = newX - PLAYER_HALF_W + 1;
-    const testXMax = newX + PLAYER_HALF_W - 1;
-    const testYMin = transform.y - PLAYER_HALF_H + 1;
-    const testYMax = transform.y + PLAYER_HALF_H - 1;
-    
-    if (!isSolidWorldPos(testXMin, testYMin) &&
-        !isSolidWorldPos(testXMin, testYMax) &&
-        !isSolidWorldPos(testXMax, testYMin) &&
-        !isSolidWorldPos(testXMax, testYMax)) {
-      transform.x = newX;
-    }
-
-    // 尝试 Y 方向移动
-    const newY = transform.y + vel.vy * dt;
-    const testYMinNew = newY - PLAYER_HALF_H + 1;
-    const testYMaxNew = newY + PLAYER_HALF_H - 1;
-    
-    if (!isSolidWorldPos(transform.x - PLAYER_HALF_W + 1, testYMinNew) &&
-        !isSolidWorldPos(transform.x + PLAYER_HALF_W - 1, testYMinNew) &&
-        !isSolidWorldPos(transform.x - PLAYER_HALF_W + 1, testYMaxNew) &&
-        !isSolidWorldPos(transform.x + PLAYER_HALF_W - 1, testYMaxNew)) {
-      transform.y = newY;
-    }
-  }
-}
-
 // ═════════════════════════════════════════════════════════════════════════════
 // 插件
 // ═════════════════════════════════════════════════════════════════════════════
@@ -229,6 +226,8 @@ export function GamePlugin(world: World): void {
   world.registerComponent(Weapon);
   world.registerComponent(Health);
   world.registerComponent(Pickup);
+  world.registerComponent(WallTag);
+  world.registerComponent(FloorTag);
 
   // 注册 Prefab
   for (const prefab of ALL_PREFABS) {
@@ -240,12 +239,8 @@ export function GamePlugin(world: World): void {
   world.addSystem(attackSystem);
   world.addSystem(weaponCollisionSystem);
   world.addSystem(pickupSystem);
-  world.addSystem(tileCollisionSystem);
   world.addSystem(weaponFollowSystem);
   world.addSystem(cameraFollowSystem);
-  
-  // 添加瓦片地图渲染系统
-  world.addSystem(createGameRenderSystem());
 
   // 初始化世界
   initGameWorld(world);

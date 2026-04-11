@@ -480,6 +480,17 @@ function resolveCollision(world: World, col: Collision): void {
  * ```
  */
 export function PhysicsPlugin(world: World): void {
+  // 注册物理相关组件
+  world.registerComponent(Transform);
+  world.registerComponent(Velocity);
+  world.registerComponent(Acceleration);
+  world.registerComponent(Friction);
+  world.registerComponent(RigidBody);
+  world.registerComponent(Gravity);
+  world.registerComponent(BoxCollider);
+  world.registerComponent(CircleCollider);
+
+  // 注册系统
   world.addSystem(kinematicSystem);
   world.addSystem(collisionDetectionSystem);
 }

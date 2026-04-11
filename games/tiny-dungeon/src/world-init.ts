@@ -32,13 +32,17 @@ function getRandomFloorSprite(): number {
 }
 
 export async function initGameWorld(world: World): Promise<void> {
-  const { scale, tileSize, mapWidth, mapHeight } = WORLD_CONFIG;
-  const T = tileSize * scale;
+  const { tileSize, mapWidth, mapHeight } = WORLD_CONFIG;
+  const T = tileSize;  // 不使用 scale，渲染时处理缩放
 
   // 加载图集
   const renderer = world.getResource('renderer');
   if (renderer) {
-    await renderer.loadAtlas('tiles', './assets/tiny-dungeon_tilemap_packed.png');
+    await renderer.loadAtlas(
+      'tiles',
+      './assets/tiny-dungeon_tilemap_packed.png',
+      './assets/tiny-dungeon_tilemap_packed.mote-sprite.json'
+    );
   }
 
   // 生成地图边界墙壁
@@ -98,7 +102,7 @@ function generateFloor(
         Transform: { x, y },
         Sprite: { 
           atlas: 'tiles', 
-          region: String(getRandomFloorSprite()),
+          region: `frame_${getRandomFloorSprite()}`,
           layer: -1,  // 地面在最底层
         },
         FloorTag: {},
@@ -183,7 +187,7 @@ function spawnWall(world: World, x: number, y: number): void {
     Transform: { x, y },
     Sprite: { 
       atlas: 'tiles', 
-      region: String(SPRITES.wall),
+      region: `frame_${SPRITES.wall}`,
       layer: 0,
     },
     WallTag: {},
@@ -258,7 +262,7 @@ function shuffleArray<T>(array: T[]): void {
 function spawnPlayer(world: World, x: number, y: number): void {
   world.spawn('player', {
     Transform: { x, y },
-    Sprite: { atlas: 'tiles', region: String(SPRITES.player) },
+    Sprite: { atlas: 'tiles', region: `frame_${SPRITES.player}` },
   });
 }
 
@@ -266,7 +270,7 @@ function spawnPlayer(world: World, x: number, y: number): void {
 function spawnWeapon(world: World, x: number, y: number): void {
   world.spawn('axe', {
     Transform: { x, y },
-    Sprite: { atlas: 'tiles', region: String(SPRITES.axe) },
+    Sprite: { atlas: 'tiles', region: `frame_${SPRITES.axe}` },
   });
 }
 
@@ -274,7 +278,7 @@ function spawnWeapon(world: World, x: number, y: number): void {
 function spawnEnemy(world: World, x: number, y: number): void {
   world.spawn('skeleton', {
     Transform: { x, y },
-    Sprite: { atlas: 'tiles', region: String(SPRITES.skeleton) },
+    Sprite: { atlas: 'tiles', region: `frame_${SPRITES.skeleton}` },
   });
 }
 
@@ -285,14 +289,14 @@ function spawnPickup(world: World, x: number, y: number, isRed: boolean): void {
   
   world.spawn(prefabId, {
     Transform: { x, y },
-    Sprite: { atlas: 'tiles', region: String(spriteIndex) },
+    Sprite: { atlas: 'tiles', region: `frame_${spriteIndex}` },
   });
 }
 
 /** 检查世界坐标是否为墙壁（用于碰撞检测） */
 export function isSolidWorldPos(x: number, y: number, world: World): boolean {
   // 检查是否有墙壁实体在这个位置
-  const T = WORLD_CONFIG.tileSize * WORLD_CONFIG.scale;
+  const T = WORLD_CONFIG.tileSize;  // 不使用 scale
   const col = Math.floor(x / T);
   const row = Math.floor(y / T);
   

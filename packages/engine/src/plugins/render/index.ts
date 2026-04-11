@@ -29,6 +29,21 @@ export type { AnimationDef } from './types.js';
 export { TextureAtlas, SpriteBatch } from './SpriteBatch.js';
 export type { AtlasRegion } from './SpriteBatch.js';
 
+// 字体和文本渲染
+export { TextRenderer } from './TextRenderer.js';
+export type { TextStyle, TextLayoutResult, BMFontJson } from './Font.js';
+export {
+  FontData,
+  parseBMFont,
+  parseBMFontJson,
+  mergeFontData,
+  layoutText,
+  measureText,
+  findMissingChars,
+  canRender,
+} from './Font.js';
+export type { GlyphData, FontMetrics } from './Font.js';
+
 // 渲染系统和渲染器
 export { spriteRenderSystem, spriteAnimationSystem } from './systems.js';
 export { SpriteRenderer, type Renderer } from './renderer.js';

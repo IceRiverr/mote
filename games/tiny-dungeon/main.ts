@@ -3,7 +3,7 @@
 
 import { World, GameLoop } from '@mote/engine';
 import { RenderPlugin, InputPlugin, PhysicsPlugin } from '@mote/engine';
-import { GamePlugin } from './src/GamePlugin.js';
+import { GamePlugin } from './src/systems.js';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const statusEl = document.getElementById('status') as HTMLDivElement;

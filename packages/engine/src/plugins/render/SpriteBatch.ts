@@ -1,7 +1,10 @@
+// engine/src/plugins/render/SpriteBatch.ts
+// 精灵批处理渲染器 —— 基于 IGfxDevice
+
 import type { IGfxDevice, IGfxBuffer, IGfxTexture, IGfxPipeline, IGfxBindGroup, IGfxBindGroupLayout } from './IGfxDevice.js';
 import { BufferUsage } from './IGfxDevice.js';
-import type { Camera2D } from '../Camera2D.js';
-import type { Color } from '../Math.js';
+import type { Camera2D } from '../../Camera2D.js';
+import type { Color } from '../../Math.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -11,6 +14,7 @@ export interface AtlasRegion {
   pixelWidth: number;
   pixelHeight: number;
 }
+
 import SPRITE_WGSL from './shaders/SpriteBatch.wgsl?raw';
 import SPRITE_VERT_GLSL from './shaders/sprite_batch.vert.glsl?raw';
 import SPRITE_FRAG_GLSL from './shaders/sprite_batch.frag.glsl?raw';
@@ -168,7 +172,8 @@ export class SpriteBatch {
     this.gfx.writeBuffer(this.cameraUniformBuffer, camera.getViewProjectionMatrix().data);
 
     this.frameEncoder = this.gfx.beginFrame();
-    this.renderPass = this.frameEncoder.beginRenderPass([0.04, 0.04, 0.08, 1.0]);
+    const bg = camera.backgroundColor;
+    this.renderPass = this.frameEncoder.beginRenderPass([bg.r, bg.g, bg.b, bg.a]);
     this.renderPass.setPipeline(this.pipeline);
     this.renderPass.setVertexBuffer(0, this.vertexBuffer);
     this.renderPass.setIndexBuffer(this.indexBuffer, 'uint16');

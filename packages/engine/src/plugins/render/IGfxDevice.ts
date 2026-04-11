@@ -1,3 +1,6 @@
+// engine/src/plugins/render/IGfxDevice.ts
+// 图形设备抽象接口
+
 // ── Buffer usage flags (backend-agnostic, mirrors GPUBufferUsage values) ──────
 
 export const BufferUsage = {

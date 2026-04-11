@@ -1,10 +1,18 @@
-import { Mat4, Vec2 } from './Math.js';
+import { Mat4, Vec2, Color } from './Math.js';
 
 export class Camera2D {
   position: Vec2;
   zoom: number;
   rotation: number;
-  readonly viewport: { width: number; height: number };
+  backgroundColor: Color;
+  
+  /** 视口宽度 */
+  get viewportWidth(): number { return this.viewport.width; }
+  set viewportWidth(value: number) { this.viewport.width = value; }
+  
+  /** 视口高度 */
+  get viewportHeight(): number { return this.viewport.height; }
+  set viewportHeight(value: number) { this.viewport.height = value; }
 
   /** 像素对齐：消除 tilemap 接缝。默认开启。 */
   pixelSnap = true;
@@ -13,10 +21,11 @@ export class Camera2D {
   private _shakeDuration  = 0;
   private _shakeOffset    = Vec2.zero();
 
-  constructor(viewportWidth: number, viewportHeight: number) {
+  constructor(viewportWidth: number = 800, viewportHeight: number = 600) {
     this.position = Vec2.zero();
     this.zoom     = 1;
     this.rotation = 0;
+    this.backgroundColor = Color.fromHex('87CEEB');
     this.viewport = { width: viewportWidth, height: viewportHeight };
   }
 

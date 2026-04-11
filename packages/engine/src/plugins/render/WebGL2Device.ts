@@ -1,3 +1,6 @@
+// engine/src/plugins/render/WebGL2Device.ts
+// WebGL2 图形设备实现
+
 import type {
   IGfxDevice, IGfxBuffer, IGfxTexture, IGfxPipeline, IGfxBindGroup, IGfxBindGroupLayout,
   IFrameEncoder, IRenderPass,

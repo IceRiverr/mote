@@ -2,7 +2,7 @@
 // 游戏插件 -- 使用 Prefab 的 ECS 架构
 
 import type { World } from '@mote/engine';
-import { Transform, Velocity, Camera, Sprite, BoxCollider, RigidBody } from '@mote/engine';
+import { Transform, Camera, Sprite } from '@mote/engine';
 import { initGameWorld, isSolidWorldPos } from './world-init.js';
 import { PlayerTag, EnemyAI, Weapon, Health, Pickup, WallTag, FloorTag } from './components.js';
 import { ALL_PREFABS } from './prefabs.js';
@@ -61,92 +61,173 @@ function inputSystem(world: World, dt: number): void {
   }
 }
 
-/** 攻击系统 */
-function attackSystem(world: World, dt: number): void {
+/** 投掷攻击系统 */
+function throwAttackSystem(world: World, dt: number): void {
   const input = world.getResource<InputManager>('input');
   if (!input) return;
 
   const pressed = input.isAnyPressed(['Space']);
+  if (!pressed) return;
 
-  for (const eid of world.query(Weapon, Transform)) {
-    const weapon = world.get(eid, Weapon);
+  // 找到玩家位置
+  let playerPos: Transform | null = null;
+  for (const eid of world.query(PlayerTag, Transform)) {
+    playerPos = world.get(eid, Transform);
+    break;
+  }
+  if (!playerPos) return;
 
-    if (pressed && !weapon.attacking) {
-      weapon.attacking = true;
-      weapon.angle = 0;
-      weapon.spinTotal = 0;
-      weapon.hitThisSwing.clear();
-    }
+  // 处理每个武器
+  for (const weaponEid of world.query(Weapon, Transform)) {
+    const weapon = world.get(weaponEid, Weapon);
+    const weaponTransform = world.get(weaponEid, Transform);
 
-    if (weapon.attacking) {
-      weapon.angle += weapon.spinSpeed * dt;
-      weapon.spinTotal += weapon.spinSpeed * dt;
+    // 只有在 idle 状态才能投掷
+    if (weapon.state !== 'idle') continue;
 
-      if (weapon.spinTotal >= Math.PI * 2) {
-        weapon.attacking = false;
-        weapon.angle = 0;
-        weapon.spinTotal = 0;
+    // 查找 60 像素范围内的敌人
+    const MAX_RANGE = weapon.maxDistance;
+    let nearestEnemy: { eid: number; x: number; y: number; dist: number } | null = null;
+
+    for (const enemyEid of world.query(EnemyAI, Transform)) {
+      const enemyTransform = world.get(enemyEid, Transform);
+      const dx = enemyTransform.x - playerPos.x;
+      const dy = enemyTransform.y - playerPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist <= MAX_RANGE) {
+        if (!nearestEnemy || dist < nearestEnemy.dist) {
+          nearestEnemy = { eid: enemyEid, x: enemyTransform.x, y: enemyTransform.y, dist };
+        }
       }
     }
+
+    // 记录起点
+    weapon.startX = playerPos.x;
+    weapon.startY = playerPos.y;
+    weapon.hitTargets.clear();
+
+    if (nearestEnemy) {
+      // 向最近的敌人投掷
+      weapon.targetX = nearestEnemy.x;
+      weapon.targetY = nearestEnemy.y;
+    } else {
+      // 随机方向投掷 - 使用玩家面向的方向或随机
+      const angle = Math.random() * Math.PI * 2;
+      weapon.targetX = playerPos.x + Math.cos(angle) * MAX_RANGE;
+      weapon.targetY = playerPos.y + Math.sin(angle) * MAX_RANGE;
+    }
+
+    // 设置武器初始位置为玩家位置
+    weaponTransform.x = playerPos.x;
+    weaponTransform.y = playerPos.y;
+    
+    // 设置旋转朝向目标
+    const dx = weapon.targetX - playerPos.x;
+    const dy = weapon.targetY - playerPos.y;
+    weaponTransform.rotation = Math.atan2(dy, dx);
+
+    // 切换到飞行状态
+    weapon.state = 'flying';
   }
 }
 
-/** 武器跟随系统 */
-function weaponFollowSystem(world: World, dt: number): void {
+/** 武器飞行系统 */
+function weaponFlySystem(world: World, dt: number): void {
+  // 找到玩家位置
   let playerPos: Transform | null = null;
-
   for (const eid of world.query(PlayerTag, Transform)) {
     playerPos = world.get(eid, Transform);
     break;
   }
-
-  if (!playerPos) return;
-
-  for (const eid of world.query(Weapon, Transform)) {
-    const weapon = world.get(eid, Weapon);
-    const transform = world.get(eid, Transform);
-
-    transform.x = playerPos.x + Math.cos(weapon.angle) * weapon.orbitRadius;
-    transform.y = playerPos.y + Math.sin(weapon.angle) * weapon.orbitRadius;
-    transform.rotation = weapon.angle;
-  }
-}
-
-/** 武器碰撞系统 */
-function weaponCollisionSystem(world: World, dt: number): void {
-  let playerPos: Transform | null = null;
-  for (const eid of world.query(PlayerTag, Transform)) {
-    playerPos = world.get(eid, Transform);
-    break;
-  }
-  if (!playerPos) return;
 
   for (const weaponEid of world.query(Weapon, Transform)) {
     const weapon = world.get(weaponEid, Weapon);
-    if (!weapon.attacking) continue;
+    const transform = world.get(weaponEid, Transform);
 
-    const wx = playerPos.x + Math.cos(weapon.angle) * weapon.orbitRadius;
-    const wy = playerPos.y + Math.sin(weapon.angle) * weapon.orbitRadius;
+    if (weapon.state === 'idle') {
+      // 空闲状态：武器在玩家手中（不显示或显示在玩家身上）
+      if (playerPos) {
+        transform.x = playerPos.x;
+        transform.y = playerPos.y;
+        transform.rotation = 0;
+      }
+    } else if (weapon.state === 'flying') {
+      // 飞行状态：向目标移动
+      const dx = weapon.targetX - transform.x;
+      const dy = weapon.targetY - transform.y;
+      const distToTarget = Math.sqrt(dx * dx + dy * dy);
 
-    // 检查与敌人碰撞(查询 EnemyAI 而不是 EntityDef)
-    for (const enemyEid of world.query(EnemyAI, Transform, Health)) {
-      if (weapon.hitThisSwing.has(enemyEid)) continue;
+      // 计算已飞行距离
+      const flownDist = Math.sqrt(
+        (transform.x - weapon.startX) ** 2 + 
+        (transform.y - weapon.startY) ** 2
+      );
 
-      const enemyTransform = world.get(enemyEid, Transform);
+      // 检查是否到达目标或最大距离
+      if (distToTarget < 5 || flownDist >= weapon.maxDistance) {
+        // 到达目标，开始返回
+        weapon.state = 'returning';
+      } else {
+        // 继续向目标飞行
+        const moveDist = weapon.flySpeed * dt;
+        const ratio = moveDist / distToTarget;
+        
+        // 限制 ratio 不超过 1，避免越过目标
+        const actualRatio = Math.min(ratio, 1);
+        
+        transform.x += dx * actualRatio;
+        transform.y += dy * actualRatio;
+        transform.rotation = Math.atan2(dy, dx);
 
-      // 简单的距离检测
-      const dx = wx - enemyTransform.x;
-      const dy = wy - enemyTransform.y;
+        // 检测碰撞敌人
+        for (const enemyEid of world.query(EnemyAI, Transform, Health)) {
+          if (weapon.hitTargets.has(enemyEid)) continue;
+
+          const enemyTransform = world.get(enemyEid, Transform);
+          const edx = transform.x - enemyTransform.x;
+          const edy = transform.y - enemyTransform.y;
+          const edist = Math.sqrt(edx * edx + edy * edy);
+
+          if (edist < 12) {
+            const health = world.get(enemyEid, Health);
+            health.current -= weapon.damage;
+            weapon.hitTargets.add(enemyEid);
+
+            if (health.current <= 0) {
+              world.destroy(enemyEid);
+            }
+            
+            // 击中敌人后立即返回
+            weapon.state = 'returning';
+            break;
+          }
+        }
+      }
+    } else if (weapon.state === 'returning') {
+      // 返回状态：飞回玩家
+      if (!playerPos) {
+        weapon.state = 'idle';
+        continue;
+      }
+
+      const dx = playerPos.x - transform.x;
+      const dy = playerPos.y - transform.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      if (dist < 12) {
-        const health = world.get(enemyEid, Health);
-        health.current -= weapon.damage;
-        weapon.hitThisSwing.add(enemyEid);
-
-        if (health.current <= 0) {
-          world.destroy(enemyEid);
-        }
+      if (dist < 5) {
+        // 回到玩家手中
+        weapon.state = 'idle';
+        transform.x = playerPos.x;
+        transform.y = playerPos.y;
+        transform.rotation = 0;
+      } else {
+        // 继续返回（速度更快）
+        const moveDist = weapon.flySpeed * 2 * dt;
+        const ratio = Math.min(moveDist / dist, 1);
+        transform.x += dx * ratio;
+        transform.y += dy * ratio;
+        transform.rotation = Math.atan2(dy, dx);
       }
     }
   }
@@ -236,10 +317,9 @@ export function GamePlugin(world: World): void {
 
   // 注册系统
   world.addSystem(inputSystem);
-  world.addSystem(attackSystem);
-  world.addSystem(weaponCollisionSystem);
+  world.addSystem(throwAttackSystem);
+  //world.addSystem(weaponFlySystem);
   world.addSystem(pickupSystem);
-  world.addSystem(weaponFollowSystem);
   world.addSystem(cameraFollowSystem);
 
   // 初始化世界

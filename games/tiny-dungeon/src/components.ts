@@ -9,15 +9,24 @@ export class EnemyAI {
   state: 'idle' | 'chase' = 'idle';
 }
 
-/** 武器组件 */
+/** 武器组件 - 投掷斧头 */
 export class Weapon {
-  attacking = false;
-  angle = 0;
-  spinTotal = 0;
-  hitThisSwing = new Set<number>();
-  orbitRadius = 20;
-  spinSpeed = Math.PI * 4;
-  damage = 50;
+  // 状态: idle=跟随玩家, flying=飞行中, returning=返回中
+  state: 'idle' | 'flying' | 'returning' = 'idle';
+  
+  // 投掷参数
+  startX = 0;  // 投掷起点
+  startY = 0;
+  targetX = 0; // 目标位置
+  targetY = 0;
+  
+  // 飞行参数
+  flySpeed = 300;      // 飞行速度 (像素/秒)
+  maxDistance = 60;    // 最大飞行距离
+  damage = 50;         // 伤害
+  
+  // 已击中目标记录（防止重复伤害）
+  hitTargets = new Set<number>();
 }
 
 /** 健康值 */

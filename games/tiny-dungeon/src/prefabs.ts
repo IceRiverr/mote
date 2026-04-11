@@ -18,10 +18,7 @@ export const PlayerPrefab = definePrefab({
   id: 'player',
   components: {
     Transform: {},
-    Velocity: {},
     // Sprite 由 world-init.ts 在 spawn 时设置具体位置
-    BoxCollider: { width: 12, height: 12 },
-    RigidBody: { useGravity: false },
     Health: { current: 100, max: 100 },
     PlayerTag: {},
   },
@@ -51,8 +48,6 @@ export const SkeletonPrefab = definePrefab({
   id: 'skeleton',
   components: {
     Transform: {},
-    BoxCollider: { width: 12, height: 12 },
-    RigidBody: { isStatic: true },
     Health: { current: 30, max: 30 },
     EnemyAI: {},
   },

@@ -11,6 +11,34 @@ import { ALL_PREFABS } from './prefabs.js';
 // 系统
 // ═════════════════════════════════════════════════════════════════════════════
 
+/** 检查位置是否与敌人碰撞 */
+function isEnemyAtPos(x: number, y: number, world: World): boolean {
+  const ENEMY_HALF_SIZE = 6; // 敌人尺寸 12x12，半尺寸为 6
+  
+  for (const enemyEid of world.query(EnemyAI, Transform)) {
+    const enemyTransform = world.get(enemyEid, Transform);
+    
+    // AABB 碰撞检测
+    const playerLeft = x - ENEMY_HALF_SIZE + 1;
+    const playerRight = x + ENEMY_HALF_SIZE - 1;
+    const playerTop = y - ENEMY_HALF_SIZE + 1;
+    const playerBottom = y + ENEMY_HALF_SIZE - 1;
+    
+    const enemyLeft = enemyTransform.x - ENEMY_HALF_SIZE + 1;
+    const enemyRight = enemyTransform.x + ENEMY_HALF_SIZE - 1;
+    const enemyTop = enemyTransform.y - ENEMY_HALF_SIZE + 1;
+    const enemyBottom = enemyTransform.y + ENEMY_HALF_SIZE - 1;
+    
+    // 检查是否重叠
+    if (playerLeft < enemyRight && playerRight > enemyLeft &&
+        playerTop < enemyBottom && playerBottom > enemyTop) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 /** 输入系统 - 直接移动玩家，绕过 Velocity */
 function inputSystem(world: World, dt: number): void {
   const input = world.getResource<InputManager>('input');
@@ -41,21 +69,27 @@ function inputSystem(world: World, dt: number): void {
     const PLAYER_HALF_W = 6;
     const PLAYER_HALF_H = 6;
 
-    // 尝试 X 方向移动
+    // 尝试 X 方向移动 - 检查墙壁和敌人碰撞
     const newX = transform.x + moveX * speed;
-    if (!isSolidWorldPos(newX - PLAYER_HALF_W + 1, transform.y - PLAYER_HALF_H + 1, world) &&
-        !isSolidWorldPos(newX + PLAYER_HALF_W - 1, transform.y - PLAYER_HALF_H + 1, world) &&
-        !isSolidWorldPos(newX - PLAYER_HALF_W + 1, transform.y + PLAYER_HALF_H - 1, world) &&
-        !isSolidWorldPos(newX + PLAYER_HALF_W - 1, transform.y + PLAYER_HALF_H - 1, world)) {
+    const xWallCollision = isSolidWorldPos(newX - PLAYER_HALF_W + 1, transform.y - PLAYER_HALF_H + 1, world) ||
+        isSolidWorldPos(newX + PLAYER_HALF_W - 1, transform.y - PLAYER_HALF_H + 1, world) ||
+        isSolidWorldPos(newX - PLAYER_HALF_W + 1, transform.y + PLAYER_HALF_H - 1, world) ||
+        isSolidWorldPos(newX + PLAYER_HALF_W - 1, transform.y + PLAYER_HALF_H - 1, world);
+    const xEnemyCollision = isEnemyAtPos(newX, transform.y, world);
+    
+    if (!xWallCollision && !xEnemyCollision) {
       transform.x = newX;
     }
 
-    // 尝试 Y 方向移动
+    // 尝试 Y 方向移动 - 检查墙壁和敌人碰撞
     const newY = transform.y + moveY * speed;
-    if (!isSolidWorldPos(transform.x - PLAYER_HALF_W + 1, newY - PLAYER_HALF_H + 1, world) &&
-        !isSolidWorldPos(transform.x + PLAYER_HALF_W - 1, newY - PLAYER_HALF_H + 1, world) &&
-        !isSolidWorldPos(transform.x - PLAYER_HALF_W + 1, newY + PLAYER_HALF_H - 1, world) &&
-        !isSolidWorldPos(transform.x + PLAYER_HALF_W - 1, newY + PLAYER_HALF_H - 1, world)) {
+    const yWallCollision = isSolidWorldPos(transform.x - PLAYER_HALF_W + 1, newY - PLAYER_HALF_H + 1, world) ||
+        isSolidWorldPos(transform.x + PLAYER_HALF_W - 1, newY - PLAYER_HALF_H + 1, world) ||
+        isSolidWorldPos(transform.x - PLAYER_HALF_W + 1, newY + PLAYER_HALF_H - 1, world) ||
+        isSolidWorldPos(transform.x + PLAYER_HALF_W - 1, newY + PLAYER_HALF_H - 1, world);
+    const yEnemyCollision = isEnemyAtPos(transform.x, newY, world);
+    
+    if (!yWallCollision && !yEnemyCollision) {
       transform.y = newY;
     }
   }

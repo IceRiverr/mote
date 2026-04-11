@@ -66,8 +66,9 @@ function throwAttackSystem(world: World, dt: number): void {
   const input = world.getResource<InputManager>('input');
   if (!input) return;
 
-  const pressed = input.isAnyPressed(['Space']);
-  if (!pressed) return;
+  // 使用 isAnyDown 代替 isAnyPressed（因为 InputPlugin 的 endFrame 会提前清空 pressed）
+  const spaceHeld = input.isAnyDown(['Space']);
+  if (!spaceHeld) return;
 
   // 找到玩家位置
   let playerPos: Transform | null = null;
@@ -82,7 +83,7 @@ function throwAttackSystem(world: World, dt: number): void {
     const weapon = world.get(weaponEid, Weapon);
     const weaponTransform = world.get(weaponEid, Transform);
 
-    // 只有在 idle 状态才能投掷
+    // 只有在 idle 状态且空格键按下才能投掷
     if (weapon.state !== 'idle') continue;
 
     // 查找 60 像素范围内的敌人
@@ -145,10 +146,13 @@ function weaponFlySystem(world: World, dt: number): void {
     const weapon = world.get(weaponEid, Weapon);
     const transform = world.get(weaponEid, Transform);
 
+    // 安全检查：确保必要字段有有效值
+    if (!weapon || !transform) continue;
+
     if (weapon.state === 'idle') {
-      // 空闲状态：武器在玩家手中（不显示或显示在玩家身上）
+      // 空闲状态：武器在玩家身前16像素
       if (playerPos) {
-        transform.x = playerPos.x;
+        transform.x = playerPos.x + 16;
         transform.y = playerPos.y;
         transform.rotation = 0;
       }
@@ -164,6 +168,12 @@ function weaponFlySystem(world: World, dt: number): void {
         (transform.y - weapon.startY) ** 2
       );
 
+      // 安全检查：避免无效数值
+      if (!isFinite(distToTarget) || !isFinite(flownDist)) {
+        weapon.state = 'returning';
+        continue;
+      }
+
       // 检查是否到达目标或最大距离
       if (distToTarget < 5 || flownDist >= weapon.maxDistance) {
         // 到达目标，开始返回
@@ -171,13 +181,17 @@ function weaponFlySystem(world: World, dt: number): void {
       } else {
         // 继续向目标飞行
         const moveDist = weapon.flySpeed * dt;
-        const ratio = moveDist / distToTarget;
         
-        // 限制 ratio 不超过 1，避免越过目标
-        const actualRatio = Math.min(ratio, 1);
+        // 安全检查：避免除以0
+        if (distToTarget < 0.001) {
+          weapon.state = 'returning';
+          continue;
+        }
         
-        transform.x += dx * actualRatio;
-        transform.y += dy * actualRatio;
+        const ratio = Math.min(moveDist / distToTarget, 1);
+        
+        transform.x += dx * ratio;
+        transform.y += dy * ratio;
         transform.rotation = Math.atan2(dy, dx);
 
         // 检测碰撞敌人
@@ -214,6 +228,14 @@ function weaponFlySystem(world: World, dt: number): void {
       const dx = playerPos.x - transform.x;
       const dy = playerPos.y - transform.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // 安全检查
+      if (!isFinite(dist)) {
+        weapon.state = 'idle';
+        transform.x = playerPos.x;
+        transform.y = playerPos.y;
+        continue;
+      }
 
       if (dist < 5) {
         // 回到玩家手中
@@ -318,7 +340,7 @@ export function GamePlugin(world: World): void {
   // 注册系统
   world.addSystem(inputSystem);
   world.addSystem(throwAttackSystem);
-  //world.addSystem(weaponFlySystem);
+  world.addSystem(weaponFlySystem);
   world.addSystem(pickupSystem);
   world.addSystem(cameraFollowSystem);
 

@@ -32,8 +32,17 @@ export const AxePrefab = definePrefab({
   id: 'axe',
   components: {
     Transform: {},
-    BoxCollider: { width: 14, height: 14 },
-    Weapon: {},
+    Sprite: { atlas: 'tiles', region: 'frame_118' },
+    Weapon: {
+      state: 'idle',
+      startX: 0,
+      startY: 0,
+      targetX: 0,
+      targetY: 0,
+      flySpeed: 300,
+      maxDistance: 60,
+      damage: 50,
+    },
   },
 });
 

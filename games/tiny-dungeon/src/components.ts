@@ -15,15 +15,15 @@ export class Weapon {
   state: 'idle' | 'flying' | 'returning' = 'idle';
   
   // 投掷参数
-  startX = 0;  // 投掷起点
+  startX = 0;
   startY = 0;
-  targetX = 0; // 目标位置
+  targetX = 0;
   targetY = 0;
   
   // 飞行参数
-  flySpeed = 300;      // 飞行速度 (像素/秒)
-  maxDistance = 60;    // 最大飞行距离
-  damage = 50;         // 伤害
+  flySpeed = 300;
+  maxDistance = 60;
+  damage = 50;
   
   // 已击中目标记录（防止重复伤害）
   hitTargets = new Set<number>();

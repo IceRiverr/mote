@@ -270,7 +270,6 @@ function spawnPlayer(world: World, x: number, y: number): void {
 function spawnWeapon(world: World, x: number, y: number): void {
   world.spawn('axe', {
     Transform: { x, y },
-    Sprite: { atlas: 'tiles', region: `frame_${SPRITES.axe}` },
   });
 }
 

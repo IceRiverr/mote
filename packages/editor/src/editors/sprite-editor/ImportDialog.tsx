@@ -5,7 +5,7 @@
 
 import { useState, useRef, useEffect } from 'preact/hooks';
 import {
-  importGridSpriteSheet,
+  importGridSpriteSheetFromImage,
   importPackedSpriteSheet,
   importXmlSpriteSheet,
   importLooseSpriteSheet,
@@ -308,7 +308,7 @@ export function ImportDialog({ onClose }: Props) {
       if (mode === 'tilesheet') {
         const imgFile = selectedFiles.find(f => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
         if (!imgFile) throw new Error('未找到图片文件');
-        const { sheet, img } = await importGridSpriteSheet(imgFile, tileW, tileH, margin, spacing, undefined, imgFile.name);
+        const { sheet, img } = await importGridSpriteSheetFromImage(imgFile, tileW, tileH, margin, spacing, undefined, imgFile.name);
         addSpriteSheet(sheet, img);
       } else if (mode === 'mote') {
         const jsonFile = selectedFiles.find(f => f.name.endsWith('.json'));

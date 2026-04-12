@@ -1,5 +1,14 @@
 // ═══════════════════════════════════════════════════════════════
-// map-props.ts — PLACEHOLDER: Old command system disabled
+// register.ts - 注册 Prefab Browser 到编辑器系统
 // ═══════════════════════════════════════════════════════════════
 
-export const Placeholder = true;
+import { registerEditor } from "../registry";
+import { PrefabBrowser } from "./PrefabBrowser";
+
+registerEditor({
+  id: "prefab-browser",
+  name: "Prefab 浏览器",
+  icon: "📦",
+  component: PrefabBrowser,
+});
+

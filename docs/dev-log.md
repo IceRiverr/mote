@@ -9,3 +9,7 @@ D:\dev\mote\games\tiny-town\assets\kenney_tiny-town_tilemap.png 我希望导入�
 
 ## 2026-4-2
 总算把 logo 做好了。用 figama 做的。
+
+## 2026-4-12
+我的 plugin 应该提供哪些基础 componnt 呢
+

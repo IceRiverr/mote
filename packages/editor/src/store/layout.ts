@@ -6,8 +6,8 @@ import { computeRects } from '../layout/rect';
  * Default layout (6 panels) — Blender-style:
  *
  * ┌──────────────────┬───────────┐
- * │                  │  Scene    │
- * │                  │  Tree     │
+ * │                  │  Prefab   │
+ * │                  │  Browser  │
  * │    Viewport      ├───────────┤
  * │                  │ Inspector │
  * │                  │ (Props)   │
@@ -15,7 +15,7 @@ import { computeRects } from '../layout/rect';
  * │  Sprite Editor   │  Assets   │
  * └──────────────────┴───────────┘
  *
- * Right side: Scene Tree (top) + Inspector (bottom)
+ * Right side: Prefab Browser (top) + Inspector (bottom)
  * Left side: Viewport (top) + Sprite Editor (bottom)
  */
 const defaultLayout: LayoutNode = {
@@ -35,14 +35,14 @@ const defaultLayout: LayoutNode = {
         { type: 'area', id: 'area_sprite_editor', editorType: 'sprite-editor' },
       ],
     },
-    // Right side: Scene Tree (top) + Inspector (bottom)
+    // Right side: Prefab Browser (top) + Inspector (bottom)
     {
       type: 'split',
       id: 'right',
       direction: 'horizontal',
-      ratio: 0.45,
+      ratio: 0.5,
       children: [
-        { type: 'area', id: 'area_scene_tree', editorType: 'scene-tree' },
+        { type: 'area', id: 'area_prefab_browser', editorType: 'prefab-browser' },
         { type: 'area', id: 'area_inspector', editorType: 'inspector' },
       ],
     },

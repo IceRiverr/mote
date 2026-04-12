@@ -5,12 +5,14 @@ import "./editors/sprite-editor/register";
 import "./editors/assets/register";
 import "./editors/scene-tree/register";
 import "./editors/console/register";
+import "./editors/prefab-browser/register";
 
 import { useEffect } from "preact/hooks";
 import { LayoutRoot } from "./components/LayoutRoot";
 import { undo, redo } from "./store/history";
 import { activeTool, type ToolType } from "./store/selection";
 import { loadBuiltinEntityDefs } from "./store/entityDefs";
+import { loadScene, newScene } from "./store/scene";
 
 const TOOL_SHORTCUTS: Record<string, ToolType> = {
   v: "select",
@@ -22,9 +24,11 @@ const TOOL_SHORTCUTS: Record<string, ToolType> = {
 };
 
 export function App() {
-  // Load built-in entity defs on mount
+  // Load built-in entity defs and create default scene on mount
   useEffect(() => {
     loadBuiltinEntityDefs();
+    // 创建默认场景
+    newScene(640, 480);
   }, []);
 
   // Global keyboard shortcuts

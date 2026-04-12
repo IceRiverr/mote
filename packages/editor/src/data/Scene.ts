@@ -1,237 +1,244 @@
 // ═══════════════════════════════════════════════════════════════
-// Scene.ts — Scene type (replaces TileMap)
-// A Scene is a complete level/map composed of tile layers and
-// entity layers, referencing SpriteSheets by ID.
+// Scene.ts - 基于 Entity 的场景定义
+// 完全移除 TileLayer，所有内容都是 Prefab 实例
 // ═══════════════════════════════════════════════════════════════
 
-import type { EntityInstance } from './EntityDef';
-
-// ── Layer base ────────────────────────────────────────────────
-
-interface LayerBase {
+/**
+ * 场景中的实体实例
+ */
+export interface SceneEntity {
+  /** 实体唯一 ID */
   id: string;
-  name: string;
-  visible: boolean;
-  opacity: number;
-  locked: boolean;
+  
+  /** 引用的 Prefab ID */
+  prefab: string;
+  
+  /** 显示名称覆盖（可选） */
+  name?: string;
+  
+  /** X 坐标（像素） */
+  x: number;
+  
+  /** Y 坐标（像素） */
+  y: number;
+  
+  /** 旋转角度（度，可选） */
+  rotation?: number;
+  
+  /** X 轴缩放（可选） */
+  scaleX?: number;
+  
+  /** Y 轴缩放（可选） */
+  scaleY?: number;
+  
+  /** 组件属性覆盖（可选） */
+  overrides?: {
+    [componentName: string]: Record<string, any>;
+  };
+  
+  /** 是否可见（可选，默认 true） */
+  visible?: boolean;
+}
+
+/**
+ * 网格设置
+ */
+export interface GridSettings {
+  /** 是否启用网格 */
+  enabled: boolean;
+  
+  /** 网格大小（像素） */
+  size: number;
+  
+  /** 是否吸附到网格 */
+  snap: boolean;
+  
+  /** 网格颜色（CSS 颜色） */
   color?: string;
 }
 
-// ── Tile layer ────────────────────────────────────────────────
-
-/** Tile layer — references Frame IDs from a SpriteSheet */
-export interface TileLayerData extends LayerBase {
-  type: 'tile';
-  /** Which SpriteSheet this layer uses */
-  spriteSheet: string;
-  /** Encoding mode */
-  encoding: 'names' | 'indexed';
-  /** For 'names' mode: array of frameId strings ("" = empty) */
-  data: string[];
-  /** For 'indexed' mode only: maps index -> frameId */
-  frameIndex?: string[];
-}
-
-// ── Entity layer ──────────────────────────────────────────────
-
-/** Entity layer — contains placed entity instances */
-export interface EntityLayerData extends LayerBase {
-  type: 'entity';
-  entities: EntityInstance[];
-}
-
-// ── Union type ────────────────────────────────────────────────
-
-export type SceneLayer = TileLayerData | EntityLayerData;
-
-// ── Scene ─────────────────────────────────────────────────────
-
-/** Scene — a complete level/map */
+/**
+ * 场景定义
+ */
 export interface Scene {
+  /** 场景 ID */
   id: string;
+  
+  /** 场景名称 */
   name: string;
-  width: number;      // columns
-  height: number;     // rows
-  tileWidth: number;
-  tileHeight: number;
-  /** SpriteSheets referenced by this scene (IDs) */
-  spriteSheets: string[];
-  layers: SceneLayer[];
+  
+  /** 场景宽度（像素） */
+  width: number;
+  
+  /** 场景高度（像素） */
+  height: number;
+  
+  /** 网格设置 */
+  grid: GridSettings;
+  
+  /** 场景中的所有实体 */
+  entities: SceneEntity[];
 }
 
-// ── Type guards ───────────────────────────────────────────────
-
-/** Type guard: is this layer a tile layer? */
-export function isTileLayer(layer: SceneLayer): layer is TileLayerData {
-  return layer.type === 'tile';
-}
-
-/** Type guard: is this layer an entity layer? */
-export function isEntityLayer(layer: SceneLayer): layer is EntityLayerData {
-  return layer.type === 'entity';
-}
-
-// ── Layer factories ───────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// 工厂函数
+// ═══════════════════════════════════════════════════════════════
 
 /**
- * Create an empty tile layer filled with "" (no tile).
- * @param id - Layer ID
- * @param name - Layer display name
- * @param width - Number of columns in the scene
- * @param height - Number of rows in the scene
- * @param spriteSheet - SpriteSheet ID this layer references
- */
-export function createTileLayer(
-  id: string,
-  name: string,
-  width: number,
-  height: number,
-  spriteSheet: string,
-): TileLayerData {
-  return {
-    type: 'tile',
-    id,
-    name,
-    visible: true,
-    opacity: 1,
-    locked: false,
-    spriteSheet,
-    encoding: 'names',
-    data: new Array<string>(width * height).fill(''),
-  };
-}
-
-/**
- * Create an empty entity layer.
- */
-export function createEntityLayer(
-  id: string,
-  name: string,
-): EntityLayerData {
-  return {
-    type: 'entity',
-    id,
-    name,
-    visible: true,
-    opacity: 1,
-    locked: false,
-    entities: [],
-  };
-}
-
-// ── Scene factory ─────────────────────────────────────────────
-
-/**
- * Create a Scene with 2 default tile layers (background, foreground)
- * and 1 entity layer. The tile layers use an empty spriteSheet ref
- * that should be set after creation.
+ * 创建新场景
  */
 export function createScene(
   id: string,
   name: string,
-  width: number,
-  height: number,
-  tileWidth: number,
-  tileHeight: number,
+  width: number = 640,
+  height: number = 480
 ): Scene {
   return {
     id,
     name,
     width,
     height,
-    tileWidth,
-    tileHeight,
-    spriteSheets: [],
-    layers: [
-      createTileLayer('layer_bg', 'background', width, height, ''),
-      createTileLayer('layer_fg', 'foreground', width, height, ''),
-      createEntityLayer('layer_entities', 'entities'),
-    ],
+    grid: {
+      enabled: true,
+      size: 32,
+      snap: true,
+      color: 'rgba(255, 255, 255, 0.2)',
+    },
+    entities: [],
   };
 }
 
-// ── Tile accessors ────────────────────────────────────────────
-
 /**
- * Get the frame ID at tile position (x, y) in a tile layer.
- * Returns "" if empty, or the frameId string.
- * Returns undefined if out of bounds.
+ * 从 Prefab 创建实体
  */
-export function getTileAt(
-  layer: TileLayerData,
+export function createSceneEntity(
+  prefabId: string,
   x: number,
   y: number,
-  width: number,
-): string | undefined {
-  if (x < 0 || y < 0 || x >= width) return undefined;
-  const index = y * width + x;
-  if (index < 0 || index >= layer.data.length) return undefined;
-
-  if (layer.encoding === 'indexed' && layer.frameIndex) {
-    // In indexed mode, data stores index numbers as strings
-    const raw = layer.data[index];
-    if (raw === '' || raw === '-1') return '';
-    const numIndex = parseInt(raw, 10);
-    if (isNaN(numIndex) || numIndex < 0 || numIndex >= layer.frameIndex.length) return '';
-    return layer.frameIndex[numIndex];
+  options?: {
+    id?: string;
+    name?: string;
+    rotation?: number;
+    scaleX?: number;
+    scaleY?: number;
+    overrides?: Record<string, any>;
   }
+): SceneEntity {
+  return {
+    id: options?.id || generateEntityId(),
+    prefab: prefabId,
+    name: options?.name,
+    x,
+    y,
+    rotation: options?.rotation,
+    scaleX: options?.scaleX,
+    scaleY: options?.scaleY,
+    overrides: options?.overrides,
+    visible: true,
+  };
+}
 
-  // Names mode: data directly contains frameId strings
-  return layer.data[index];
+// ═══════════════════════════════════════════════════════════════
+// 工具函数
+// ═══════════════════════════════════════════════════════════════
+
+let entityIdCounter = 0;
+
+/**
+ * 生成唯一的实体 ID
+ */
+function generateEntityId(): string {
+  entityIdCounter++;
+  return `e_${Date.now().toString(36)}_${entityIdCounter.toString(36)}`;
 }
 
 /**
- * Set the frame ID at tile position (x, y) in a tile layer.
- * Mutates the layer data in place for performance.
- * Use "" to clear a tile.
+ * 重置实体 ID 计数器（用于测试）
  */
-export function setTileAt(
-  layer: TileLayerData,
-  x: number,
-  y: number,
-  width: number,
-  frameId: string,
-): void {
-  if (x < 0 || y < 0 || x >= width) return;
-  const index = y * width + x;
-  if (index < 0 || index >= layer.data.length) return;
-
-  if (layer.encoding === 'indexed' && layer.frameIndex) {
-    // In indexed mode, we need to find or add the frameId in frameIndex
-    if (frameId === '') {
-      layer.data[index] = '';
-      return;
-    }
-    let frameIdx = layer.frameIndex.indexOf(frameId);
-    if (frameIdx === -1) {
-      frameIdx = layer.frameIndex.length;
-      layer.frameIndex.push(frameId);
-    }
-    layer.data[index] = String(frameIdx);
-    return;
-  }
-
-  // Names mode: store frameId directly
-  layer.data[index] = frameId;
+export function resetEntityIdCounter(): void {
+  entityIdCounter = 0;
 }
 
-// ── Encoding conversion ───────────────────────────────────────
+/**
+ * 验证场景数据是否有效
+ */
+export function validateScene(scene: any): scene is Scene {
+  if (!scene || typeof scene !== 'object') return false;
+  if (!scene.id || typeof scene.id !== 'string') return false;
+  if (!scene.name || typeof scene.name !== 'string') return false;
+  if (typeof scene.width !== 'number') return false;
+  if (typeof scene.height !== 'number') return false;
+  if (!Array.isArray(scene.entities)) return false;
+  
+  return true;
+}
 
 /**
- * Convert a tile layer to 'names' encoding if it is in 'indexed' mode.
- * Returns a new data array with resolved frame ID strings.
- * If already in 'names' mode, returns a copy of the existing data.
+ * 验证实体数据是否有效
  */
-export function resolveTileData(layer: TileLayerData): string[] {
-  if (layer.encoding === 'names' || !layer.frameIndex) {
-    return [...layer.data];
-  }
+export function validateEntity(entity: any): entity is SceneEntity {
+  if (!entity || typeof entity !== 'object') return false;
+  if (!entity.id || typeof entity.id !== 'string') return false;
+  if (!entity.prefab || typeof entity.prefab !== 'string') return false;
+  if (typeof entity.x !== 'number') return false;
+  if (typeof entity.y !== 'number') return false;
+  
+  return true;
+}
 
-  // Indexed mode: resolve each entry through the frameIndex lookup
-  return layer.data.map((raw) => {
-    if (raw === '' || raw === '-1') return '';
-    const numIndex = parseInt(raw, 10);
-    if (isNaN(numIndex) || numIndex < 0 || numIndex >= layer.frameIndex!.length) return '';
-    return layer.frameIndex![numIndex];
-  });
+/**
+ * 克隆实体（生成新的 ID）
+ */
+export function cloneEntity(entity: SceneEntity, newX?: number, newY?: number): SceneEntity {
+  return {
+    ...entity,
+    id: generateEntityId(),
+    x: newX ?? entity.x,
+    y: newY ?? entity.y,
+  };
+}
+
+/**
+ * 将网格坐标转换为世界坐标
+ */
+export function gridToWorld(gridX: number, gridY: number, gridSize: number): { x: number; y: number } {
+  return {
+    x: gridX * gridSize,
+    y: gridY * gridSize,
+  };
+}
+
+/**
+ * 将世界坐标对齐到网格
+ */
+export function snapToGrid(worldX: number, worldY: number, gridSize: number): { x: number; y: number } {
+  return {
+    x: Math.round(worldX / gridSize) * gridSize,
+    y: Math.round(worldY / gridSize) * gridSize,
+  };
+}
+
+/**
+ * 导出为 ECS 可用的 JSON 格式
+ */
+export function exportToECS(scene: Scene): object {
+  return {
+    id: scene.id,
+    name: scene.name,
+    bounds: {
+      width: scene.width,
+      height: scene.height,
+    },
+    entities: scene.entities.map(e => ({
+      id: e.id,
+      prefab: e.prefab,
+      name: e.name,
+      x: e.x,
+      y: e.y,
+      rotation: e.rotation,
+      scaleX: e.scaleX,
+      scaleY: e.scaleY,
+      overrides: e.overrides,
+    })),
+  };
 }

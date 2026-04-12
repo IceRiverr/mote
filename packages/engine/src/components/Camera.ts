@@ -1,0 +1,56 @@
+// ═══════════════════════════════════════════════════════════════
+// Camera.ts - 相机组件
+// 定义视图中心和视口大小
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 相机组件 - 控制渲染视口
+ * 
+ * 通常附加到带有 Transform 的实体上，Transform 决定相机位置，
+ * Camera 组件定义视口大小和渲染参数。
+ */
+export class Camera {
+  /**
+   * 视口宽度（像素）
+   * @default 640
+   * @range [100, 4096]
+   * @step 16
+   */
+  width = 640;
+
+  /**
+   * 视口高度（像素）
+   * @default 480
+   * @range [100, 4096]
+   * @step 16
+   */
+  height = 480;
+
+  /**
+   * 缩放级别（1 = 100%）
+   * @default 1
+   * @range [0.1, 5]
+   * @step 0.1
+   */
+  zoom = 1;
+
+  /**
+   * 背景颜色（CSS 颜色格式）
+   * @default "#000000"
+   * @type color
+   */
+  backgroundColor = '#000000';
+
+  /**
+   * 是否启用（多相机时，通常只有一个主相机启用）
+   * @default true
+   */
+  active = true;
+}
+
+// 注册到 ComponentMap
+declare module '../core/component' {
+  interface ComponentMap {
+    Camera: Camera;
+  }
+}

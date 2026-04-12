@@ -1,22 +1,36 @@
+// ═══════════════════════════════════════════════════════════════
+// sprite-sheet-import.ts — SpriteSheet import for new architecture
+// ═══════════════════════════════════════════════════════════════
+
+import type { SpriteSheet, FrameData, FrameDataWithId, Slicing } from "./SpriteSheet";
+import { createGridSpriteSheet } from "./SpriteSheet";
+
 /**
- * SpriteSheet import helpers — replaces atlas-import.ts
- * Creates new-format SpriteSheet directly for all import modes:
- *   1. Grid (Tile Sheet) — uniform grid slicing
- *   2. Packed (TexturePacker JSON)
- *   3. XML (Sparrow/Starling)
- *   4. Loose Files — individual PNGs packed into atlas
+ * SpriteSheet JSON format (from .mote-sprite.json files)
  */
+export interface SpriteSheetJson {
+  type: "mote-sprite";
+  version: string;
+  id: string;
+  name: string;
+  image: string;
+  slicing: {
+    mode: "grid" | "packed" | "xml" | "manual";
+    tileWidth?: number;
+    tileHeight?: number;
+    margin?: number;
+    spacing?: number;
+    source?: string;
+  };
+  frames: FrameDataWithId[];
+}
 
-import type { SpriteSheet, FrameData, Slicing } from "./SpriteSheet";
-import type { TexturePackerJson } from "./SpriteAtlas";
-import {
-  parseSparrowXml,
-  packLooseImages,
-} from "./SpriteAtlas";
-import { spriteSheetFromJson } from "./io-v2";
-
-/** Load an image from a File object */
-function loadImageFromFile(file: File): Promise<{ url: string; img: HTMLImageElement }> {
+/**
+ * Load image from File object
+ */
+export function loadImageFromFile(
+  file: File
+): Promise<{ url: string; img: HTMLImageElement }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -26,8 +40,12 @@ function loadImageFromFile(file: File): Promise<{ url: string; img: HTMLImageEle
   });
 }
 
-/** Load image from data URL */
-function loadImageFromDataUrl(dataUrl: string): Promise<HTMLImageElement> {
+/**
+ * Load image from data URL
+ */
+export function loadImageFromDataUrl(
+  dataUrl: string
+): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
@@ -36,61 +54,56 @@ function loadImageFromDataUrl(dataUrl: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Read a file as JSON */
-function readJsonFile(file: File): Promise<unknown> {
+/**
+ * Read file as JSON
+ */
+export function readJsonFile(file: File): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      try { resolve(JSON.parse(reader.result as string)); }
-      catch (e) { reject(e); }
+      try {
+        resolve(JSON.parse(reader.result as string));
+      } catch (e) {
+        reject(e);
+      }
     };
     reader.onerror = reject;
     reader.readAsText(file);
   });
 }
 
-/** Read a file as text */
-function readTextFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsText(file);
-  });
-}
+// ═══════════════════════════════════════════════════════════════
+// Import functions for different formats (used by ImportDialog)
+// ═══════════════════════════════════════════════════════════════
 
-// ============================================================
-// Mode 1: Grid (Tile Sheet)
-// ============================================================
-export async function importGridSpriteSheet(
-  imageFile: File,
+import { spriteSheetFromJson } from "./io-v2";
+
+/**
+ * Import grid-based sprite sheet from image file
+ */
+export async function importGridSpriteSheetFromImage(
+  imgFile: File,
   tileWidth: number,
   tileHeight: number,
-  margin = 0,
-  spacing = 0,
-  name?: string,
-  sourcePath?: string,
+  margin: number,
+  spacing: number,
+  id?: string,
+  name?: string
 ): Promise<{ sheet: SpriteSheet; img: HTMLImageElement }> {
-  const { url, img } = await loadImageFromFile(imageFile);
-  const sheetName = name ?? imageFile.name.replace(/\.[^.]+$/, "");
-  const id = `sheet_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const { url, img } = await loadImageFromFile(imgFile);
 
+  // Calculate grid dimensions
   const imageWidth = img.naturalWidth;
   const imageHeight = img.naturalHeight;
+  const cols = Math.floor((imageWidth - margin * 2 + spacing) / (tileWidth + spacing));
+  const rows = Math.floor((imageHeight - margin * 2 + spacing) / (tileHeight + spacing));
 
-  const columns = Math.floor(
-    (imageWidth - margin * 2 + spacing) / (tileWidth + spacing)
-  );
-  const rows = Math.floor(
-    (imageHeight - margin * 2 + spacing) / (tileHeight + spacing)
-  );
-
+  // Generate frames
   const frames: Record<string, FrameData> = {};
   for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < columns; col++) {
-      const idx = row * columns + col;
-      const frameId = `frame_${idx}`;
-      frames[frameId] = {
+    for (let col = 0; col < cols; col++) {
+      const idx = row * cols + col;
+      frames[`frame_${idx}`] = {
         x: margin + col * (tileWidth + spacing),
         y: margin + row * (tileHeight + spacing),
         w: tileWidth,
@@ -100,10 +113,10 @@ export async function importGridSpriteSheet(
   }
 
   const sheet: SpriteSheet = {
-    id,
-    name: sheetName,
+    id: id || `sheet_${Date.now()}`,
+    name: name || imgFile.name.replace(/\.[^.]+$/, ""),
     image: url,
-    sourcePath: sourcePath ?? imageFile.name, // Store source path for export
+    sourcePath: imgFile.name,
     imageWidth,
     imageHeight,
     slicing: {
@@ -119,261 +132,240 @@ export async function importGridSpriteSheet(
   return { sheet, img };
 }
 
-// ============================================================
-// Mode 2: Packed Atlas (TexturePacker JSON hash)
-// ============================================================
+/**
+ * Import Mote format sprite sheet from JSON + image files
+ */
+export async function importMoteSpriteSheet(
+  jsonFile: File,
+  imgFile: File,
+  id?: string,
+  name?: string
+): Promise<{ sheet: SpriteSheet; img: HTMLImageElement }> {
+  const json = await readJsonFile(jsonFile) as SpriteSheetJson;
+  const { url, img } = await loadImageFromFile(imgFile);
+
+  const sheet = spriteSheetFromJson(json, url);
+  return { sheet, img };
+}
+
+/**
+ * Import packed JSON format (TexturePacker)
+ */
 export async function importPackedSpriteSheet(
   jsonFile: File,
-  imageFile: File,
-  name?: string,
-  imageSourcePath?: string,
+  imgFile: File,
+  id?: string,
+  name?: string
 ): Promise<{ sheet: SpriteSheet; img: HTMLImageElement }> {
-  const jsonData = await readJsonFile(jsonFile) as TexturePackerJson;
+  const json = await readJsonFile(jsonFile) as any;
+  const { url, img } = await loadImageFromFile(imgFile);
 
-  // Validate basic structure
-  if (!jsonData.frames || !jsonData.meta) {
-    throw new Error("Invalid TexturePacker JSON: missing frames or meta");
-  }
-
-  const { url, img } = await loadImageFromFile(imageFile);
-  const sheetName = name ?? jsonFile.name.replace(/\.[^.]+$/, "");
-  const id = `sheet_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-
+  // Parse TexturePacker JSON format
   const frames: Record<string, FrameData> = {};
+  const jsonFrames = json.frames || {};
 
-  for (const [key, val] of Object.entries(jsonData.frames)) {
-    const frameName = key.replace(/\.[^.]+$/, ""); // strip extension
-    frames[frameName] = {
-      x: val.frame.x,
-      y: val.frame.y,
-      w: val.rotated ? val.frame.h : val.frame.w,
-      h: val.rotated ? val.frame.w : val.frame.h,
-      trimmed: val.trimmed,
-      sourceWidth: val.sourceSize.w,
-      sourceHeight: val.sourceSize.h,
-      offsetX: val.spriteSourceSize?.x ?? 0,
-      offsetY: val.spriteSourceSize?.y ?? 0,
-      rotated: val.rotated,
+  for (const [key, value] of Object.entries(jsonFrames)) {
+    const frameData = value as any;
+    const frame: FrameData = {
+      x: frameData.frame?.x ?? frameData.x ?? 0,
+      y: frameData.frame?.y ?? frameData.y ?? 0,
+      w: frameData.frame?.w ?? frameData.w ?? frameData.width ?? 0,
+      h: frameData.frame?.h ?? frameData.h ?? frameData.height ?? 0,
+      trimmed: frameData.trimmed,
+      sourceWidth: frameData.sourceSize?.w ?? frameData.sourceWidth,
+      sourceHeight: frameData.sourceSize?.h ?? frameData.sourceHeight,
+      offsetX: frameData.spriteSourceSize?.x ?? frameData.offsetX,
+      offsetY: frameData.spriteSourceSize?.y ?? frameData.offsetY,
+      rotated: frameData.rotated,
     };
+
+    // Use filename without extension as frame ID
+    const frameId = key.replace(/\.[^.]+$/, "");
+    frames[frameId] = frame;
   }
+
+  const meta = json.meta || {};
+  const size = meta.size || json.size || {};
 
   const sheet: SpriteSheet = {
-    id,
-    name: sheetName,
+    id: id || `sheet_${Date.now()}`,
+    name: name || imgFile.name.replace(/\.[^.]+$/, ""),
     image: url,
-    sourcePath: imageSourcePath ?? imageFile.name,
-    imageWidth: jsonData.meta.size.w,
-    imageHeight: jsonData.meta.size.h,
+    sourcePath: imgFile.name,
+    imageWidth: size.w || img.naturalWidth,
+    imageHeight: size.h || img.naturalHeight,
     slicing: {
       mode: "packed",
       source: jsonFile.name,
-    },
+    } as Slicing,
     frames,
   };
 
   return { sheet, img };
 }
 
-// ============================================================
-// Mode 3: Loose Files (Kenney-style directory of PNGs)
-// ============================================================
-export async function importLooseSpriteSheet(
-  imageFiles: File[],
-  name?: string,
-  padding = 1,
-  sourcePath?: string,
+/**
+ * Import XML format (Sparrow/Starling)
+ */
+export async function importXmlSpriteSheet(
+  xmlFile: File,
+  imgFile: File,
+  id?: string,
+  name?: string
 ): Promise<{ sheet: SpriteSheet; img: HTMLImageElement }> {
-  // Load all images
-  const loaded: Array<{ name: string; img: HTMLImageElement }> = [];
-  for (const file of imageFiles) {
-    const { img } = await loadImageFromFile(file);
-    loaded.push({ name: file.name, img });
-  }
+  const xmlText = await xmlFile.text();
+  const { url, img } = await loadImageFromFile(imgFile);
 
-  // Sort alphabetically for consistent ordering
-  loaded.sort((a, b) => a.name.localeCompare(b.name));
-
-  // Pack into single atlas
-  const { canvas, frames: packedFrames } = packLooseImages(loaded, padding);
-
-  // Convert canvas to data URL and create image
-  const dataUrl = canvas.toDataURL("image/png");
-  const img = await loadImageFromDataUrl(dataUrl);
-
-  const sheetName = name ?? "loose_atlas";
-  const id = `sheet_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  // Simple XML parsing for Sparrow format
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlText, "text/xml");
+  const subTextures = doc.querySelectorAll("SubTexture");
 
   const frames: Record<string, FrameData> = {};
-  for (const f of packedFrames) {
-    frames[f.id] = {
-      x: f.x,
-      y: f.y,
-      w: f.width,
-      h: f.height,
+
+  subTextures.forEach((node) => {
+    const name = node.getAttribute("name") || "";
+    const x = parseInt(node.getAttribute("x") || "0");
+    const y = parseInt(node.getAttribute("y") || "0");
+    const width = parseInt(node.getAttribute("width") || "0");
+    const height = parseInt(node.getAttribute("height") || "0");
+    const frameX = parseInt(node.getAttribute("frameX") || "0");
+    const frameY = parseInt(node.getAttribute("frameY") || "0");
+    const frameWidth = parseInt(node.getAttribute("frameWidth") || "0");
+    const frameHeight = parseInt(node.getAttribute("frameHeight") || "0");
+
+    const frameId = name.replace(/\.[^.]+$/, "");
+    frames[frameId] = {
+      x,
+      y,
+      w: width,
+      h: height,
+      trimmed: frameWidth > 0 || frameHeight > 0,
+      sourceWidth: frameWidth || width,
+      sourceHeight: frameHeight || height,
+      offsetX: -frameX,
+      offsetY: -frameY,
     };
-  }
+  });
 
   const sheet: SpriteSheet = {
-    id,
-    name: sheetName,
-    image: dataUrl,
-    sourcePath: sourcePath ?? `${sheetName}.png`, // Generated atlas image name
-    imageWidth: canvas.width,
-    imageHeight: canvas.height,
+    id: id || `sheet_${Date.now()}`,
+    name: name || imgFile.name.replace(/\.[^.]+$/, ""),
+    image: url,
+    sourcePath: imgFile.name,
+    imageWidth: img.naturalWidth,
+    imageHeight: img.naturalHeight,
+    slicing: {
+      mode: "xml",
+      source: xmlFile.name,
+    } as Slicing,
+    frames,
+  };
+
+  return { sheet, img };
+}
+
+/**
+ * Import loose images (auto-pack into atlas)
+ */
+export async function importLooseSpriteSheet(
+  imgFiles: File[],
+  id?: string,
+  spacing: number = 1,
+  name?: string
+): Promise<{ sheet: SpriteSheet; img: HTMLImageElement }> {
+  if (imgFiles.length < 2) {
+    throw new Error("At least 2 images required for loose import");
+  }
+
+  // Load all images
+  const images = await Promise.all(
+    imgFiles.map(async (file) => {
+      const { url, img } = await loadImageFromFile(file);
+      return {
+        name: file.name.replace(/\.[^.]+$/, ""),
+        url,
+        img,
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      };
+    })
+  );
+
+  // Simple packing algorithm (shelf pack)
+  const maxWidth = 2048;
+  let currentX = spacing;
+  let currentY = spacing;
+  let shelfHeight = 0;
+  const atlasWidth = maxWidth;
+  let atlasHeight = 0;
+
+  const frames: Record<string, FrameData> = {};
+  const positions: { name: string; x: number; y: number; w: number; h: number }[] = [];
+
+  for (const image of images) {
+    // Check if fits in current shelf
+    if (currentX + image.width + spacing > maxWidth) {
+      // New shelf
+      currentX = spacing;
+      currentY += shelfHeight + spacing;
+      shelfHeight = 0;
+    }
+
+    // Place image
+    positions.push({
+      name: image.name,
+      x: currentX,
+      y: currentY,
+      w: image.width,
+      h: image.height,
+    });
+
+    frames[image.name] = {
+      x: currentX,
+      y: currentY,
+      w: image.width,
+      h: image.height,
+    };
+
+    currentX += image.width + spacing;
+    shelfHeight = Math.max(shelfHeight, image.height);
+    atlasHeight = Math.max(atlasHeight, currentY + image.height + spacing);
+  }
+
+  // Create atlas canvas
+  const canvas = document.createElement("canvas");
+  canvas.width = atlasWidth;
+  canvas.height = atlasHeight;
+  const ctx = canvas.getContext("2d")!;
+
+  // Draw images to atlas
+  for (let i = 0; i < images.length; i++) {
+    const pos = positions[i];
+    ctx.drawImage(images[i].img, pos.x, pos.y);
+  }
+
+  // Get atlas image
+  const atlasUrl = canvas.toDataURL("image/png");
+  const atlasImg = new Image();
+  await new Promise<void>((resolve, reject) => {
+    atlasImg.onload = () => resolve();
+    atlasImg.onerror = reject;
+    atlasImg.src = atlasUrl;
+  });
+
+  const sheet: SpriteSheet = {
+    id: id || `sheet_${Date.now()}`,
+    name: name || "packed_atlas",
+    image: atlasUrl,
+    sourcePath: "atlas.png",
+    imageWidth: atlasWidth,
+    imageHeight: atlasHeight,
     slicing: {
       mode: "manual",
     },
     frames,
   };
 
-  return { sheet, img };
-}
-
-// ============================================================
-// Mode 4: XML Atlas (Sparrow / Starling format)
-// ============================================================
-export async function importXmlSpriteSheet(
-  xmlFile: File,
-  imageFile: File,
-  name?: string,
-  imageSourcePath?: string,
-): Promise<{ sheet: SpriteSheet; img: HTMLImageElement }> {
-  const xmlText = await readTextFile(xmlFile);
-  const xmlData = parseSparrowXml(xmlText);
-
-  const { url, img } = await loadImageFromFile(imageFile);
-  const sheetName = name ?? xmlFile.name.replace(/\.[^.]+$/, "");
-  const id = `sheet_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-
-  const frames: Record<string, FrameData> = {};
-  for (const st of xmlData.subtextures) {
-    const frameId = st.name.replace(/\.[^.]+$/, "");
-    frames[frameId] = {
-      x: st.x,
-      y: st.y,
-      w: st.width,
-      h: st.height,
-    };
-  }
-
-  const sheet: SpriteSheet = {
-    id,
-    name: sheetName,
-    image: url,
-    sourcePath: imageSourcePath ?? imageFile.name,
-    imageWidth: img.naturalWidth,
-    imageHeight: img.naturalHeight,
-    slicing: {
-      mode: "xml",
-      source: xmlFile.name,
-    },
-    frames,
-  };
-
-  return { sheet, img };
-}
-
-// ============================================================
-// Mode 5: Mote Native Format (.mote-sprite.json)
-// ============================================================
-
-/** Mote sprite sheet JSON format (exported by this editor) */
-export interface MoteSpriteJson {
-  id: string;
-  name: string;
-  image: string;
-  slicing?: {
-    mode: 'grid' | 'packed' | 'xml' | 'manual';
-    tileWidth?: number;
-    tileHeight?: number;
-    margin?: number;
-    spacing?: number;
-    source?: string;
-  };
-  frames: Array<{
-    id: string;
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    collider?: FrameData["collider"];
-    tags?: string[];
-    properties?: Record<string, unknown>;
-    trimmed?: boolean;
-    sourceWidth?: number;
-    sourceHeight?: number;
-    offsetX?: number;
-    offsetY?: number;
-    rotated?: boolean;
-  }>;
-}
-
-export async function importMoteSpriteSheet(
-  jsonFile: File,
-  imageFile: File,
-  name?: string,
-  imageSourcePath?: string,
-): Promise<{ sheet: SpriteSheet; img: HTMLImageElement }> {
-  const jsonData = await readJsonFile(jsonFile) as MoteSpriteJson;
-
-  // Validate basic structure
-  if (!jsonData.frames || !Array.isArray(jsonData.frames)) {
-    throw new Error("Invalid Mote sprite JSON: missing frames array");
-  }
-
-  const { url, img } = await loadImageFromFile(imageFile);
-  
-  // Build the JSON format expected by spriteSheetFromJson
-  const spriteSheetJson = {
-    type: 'mote-sprite' as const,
-    version: '1.0.0' as const,
-    id: jsonData.id ?? `sheet_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    name: name ?? jsonData.name ?? jsonFile.name.replace(/\.[^.]+$/, ""),
-    image: imageSourcePath ?? imageFile.name,
-    slicing: jsonData.slicing ?? { mode: "packed" as const },
-    frames: jsonData.frames,
-  };
-  
-  // Use io-v2's conversion function for consistency
-  const sheet = spriteSheetFromJson(spriteSheetJson, url);
-
-  return { sheet, img };
-}
-
-/** Check if a JSON file is in Mote format (vs TexturePacker) */
-function isMoteSpriteJson(json: unknown): json is MoteSpriteJson {
-  if (typeof json !== "object" || json === null) return false;
-  const obj = json as Record<string, unknown>;
-  // Mote format has "frames" as an array, TexturePacker has it as an object
-  if (!Array.isArray(obj.frames)) return false;
-  // Mote format has slicing info
-  if (obj.slicing && typeof obj.slicing === "object") return true;
-  // Or check for id/name at root level
-  if (typeof obj.id === "string" && typeof obj.name === "string") return true;
-  return false;
-}
-
-// ============================================================
-// Auto-detect import mode
-// ============================================================
-export function detectImportMode(
-  files: File[],
-): "grid" | "packed" | "xml" | "loose" | "mote" | "unknown" {
-  const jsonFile = files.find((f) => f.name.endsWith(".json"));
-  const hasXml = files.some((f) => /\.(xml|txt)$/i.test(f.name));
-  const imageCount = files.filter((f) =>
-    /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name)
-  ).length;
-
-  // Check for Mote format first (by filename pattern or content)
-  if (jsonFile && imageCount === 1) {
-    // If filename contains .mote-sprite, it's likely our format
-    if (jsonFile.name.includes(".mote-sprite")) return "mote";
-  }
-
-  if (jsonFile && imageCount === 1) return "packed";
-  if (hasXml && imageCount === 1) return "xml";
-  if (!jsonFile && !hasXml && imageCount > 1) return "loose";
-  if (!jsonFile && !hasXml && imageCount === 1) return "grid";
-  return "unknown";
+  return { sheet, img: atlasImg };
 }

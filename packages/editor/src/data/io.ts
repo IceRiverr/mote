@@ -1,458 +1,404 @@
-import type { TileSet, TileData } from "./TileSet";
-import type { TileMap, TileSetRef, MapLayer, EntityInstance } from "./TileMap";
-import { isTileLayer, isEntityLayer } from "./TileMap";
-import { createTileSet } from "./TileSet";
+// ═══════════════════════════════════════════════════════════════
+// io.ts - 核心导入导出系统（新架构）
+// 支持 Scene、Prefab 的 JSON 序列化
+// ═══════════════════════════════════════════════════════════════
 
-// ============================================================
-// TileSet JSON format (.mote-tileset.json)
-// ============================================================
+import type { FileSystemFileHandle } from "./fs-access";
+import { readJsonFile, writeJsonFile } from "./fs-access";
+import type { Scene, SceneEntity } from "./Scene";
+import type { Prefab } from "./Prefab";
 
-export interface TileSetJson {
-  version: "1.0";
-  type: "mote-tileset";
-  id: string;
-  name: string;
-  image: string; // filename only
-  imageWidth: number;
-  imageHeight: number;
-  tileWidth: number;
-  tileHeight: number;
-  margin: number;
-  spacing: number;
-  columns: number;
-  rows: number;
-  tileCount: number;
-  tileData?: Record<number, TileData>;
-}
+// ═══════════════════════════════════════════════════════════════
+// JSON 类型定义
+// ═══════════════════════════════════════════════════════════════
 
-export function tileSetToJson(ts: TileSet): TileSetJson {
-  const imageName = ts.name.replace(/[^a-zA-Z0-9_\-]/g, "_") + ".png";
-  return {
-    version: "1.0",
-    type: "mote-tileset",
-    id: ts.id,
-    name: ts.name,
-    image: imageName,
-    imageWidth: ts.imageWidth,
-    imageHeight: ts.imageHeight,
-    tileWidth: ts.tileWidth,
-    tileHeight: ts.tileHeight,
-    margin: ts.margin,
-    spacing: ts.spacing,
-    columns: ts.columns,
-    rows: ts.rows,
-    tileCount: ts.tileCount,
-    tileData: Object.keys(ts.tileData).length > 0 ? ts.tileData : undefined,
-  };
-}
-
-export function tileSetFromJson(
-  json: TileSetJson,
-  imageUrl: string,
-): TileSet {
-  const ts = createTileSet(
-    json.id,
-    json.name,
-    imageUrl,
-    json.imageWidth,
-    json.imageHeight,
-    json.tileWidth,
-    json.tileHeight,
-    json.margin,
-    json.spacing,
-  );
-  if (json.tileData) {
-    ts.tileData = json.tileData;
-  }
-  return ts;
-}
-
-// ============================================================
-// TileMap standalone export (.mote.json)
-// ============================================================
-
-export interface TileMapStandaloneJson {
-  version: "1.0";
-  type: "mote-tilemap";
+/** Scene JSON 格式 */
+export interface SceneJson {
+  type: "mote-scene";
+  version: string;
   id: string;
   name: string;
   width: number;
   height: number;
-  tileWidth: number;
-  tileHeight: number;
-  tilesets: Array<{
-    source: string; // e.g. "kenney.mote-tileset.json"
-    firstGid: number;
-  }>;
-  layers: ExportAnyLayer[];
+  grid: {
+    enabled: boolean;
+    size: number;
+    snap: boolean;
+    color?: string;
+  };
+  entities: SceneEntityJson[];
 }
 
-interface ExportLayer {
+/** Scene Entity JSON */
+export interface SceneEntityJson {
+  id: string;
+  prefab: string;
+  name?: string;
+  x: number;
+  y: number;
+  rotation?: number;
+  scaleX?: number;
+  scaleY?: number;
+  overrides?: Record<string, Record<string, any>>;
+  visible?: boolean;
+}
+
+/** Prefab JSON 格式 */
+export interface PrefabJson {
+  type: "mote-prefab";
+  version: string;
   id: string;
   name: string;
-  type: "tilelayer";
-  visible: boolean;
-  opacity: number;
-  locked: boolean;
-  data: number[];
+  category: string;
+  components: Record<string, Record<string, any>>;
+  thumbnail?: string;
+  description?: string;
 }
 
-interface ExportEntityLayer {
-  id: string;
-  name: string;
-  type: "entitylayer";
-  visible: boolean;
-  opacity: number;
-  locked: boolean;
-  entities: EntityInstance[];
-}
-
-type ExportAnyLayer = ExportLayer | ExportEntityLayer;
-
-export function exportMapStandalone(
-  map: TileMap,
-  tilesets: TileSet[],
-): TileMapStandaloneJson {
-  const tsMap = new Map(tilesets.map((t) => [t.id, t]));
-  return {
-    version: "1.0",
-    type: "mote-tilemap",
-    id: map.id,
-    name: map.name,
-    width: map.width,
-    height: map.height,
-    tileWidth: map.tileWidth,
-    tileHeight: map.tileHeight,
-    tilesets: map.tilesets.map((ref) => {
-      const ts = tsMap.get(ref.tilesetId);
-      const name = ts ? ts.name.replace(/[^a-zA-Z0-9_\-]/g, "_") : ref.tilesetId;
-      return {
-        source: `${name}.mote-tileset.json`,
-        firstGid: ref.firstGid,
-      };
-    }),
-    layers: map.layers.map((l): ExportAnyLayer => {
-      if (isTileLayer(l)) {
-        return {
-          id: l.id,
-          name: l.name,
-          type: "tilelayer" as const,
-          visible: l.visible,
-          opacity: l.opacity,
-          locked: l.locked,
-          data: Array.from(l.data),
-        };
-      } else {
-        return {
-          id: l.id,
-          name: l.name,
-          type: "entitylayer" as const,
-          visible: l.visible,
-          opacity: l.opacity,
-          locked: l.locked,
-          entities: l.entities.map((e) => ({ ...e })),
-        };
-      }
-    }),
+/** 构建包格式（用于游戏发布） */
+export interface BuildBundle {
+  version: string;
+  prefabs: Record<string, PrefabJson>;
+  scenes: Record<string, SceneJson>;
+  metadata: {
+    prefabCount: number;
+    sceneCount: number;
+    totalEntities: number;
   };
 }
 
-// ============================================================
-// TileMap bundle export (.mote-bundle.json) - self-contained
-// ============================================================
+// ═══════════════════════════════════════════════════════════════
+// Scene 导入导出
+// ═══════════════════════════════════════════════════════════════
 
-export interface TileMapBundleJson {
-  version: "1.0";
-  type: "mote-tilemap-bundle";
-  id: string;
-  name: string;
-  width: number;
-  height: number;
-  tileWidth: number;
-  tileHeight: number;
-  tilesets: Array<{
-    id: string;
-    name: string;
-    imageData: string; // base64 data URL
-    imageWidth: number;
-    imageHeight: number;
-    tileWidth: number;
-    tileHeight: number;
-    margin: number;
-    spacing: number;
-    columns: number;
-    rows: number;
-    tileCount: number;
-    firstGid: number;
-    tileData?: Record<number, TileData>;
-  }>;
-  layers: ExportAnyLayer[];
-}
-
-function imageToDataUrl(img: HTMLImageElement): string {
-  const canvas = document.createElement("canvas");
-  canvas.width = img.naturalWidth;
-  canvas.height = img.naturalHeight;
-  const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(img, 0, 0);
-  return canvas.toDataURL("image/png");
-}
-
-export function exportMapBundle(
-  map: TileMap,
-  tilesets: TileSet[],
-  images: Map<string, HTMLImageElement>,
-): TileMapBundleJson {
-  const tsMap = new Map(tilesets.map((t) => [t.id, t]));
+/**
+ * Scene → JSON
+ */
+export function sceneToJson(scene: Scene): SceneJson {
   return {
-    version: "1.0",
-    type: "mote-tilemap-bundle",
-    id: map.id,
-    name: map.name,
-    width: map.width,
-    height: map.height,
-    tileWidth: map.tileWidth,
-    tileHeight: map.tileHeight,
-    tilesets: map.tilesets.map((ref) => {
-      const ts = tsMap.get(ref.tilesetId)!;
-      const img = images.get(ref.tilesetId);
-      return {
-        id: ts.id,
-        name: ts.name,
-        imageData: img ? imageToDataUrl(img) : "",
-        imageWidth: ts.imageWidth,
-        imageHeight: ts.imageHeight,
-        tileWidth: ts.tileWidth,
-        tileHeight: ts.tileHeight,
-        margin: ts.margin,
-        spacing: ts.spacing,
-        columns: ts.columns,
-        rows: ts.rows,
-        tileCount: ts.tileCount,
-        firstGid: ref.firstGid,
-        tileData: Object.keys(ts.tileData).length > 0 ? ts.tileData : undefined,
-      };
-    }),
-    layers: map.layers.map((l): ExportAnyLayer => {
-      if (isTileLayer(l)) {
-        return {
-          id: l.id,
-          name: l.name,
-          type: "tilelayer" as const,
-          visible: l.visible,
-          opacity: l.opacity,
-          locked: l.locked,
-          data: Array.from(l.data),
-        };
-      } else {
-        return {
-          id: l.id,
-          name: l.name,
-          type: "entitylayer" as const,
-          visible: l.visible,
-          opacity: l.opacity,
-          locked: l.locked,
-          entities: l.entities.map((e) => ({ ...e })),
-        };
-      }
-    }),
+    type: "mote-scene",
+    version: "1.0.0",
+    id: scene.id,
+    name: scene.name,
+    width: scene.width,
+    height: scene.height,
+    grid: {
+      enabled: scene.grid.enabled,
+      size: scene.grid.size,
+      snap: scene.grid.snap,
+      color: scene.grid.color,
+    },
+    entities: scene.entities.map(entityToJson),
   };
 }
 
-// ============================================================
-// Import
-// ============================================================
+/**
+ * Entity → JSON
+ */
+function entityToJson(entity: SceneEntity): SceneEntityJson {
+  const json: SceneEntityJson = {
+    id: entity.id,
+    prefab: entity.prefab,
+    x: entity.x,
+    y: entity.y,
+  };
 
-export function loadImageFromUrl(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = url;
-  });
-}
-
-export function loadImageFromFile(file: File): Promise<{ url: string; img: HTMLImageElement }> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => resolve({ url, img });
-    img.onerror = reject;
-    img.src = url;
-  });
-}
-
-/** Import a bundle JSON — fully self-contained, returns everything needed */
-export async function importBundle(
-  json: TileMapBundleJson,
-): Promise<{
-  map: TileMap;
-  tilesets: TileSet[];
-  images: Map<string, HTMLImageElement>;
-}> {
-  const tilesets: TileSet[] = [];
-  const images = new Map<string, HTMLImageElement>();
-  const tilesetRefs: TileSetRef[] = [];
-
-  for (const tsData of json.tilesets) {
-    const img = await loadImageFromUrl(tsData.imageData);
-    const ts = createTileSet(
-      tsData.id, tsData.name, tsData.imageData,
-      tsData.imageWidth, tsData.imageHeight,
-      tsData.tileWidth, tsData.tileHeight,
-      tsData.margin, tsData.spacing,
-    );
-    if (tsData.tileData) ts.tileData = tsData.tileData;
-    tilesets.push(ts);
-    images.set(ts.id, img);
-    tilesetRefs.push({ tilesetId: ts.id, firstGid: tsData.firstGid });
+  // 只序列化非默认值
+  if (entity.name) json.name = entity.name;
+  if (entity.rotation) json.rotation = entity.rotation;
+  if (entity.scaleX !== undefined && entity.scaleX !== 1) json.scaleX = entity.scaleX;
+  if (entity.scaleY !== undefined && entity.scaleY !== 1) json.scaleY = entity.scaleY;
+  if (entity.visible === false) json.visible = false;
+  if (entity.overrides && Object.keys(entity.overrides).length > 0) {
+    json.overrides = entity.overrides;
   }
 
-  const map: TileMap = {
+  return json;
+}
+
+/**
+ * JSON → Scene
+ */
+export function sceneFromJson(json: SceneJson): Scene {
+  return {
     id: json.id,
     name: json.name,
     width: json.width,
     height: json.height,
-    tileWidth: json.tileWidth,
-    tileHeight: json.tileHeight,
-    tilesets: tilesetRefs,
-    layers: json.layers.map((l): MapLayer => {
-      if (l.type === "entitylayer") {
-        const el = l as ExportEntityLayer;
-        return {
-          type: "entity" as const,
-          id: el.id,
-          name: el.name,
-          visible: el.visible,
-          opacity: el.opacity,
-          locked: el.locked,
-          entities: el.entities.map((e) => ({ ...e })),
-        };
-      }
-      const tl = l as ExportLayer;
-      return {
-        type: "tile" as const,
-        id: tl.id,
-        name: tl.name,
-        visible: tl.visible,
-        opacity: tl.opacity,
-        locked: tl.locked,
-        data: Array.from(tl.data),
-      };
-    }),
+    grid: {
+      enabled: json.grid.enabled,
+      size: json.grid.size,
+      snap: json.grid.snap,
+      color: json.grid.color,
+    },
+    entities: json.entities.map(entityFromJson),
   };
-
-  return { map, tilesets, images };
 }
 
-/** Import a standalone map JSON — may need external tileset files */
-export function importStandaloneMap(
-  json: TileMapStandaloneJson,
-): {
-  map: TileMap;
-  missingTilesets: Array<{ source: string; firstGid: number }>;
-} {
-  const map: TileMap = {
+/**
+ * JSON → Entity
+ */
+function entityFromJson(json: SceneEntityJson): SceneEntity {
+  return {
+    id: json.id,
+    prefab: json.prefab,
+    name: json.name,
+    x: json.x,
+    y: json.y,
+    rotation: json.rotation,
+    scaleX: json.scaleX,
+    scaleY: json.scaleY,
+    visible: json.visible !== false,
+    overrides: json.overrides,
+  };
+}
+
+/**
+ * 保存 Scene 到文件
+ */
+export async function saveScene(
+  scene: Scene,
+  fileHandle: FileSystemFileHandle
+): Promise<void> {
+  const json = sceneToJson(scene);
+  await writeJsonFile(fileHandle, json);
+}
+
+/**
+ * 从文件加载 Scene
+ */
+export async function loadScene(
+  fileHandle: FileSystemFileHandle
+): Promise<Scene | null> {
+  try {
+    const json = await readJsonFile(fileHandle);
+    if (!isSceneJson(json)) {
+      console.error("Invalid scene file format");
+      return null;
+    }
+    return sceneFromJson(json);
+  } catch (e) {
+    console.error("Failed to load scene:", e);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Prefab 导入导出
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Prefab → JSON
+ */
+export function prefabToJson(prefab: Prefab): PrefabJson {
+  return {
+    type: "mote-prefab",
+    version: "1.0.0",
+    id: prefab.id,
+    name: prefab.name,
+    category: prefab.category,
+    components: deepClone(prefab.components),
+    thumbnail: prefab.thumbnail,
+    description: prefab.description,
+  };
+}
+
+/**
+ * JSON → Prefab
+ */
+export function prefabFromJson(json: PrefabJson): Prefab {
+  return {
     id: json.id,
     name: json.name,
-    width: json.width,
-    height: json.height,
-    tileWidth: json.tileWidth,
-    tileHeight: json.tileHeight,
-    tilesets: [], // will be filled as tilesets are loaded
-    layers: json.layers.map((l): MapLayer => {
-      if (l.type === "entitylayer") {
-        const el = l as ExportEntityLayer;
-        return {
-          type: "entity" as const,
-          id: el.id,
-          name: el.name,
-          visible: el.visible,
-          opacity: el.opacity,
-          locked: el.locked,
-          entities: el.entities.map((e) => ({ ...e })),
-        };
-      }
-      const tl = l as ExportLayer;
-      return {
-        type: "tile" as const,
-        id: tl.id,
-        name: tl.name,
-        visible: tl.visible,
-        opacity: tl.opacity,
-        locked: tl.locked,
-        data: Array.from(tl.data),
-      };
-    }),
-  };
-
-  return {
-    map,
-    missingTilesets: json.tilesets.map((ref) => ({
-      source: ref.source,
-      firstGid: ref.firstGid,
-    })),
+    category: json.category,
+    components: deepClone(json.components),
+    thumbnail: json.thumbnail,
+    description: json.description,
   };
 }
 
-// ============================================================
-// File utilities
-// ============================================================
+/**
+ * 保存 Prefab 到文件
+ */
+export async function savePrefab(
+  prefab: Prefab,
+  fileHandle: FileSystemFileHandle
+): Promise<void> {
+  const json = prefabToJson(prefab);
+  await writeJsonFile(fileHandle, json);
+}
 
-export function downloadJson(data: unknown, filename: string) {
-  let json = JSON.stringify(data, null, 2);
+/**
+ * 从文件加载 Prefab
+ */
+export async function loadPrefab(
+  fileHandle: FileSystemFileHandle
+): Promise<Prefab | null> {
+  try {
+    const json = await readJsonFile(fileHandle);
+    if (!isPrefabJson(json)) {
+      console.error("Invalid prefab file format");
+      return null;
+    }
+    return prefabFromJson(json);
+  } catch (e) {
+    console.error("Failed to load prefab:", e);
+    return null;
+  }
+}
 
-  // Format layer data arrays: one row per map width for readability
-  // Matches "data": [<numbers>] and reformats into rows
-  const obj = data as any;
-  if (obj && obj.width && obj.layers) {
-    const w = obj.width as number;
-    json = json.replace(
-      /"data":\s*\[([\s\S]*?)\]/g,
-      (_match: string, inner: string) => {
-        const nums = inner.replace(/\s+/g, " ").trim().split(/,\s*/);
-        const rows: string[] = [];
-        const maxLen = nums.reduce((m: number, n: string) => Math.max(m, n.length), 0);
-        for (let i = 0; i < nums.length; i += w) {
-          // Right-align numbers for readability (pad to max digit width)
-          const padded = nums.slice(i, i + w).map(n => n.padStart(maxLen, " "));
-          rows.push("        " + padded.join(", "));
-        }
-        return `"data": [\n${rows.join(",\n")}\n      ]`;
-      }
-    );
+// ═══════════════════════════════════════════════════════════════
+// 批量操作
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 导出构建包（用于游戏发布）
+ */
+export function exportBuildBundle(
+  prefabs: Prefab[],
+  scenes: Scene[]
+): BuildBundle {
+  const prefabRecord: Record<string, PrefabJson> = {};
+  const sceneRecord: Record<string, SceneJson> = {};
+
+  for (const prefab of prefabs) {
+    prefabRecord[prefab.id] = prefabToJson(prefab);
   }
 
+  let totalEntities = 0;
+  for (const scene of scenes) {
+    sceneRecord[scene.id] = sceneToJson(scene);
+    totalEntities += scene.entities.length;
+  }
+
+  return {
+    version: "1.0.0",
+    prefabs: prefabRecord,
+    scenes: sceneRecord,
+    metadata: {
+      prefabCount: prefabs.length,
+      sceneCount: scenes.length,
+      totalEntities,
+    },
+  };
+}
+
+/**
+ * 下载构建包
+ */
+export function downloadBuildBundle(bundle: BuildBundle, filename?: string): void {
+  const json = JSON.stringify(bundle, null, 2);
   const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
+
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename;
+  a.download = filename || `bundle-${Date.now()}.json`;
   a.click();
+
   URL.revokeObjectURL(url);
 }
 
-export function readJsonFile(file: File): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        resolve(JSON.parse(reader.result as string));
-      } catch (e) {
-        reject(e);
-      }
-    };
-    reader.onerror = reject;
-    reader.readAsText(file);
-  });
+// ═══════════════════════════════════════════════════════════════
+// 验证函数
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 验证是否为 Scene JSON
+ */
+export function isSceneJson(json: unknown): json is SceneJson {
+  if (!json || typeof json !== "object") return false;
+  const obj = json as Record<string, unknown>;
+  return (
+    obj.type === "mote-scene" &&
+    typeof obj.version === "string" &&
+    typeof obj.id === "string" &&
+    typeof obj.name === "string" &&
+    typeof obj.width === "number" &&
+    typeof obj.height === "number" &&
+    obj.grid !== undefined &&
+    Array.isArray(obj.entities)
+  );
 }
 
-/** Detect import JSON type */
+/**
+ * 验证是否为 Prefab JSON
+ */
+export function isPrefabJson(json: unknown): json is PrefabJson {
+  if (!json || typeof json !== "object") return false;
+  const obj = json as Record<string, unknown>;
+  return (
+    obj.type === "mote-prefab" &&
+    typeof obj.version === "string" &&
+    typeof obj.id === "string" &&
+    typeof obj.name === "string" &&
+    typeof obj.category === "string" &&
+    obj.components !== undefined &&
+    typeof obj.components === "object"
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 工具函数
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 深拷贝对象
+ */
+function deepClone<T>(obj: T): T {
+  if (obj === null || typeof obj !== "object") return obj;
+  if (obj instanceof Date) return new Date(obj.getTime()) as unknown as T;
+  if (Array.isArray(obj)) return obj.map(deepClone) as unknown as T;
+
+  const cloned: Record<string, any> = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      cloned[key] = deepClone((obj as Record<string, any>)[key]);
+    }
+  }
+  return cloned as T;
+}
+
+/**
+ * 生成唯一文件名
+ */
+export function generateUniqueFilename(
+  baseName: string,
+  existingNames: Set<string>,
+  extension: string = ".json"
+): string {
+  if (!existingNames.has(baseName + extension)) {
+    return baseName + extension;
+  }
+
+  let counter = 2;
+  let newName = `${baseName}_${counter}${extension}`;
+  while (existingNames.has(newName)) {
+    counter++;
+    newName = `${baseName}_${counter}${extension}`;
+  }
+  return newName;
+}
+
+/**
+ * 检测 JSON 文件类型
+ */
 export function detectJsonType(
-  json: any,
-): "mote-tileset" | "mote-tilemap" | "mote-tilemap-bundle" | "unknown" {
-  if (json?.type === "mote-tileset") return "mote-tileset";
-  if (json?.type === "mote-tilemap") return "mote-tilemap";
-  if (json?.type === "mote-tilemap-bundle") return "mote-tilemap-bundle";
-  return "unknown";
+  json: unknown
+): "scene" | "prefab" | "project" | "atlas" | "unknown" {
+  if (!json || typeof json !== "object") return "unknown";
+  const obj = json as Record<string, unknown>;
+
+  switch (obj.type) {
+    case "mote-scene":
+      return "scene";
+    case "mote-prefab":
+      return "prefab";
+    case "mote-project":
+      return "project";
+    case "mote-sprite":
+      return "atlas";
+    default:
+      return "unknown";
+  }
 }

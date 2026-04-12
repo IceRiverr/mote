@@ -1,16 +1,22 @@
+// ═══════════════════════════════════════════════════════════════
+// ViewportFooter.tsx — Updated for new architecture
+// ═══════════════════════════════════════════════════════════════
+
 import {
   hoverTile,
   viewportZoomLocked,
   showGrid,
 } from "../../store/selection";
-import { activeLayer } from "../../store/project";
+import { selectedEntityIds, currentScene } from "../../store/scene";
 import { canUndo, canRedo, undoLabel, redoLabel, undo, redo } from "../../store/history";
 
 export function ViewportFooter() {
   const tile = hoverTile.value;
-  const layer = activeLayer.value;
   const locked = viewportZoomLocked.value;
   const gridOn = showGrid.value;
+  const selectedCount = selectedEntityIds.value.size;
+  const scene = currentScene.value;
+  const entityCount = scene?.entities.length ?? 0;
 
   return (
     <div
@@ -27,13 +33,14 @@ export function ViewportFooter() {
         flexShrink: 0,
       }}
     >
-      <span>{tile ? `瓦片 (${tile.x}, ${tile.y})` : "—"}</span>
-      {layer && (
-        <span>
-          图层: {layer.name}
-          {layer.locked ? " 🔒" : ""}
-        </span>
-      )}
+      {/* Position display */}
+      <span>{tile ? `Position (${tile.x}, ${tile.y})` : "—"}</span>
+      
+      {/* Entity count */}
+      <span>
+        Entities: {entityCount}
+        {selectedCount > 0 && ` (${selectedCount} selected)`}
+      </span>
 
       {/* Undo / Redo buttons */}
       <div style={{ display: "flex", gap: 2, marginLeft: 4 }}>

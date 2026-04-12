@@ -5,6 +5,7 @@
 
 import { useState } from 'preact/hooks';
 import { ImportDialog } from './ImportDialog';
+import { GeneratePrefabDialog } from './GeneratePrefabDialog';
 import {
   spriteSheets,
   activeSpriteSheetId,
@@ -80,11 +81,13 @@ function ModeSelector() {
 
 export function SpriteEditorHeader() {
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const sheet = activeSpriteSheet.value;
   const sheets = spriteSheets.value;
   const mode = spriteEditorMode.value;
   const zoom = spriteEditorZoom.value;
   const hasContent = !!sheet;
+  const selectedCount = selectedFrameIds.value.length;
 
   return (
     <div
@@ -290,6 +293,26 @@ export function SpriteEditorHeader() {
           </button>
         )}
 
+        {/* Generate Prefab — only when frames selected */}
+        {selectedCount > 0 && (
+          <button
+            onClick={() => setShowGenerateDialog(true)}
+            style={{
+              fontSize: 11,
+              padding: '3px 10px',
+              height: 24,
+              background: 'rgba(74, 144, 217, 0.2)',
+              color: '#4a90d9',
+              border: '1px solid rgba(74, 144, 217, 0.5)',
+              borderRadius: 3,
+              cursor: 'pointer',
+            }}
+            title={`从选中的 ${selectedCount} 个帧生成 Prefab`}
+          >
+            ➕ Prefab ({selectedCount})
+          </button>
+        )}
+
         {/* Import */}
         <button
           onClick={() => setShowImportDialog(true)}
@@ -377,6 +400,24 @@ export function SpriteEditorHeader() {
       {/* ── Import Dialog (Centered Modal) ── */}
       {showImportDialog && (
         <ImportDialog onClose={() => setShowImportDialog(false)} />
+      )}
+
+      {/* ── Generate Prefab Dialog ── */}
+      {showGenerateDialog && sheet && (
+        <GeneratePrefabDialog
+          frames={selectedFrameIds.value.map(id => sheet.frames.find(f => f.id === id)!).filter(Boolean)}
+          atlas={{
+            id: sheet.id,
+            name: sheet.name,
+            image: sheet.image,
+            frames: sheet.frames,
+          }}
+          onClose={() => setShowGenerateDialog(false)}
+          onGenerated={(count) => {
+            alert(`成功生成 ${count} 个 Prefab`);
+            selectedFrameIds.value = []; // 清空选择
+          }}
+        />
       )}
     </div>
   );

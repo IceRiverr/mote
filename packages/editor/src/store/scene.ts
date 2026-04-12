@@ -310,6 +310,22 @@ export function toggleSnap(): void {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// 保存/加载
+// ═══════════════════════════════════════════════════════════════
+
+import { getSceneFS } from '../fs/SceneFS';
+
+/**
+ * 保存当前场景
+ */
+export async function saveScene(): Promise<boolean> {
+  if (!currentScene.value) return false;
+  
+  const sceneFS = getSceneFS();
+  return await sceneFS.save(currentScene.value);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // 工具
 // ═══════════════════════════════════════════════════════════════
 

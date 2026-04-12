@@ -1,0 +1,19 @@
+{
+  "id": "my_project_mnvp9109",
+  "name": "My Project",
+  "version": "1.0.0",
+  "createdAt": "2026-04-12T11:47:46.905Z",
+  "modifiedAt": "2026-04-12T11:47:46.905Z",
+  "settings": {
+    "defaultSceneWidth": 640,
+    "defaultSceneHeight": 480,
+    "defaultGridSize": 32,
+    "autoSaveInterval": 30000,
+    "theme": "dark",
+    "editor": {
+      "showGrid": true,
+      "snapToGrid": true,
+      "showColliders": false
+    }
+  }
+}

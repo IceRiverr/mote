@@ -1,3 +1,7 @@
+// ═══════════════════════════════════════════════════════════════
+// App.tsx - 主应用入口
+// ═══════════════════════════════════════════════════════════════
+
 // Register ALL editors
 import "./editors/viewport/register";
 import "./editors/inspector/register";
@@ -7,12 +11,19 @@ import "./editors/scene-tree/register";
 import "./editors/console/register";
 import "./editors/prefab-browser/register";
 
-import { useEffect } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { LayoutRoot } from "./components/LayoutRoot";
+import { WelcomeScreen } from "./components/WelcomeScreen";
+import { MenuBar } from "./components/MenuBar";
+import { StatusBar } from "./components/StatusBar";
 import { undo, redo } from "./store/history";
 import { activeTool, type ToolType } from "./store/selection";
 import { loadBuiltinEntityDefs } from "./store/entityDefs";
-import { loadScene, newScene } from "./store/scene";
+import {
+  isProjectLoaded,
+  initializeProjectStore,
+  saveCurrentProject,
+} from "./project";
 
 const TOOL_SHORTCUTS: Record<string, ToolType> = {
   v: "select",
@@ -24,12 +35,20 @@ const TOOL_SHORTCUTS: Record<string, ToolType> = {
 };
 
 export function App() {
-  // Load built-in entity defs and create default scene on mount
+  const [showWelcome, setShowWelcome] = useState(true);
+
+  // Initialize on mount
   useEffect(() => {
+    initializeProjectStore();
     loadBuiltinEntityDefs();
-    // 创建默认场景
-    newScene(640, 480);
   }, []);
+
+  // Listen for project loaded state
+  useEffect(() => {
+    if (isProjectLoaded.value) {
+      setShowWelcome(false);
+    }
+  }, [isProjectLoaded.value]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -37,6 +56,13 @@ export function App() {
       // Skip if focused on input/select/textarea
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+
+      // Ctrl+S -> Save
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        saveCurrentProject();
+        return;
+      }
 
       // Ctrl+Z / Cmd+Z -> Undo
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "z") {
@@ -74,6 +100,15 @@ export function App() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // Show welcome screen
+  if (showWelcome) {
+    return (
+      <WelcomeScreen
+        onProjectOpened={() => setShowWelcome(false)}
+      />
+    );
+  }
+
   return (
     <div
       style={{
@@ -83,25 +118,13 @@ export function App() {
         height: "100%",
       }}
     >
-      <div
-        style={{
-          height: 32,
-          background: "#2a2a2a",
-          borderBottom: "1px solid #111",
-          display: "flex",
-          alignItems: "center",
-          paddingLeft: 12,
-          fontWeight: 600,
-          fontSize: 13,
-          color: "#aaa",
-          flexShrink: 0,
-        }}
-      >
-        Mote Editor — 微尘
-      </div>
-      <div style={{ flex: 1, position: "relative" }}>
+      <MenuBar
+        onRequestWelcome={() => setShowWelcome(true)}
+      />
+      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         <LayoutRoot />
       </div>
+      <StatusBar />
     </div>
   );
 }

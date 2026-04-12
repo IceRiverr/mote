@@ -8,6 +8,7 @@ import {
   openExistingProject,
   saveCurrentProject,
   closeProject,
+  createInMemoryProject,
   projectName,
   hasUnsavedChanges,
   canSave,
@@ -16,11 +17,7 @@ import {
 import { currentScene, newScene, saveScene } from '../store/scene';
 import { exportScene } from '../data/export';
 
-interface MenuBarProps {
-  onRequestWelcome?: () => void;
-}
-
-export function MenuBar({ onRequestWelcome }: MenuBarProps) {
+export function MenuBar() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -90,7 +87,7 @@ export function MenuBar({ onRequestWelcome }: MenuBarProps) {
     if (!confirmed) return;
 
     await closeProject();
-    onRequestWelcome?.();
+    createInMemoryProject();
     setActiveMenu(null);
   }
 
@@ -133,7 +130,7 @@ export function MenuBar({ onRequestWelcome }: MenuBarProps) {
 
   async function handleCloseProject() {
     await closeProject();
-    onRequestWelcome?.();
+    createInMemoryProject();
     setActiveMenu(null);
   }
 

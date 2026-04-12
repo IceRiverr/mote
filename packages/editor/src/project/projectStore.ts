@@ -414,9 +414,25 @@ async function loadProjectFile(): Promise<Project | null> {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 初始化
-// ═══════════════════════════════════════════════════════════════
+/**
+ * 创建内存项目（不关联文件系统，直接打开编辑器）
+ */
+export function createInMemoryProject(): void {
+  const id = generateProjectId('Untitled');
+  const project = createProject(id, 'Untitled Project');
+  
+  // 初始化子系统（使用内存模式）
+  const prefabFS = getPrefabFS();
+  prefabFS.initialize();
+  
+  const sceneFS = getSceneFS();
+  sceneFS.initialize();
+  
+  // 设置当前项目
+  setProject(project);
+  
+  console.log('In-memory project created:', project.id);
+}
 
 /**
  * 初始化项目存储

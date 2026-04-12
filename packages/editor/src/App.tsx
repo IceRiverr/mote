@@ -11,18 +11,17 @@ import "./editors/scene-tree/register";
 import "./editors/console/register";
 import "./editors/prefab-browser/register";
 
-import { useEffect, useState } from "preact/hooks";
+import { useEffect } from "preact/hooks";
 import { LayoutRoot } from "./components/LayoutRoot";
-import { WelcomeScreen } from "./components/WelcomeScreen";
 import { MenuBar } from "./components/MenuBar";
 import { StatusBar } from "./components/StatusBar";
 import { undo, redo } from "./store/history";
 import { activeTool, type ToolType } from "./store/selection";
 import { loadBuiltinEntityDefs } from "./store/entityDefs";
 import {
-  isProjectLoaded,
   initializeProjectStore,
   saveCurrentProject,
+  createInMemoryProject,
 } from "./project";
 
 const TOOL_SHORTCUTS: Record<string, ToolType> = {
@@ -35,20 +34,13 @@ const TOOL_SHORTCUTS: Record<string, ToolType> = {
 };
 
 export function App() {
-  const [showWelcome, setShowWelcome] = useState(true);
-
-  // Initialize on mount
+  // Initialize on mount - auto create in-memory project
   useEffect(() => {
     initializeProjectStore();
     loadBuiltinEntityDefs();
+    // Auto create an in-memory project so editor opens directly
+    createInMemoryProject();
   }, []);
-
-  // Listen for project loaded state
-  useEffect(() => {
-    if (isProjectLoaded.value) {
-      setShowWelcome(false);
-    }
-  }, [isProjectLoaded.value]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -100,15 +92,6 @@ export function App() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Show welcome screen
-  if (showWelcome) {
-    return (
-      <WelcomeScreen
-        onProjectOpened={() => setShowWelcome(false)}
-      />
-    );
-  }
-
   return (
     <div
       style={{
@@ -118,9 +101,7 @@ export function App() {
         height: "100%",
       }}
     >
-      <MenuBar
-        onRequestWelcome={() => setShowWelcome(true)}
-      />
+      <MenuBar />
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         <LayoutRoot />
       </div>

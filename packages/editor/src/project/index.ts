@@ -39,6 +39,7 @@ export {
   openProjectFromPath,
   saveCurrentProject,
   closeProject,
+  createInMemoryProject,
   updateProjectSettings,
   renameProject,
   setLastOpenedScene,

@@ -13,7 +13,10 @@ export interface FileSystemConfig {
   /** 建议的目录名称 */
   suggestedName?: string;
   /** 文件类型过滤器 */
-  types?: FilePickerAcceptType[];
+  types?: Array<{
+    description?: string;
+    accept: Record<string, string | string[]>;
+  }>;
 }
 
 /**
@@ -575,5 +578,4 @@ export function resetFileSystem(): void {
   fileSystemInstance = null;
 }
 
-// 类型导出
-export type { FileSystemMode };
+

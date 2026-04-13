@@ -475,6 +475,9 @@ export function ViewportCanvas() {
       const existingId = gridIndex.get(pos.x, pos.y, layer);
       const existingEntity = existingId ? getEntity(existingId) : null;
       
+      // 创建新实体（和 Command 中保持一致）
+      const newEntity = createSceneEntity(pos.prefabId, pos.x * gridSize, pos.y * gridSize);
+      
       // 记录到命令
       if (currentBrushCmd.value) {
         currentBrushCmd.value.addRecord(
@@ -482,8 +485,7 @@ export function ViewportCanvas() {
           pos.y, 
           layer, 
           existingEntity ?? null, 
-          pos.prefabId, 
-          gridSize
+          newEntity
         );
       }
       
@@ -495,8 +497,7 @@ export function ViewportCanvas() {
         );
       }
       
-      // 创建新实体
-      const newEntity = createSceneEntity(pos.prefabId, pos.x * gridSize, pos.y * gridSize);
+      // 添加到场景
       currentScene.value.entities.push(newEntity);
       
       // 同步到 GridIndex
@@ -527,7 +528,7 @@ export function ViewportCanvas() {
           const entity = getEntity(entityId);
           if (entity && currentBrushCmd.value) {
             (currentBrushCmd.value as PaintBrushCommand).addRecord(
-              x, y, layer, entity ?? null, null, gridIndex.getGridSize()
+              x, y, layer, entity ?? null, null
             );
           }
           
@@ -786,13 +787,22 @@ export function ViewportCanvas() {
     if (isPainting.value) {
       isPainting.value = false;
       
-      if (currentBrushCmd.value && currentBrushCmd.value.hasChanges()) {
-        executeCommand(currentBrushCmd.value);
-      }
-      
+      const cmd = currentBrushCmd.value;
       currentBrushCmd.value = null;
       paintedCells.value = new Set();
+      
+      if (cmd && cmd.hasChanges()) {
+        executeCommand(cmd);
+      }
+      
       return;
+    }
+  };
+
+  // 鼠标离开画布：只在绘制过程中结束绘制
+  const onPointerLeave = () => {
+    if (isPainting.value) {
+      onPointerUp({} as PointerEvent);
     }
   };
 
@@ -816,6 +826,9 @@ export function ViewportCanvas() {
   // 键盘快捷键
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // 忽略重复按键（长按自动重复）
+      if (e.repeat) return;
+
       // 忽略输入框中的按键
       if (
         (e.target as HTMLElement).tagName === "INPUT" ||
@@ -919,7 +932,7 @@ export function ViewportCanvas() {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerLeave={onPointerUp}
+      onPointerLeave={onPointerLeave}
       onWheel={onWheel}
     >
       <canvas

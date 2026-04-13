@@ -1,33 +1,218 @@
 // ═══════════════════════════════════════════════════════════════
-// BrushPalette.tsx - 笔刷选择面板
+// BrushPalette.tsx - 简化的笔刷配置面板
+// 只显示当前选中的 Prefab 和笔刷参数配置
+// Prefab 选择统一到 PrefabBrowser
 // ═══════════════════════════════════════════════════════════════
 
-import { brushPattern, brushSize, targetLayer, setSinglePrefabBrush, setRectBrush, setCircleBrush, BRUSH_SIZES, LAYERS, activePrefabId } from "../../../store/brush";
-import { prefabs, filteredPrefabs, prefabsByCategory, selectedCategory, searchQuery } from "../../../store/prefabs";
+import { brushPattern, brushSize, targetLayer, activePrefabId, BRUSH_SIZES, LAYERS } from "../../../store/brush";
+import { getPrefab } from "../../../store/prefabs";
+import { activeTool } from "../../../store/selection";
 
 export function BrushPalette() {
+  const currentPrefab = activePrefabId.value;
+  const prefab = currentPrefab ? getPrefab(currentPrefab) : null;
+  const tool = activeTool.value;
+
+  // 如果没有选中 Prefab 且不是橡皮工具，显示提示
+  if (!prefab && tool !== "eraser") {
+    return (
+      <div style={{
+        padding: "16px",
+        textAlign: "center",
+        color: "var(--text-secondary)",
+        fontSize: "12px",
+      }}>
+        <div style={{ fontSize: "32px", marginBottom: "8px" }}>✏️</div>
+        <div style={{ marginBottom: "8px" }}>未选择笔刷</div>
+        <div style={{ fontSize: "11px", opacity: 0.7 }}>
+          请在 <strong>Prefab 浏览器</strong> 中点击一个 Prefab
+        </div>
+        <div style={{ 
+          marginTop: "12px", 
+          padding: "8px 12px", 
+          background: "var(--bg-input)",
+          borderRadius: "4px",
+          fontSize: "11px",
+        }}>
+          💡 按 <kbd style={{
+            background: "var(--bg-panel)",
+            padding: "2px 6px",
+            borderRadius: "3px",
+            fontFamily: "monospace",
+          }}>B</kbd> 切换到笔刷模式
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{
-      padding: "8px",
+      padding: "12px",
       fontSize: "12px",
     }}>
-      {/* 笔刷大小选择 */}
+      {/* 当前笔刷信息 */}
+      <CurrentBrushInfo />
+      
+      {/* 笔刷大小 */}
       <BrushSizeSelector />
       
-      {/* 目标层选择 */}
+      {/* 目标层 */}
       <LayerSelector />
       
-      {/* 搜索框 */}
-      <SearchBox />
-      
-      {/* 分类标签 */}
-      <CategoryTabs />
-      
-      {/* Prefab 网格 */}
-      <PrefabGrid />
-      
-      {/* 当前笔刷预览 */}
-      <CurrentBrushPreview />
+      {/* 操作提示 */}
+      <div style={{
+        marginTop: "12px",
+        padding: "8px",
+        background: "var(--bg-input)",
+        borderRadius: "4px",
+        fontSize: "10px",
+        color: "var(--text-secondary)",
+      }}>
+        <div>💡 左键点击绘制</div>
+        <div>💡 拖拽连续绘制</div>
+        <div>💡 换 Prefab 去浏览器点击</div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 当前笔刷信息
+// ═══════════════════════════════════════════════════════════════
+
+function CurrentBrushInfo() {
+  const currentPrefab = activePrefabId.value;
+  const prefab = currentPrefab ? getPrefab(currentPrefab) : null;
+  const tool = activeTool.value;
+  const pattern = brushPattern.value;
+
+  // 橡皮擦模式
+  if (tool === "eraser") {
+    return (
+      <div style={{
+        padding: "12px",
+        background: "rgba(212, 87, 74, 0.1)",
+        borderRadius: "6px",
+        marginBottom: "12px",
+        border: "1px solid rgba(212, 87, 74, 0.3)",
+      }}>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          marginBottom: "4px",
+        }}>
+          <span style={{ fontSize: "16px" }}>🧹</span>
+          <span style={{
+            fontWeight: 600,
+            color: "#d4574a",
+          }}>
+            橡皮擦
+          </span>
+        </div>
+        <div style={{
+          fontSize: "11px",
+          color: "var(--text-secondary)",
+        }}>
+          {brushSize.value}×{brushSize.value} 范围擦除
+        </div>
+      </div>
+    );
+  }
+
+  // 填充模式
+  if (tool === "fill") {
+    return (
+      <div style={{
+        padding: "12px",
+        background: "rgba(74, 144, 217, 0.1)",
+        borderRadius: "6px",
+        marginBottom: "12px",
+        border: "1px solid rgba(74, 144, 217, 0.3)",
+      }}>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          marginBottom: "4px",
+        }}>
+          <span style={{ fontSize: "16px" }}>🪣</span>
+          <span style={{
+            fontWeight: 600,
+            color: "var(--accent)",
+          }}>
+            填充工具
+          </span>
+        </div>
+        <div style={{
+          fontSize: "11px",
+          color: "var(--text-secondary)",
+        }}>
+          {prefab 
+            ? `填充为: ${prefab.name}`
+            : "请先选择 Prefab"
+          }
+        </div>
+      </div>
+    );
+  }
+
+  // 笔刷模式
+  if (!prefab) return null;
+
+  return (
+    <div style={{
+      padding: "12px",
+      background: "rgba(74, 144, 217, 0.1)",
+      borderRadius: "6px",
+      marginBottom: "12px",
+      border: "1px solid rgba(74, 144, 217, 0.3)",
+    }}>
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+      }}>
+        {/* 笔刷预览 */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${Math.min(brushSize.value, 4)}, 1fr)`,
+          gap: "1px",
+          background: "var(--bg-input)",
+          padding: "4px",
+          borderRadius: "4px",
+        }}>
+          {pattern.slice(0, 16).map((cell: { prefabId: string }, i: number) => (
+            <div
+              key={i}
+              style={{
+                width: "10px",
+                height: "10px",
+                background: cell.prefabId ? "var(--accent)" : "transparent",
+                borderRadius: "1px",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Prefab 信息 */}
+        <div style={{ flex: 1 }}>
+          <div style={{
+            fontWeight: 600,
+            color: "var(--text)",
+            marginBottom: "2px",
+          }}>
+            {prefab.name}
+          </div>
+          <div style={{
+            fontSize: "10px",
+            color: "var(--text-secondary)",
+          }}>
+            {pattern.length > 1 ? `${pattern.length} 格` : "单格"} · 
+            {prefab.category}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -37,30 +222,32 @@ export function BrushPalette() {
 // ═══════════════════════════════════════════════════════════════
 
 function BrushSizeSelector() {
+  const tool = activeTool.value;
+  const isEraser = tool === "eraser";
+
   return (
     <div style={{ marginBottom: "12px" }}>
       <div style={{
         fontSize: "11px",
         color: "var(--text-secondary)",
-        marginBottom: "4px",
+        marginBottom: "6px",
+        display: "flex",
+        justifyContent: "space-between",
       }}>
-        笔刷大小
+        <span>{isEraser ? "擦除范围" : "笔刷大小"}</span>
+        <span style={{ fontFamily: "monospace" }}>
+          {brushSize.value}×{brushSize.value}
+        </span>
       </div>
       <div style={{
         display: "flex",
-        gap: "4px",
+        gap: "3px",
         flexWrap: "wrap",
       }}>
-        {BRUSH_SIZES.map((size: number) => (
+        {BRUSH_SIZES.slice(0, 6).map((size: number) => (
           <button
             key={size}
-            onClick={() => {
-              const currentPrefab = activePrefabId.value;
-              if (currentPrefab) {
-                setRectBrush(currentPrefab, size, size);
-              }
-              brushSize.value = size;
-            }}
+            onClick={() => brushSize.value = size}
             style={{
               width: "28px",
               height: "28px",
@@ -71,11 +258,11 @@ function BrushSizeSelector() {
               border: "1px solid var(--border)",
               borderRadius: "3px",
               cursor: "pointer",
-              fontSize: "11px",
+              fontSize: "10px",
               color: brushSize.value === size ? "#fff" : "var(--text)",
             }}
           >
-            {size}×{size}
+            {size}
           </button>
         ))}
       </div>
@@ -88,272 +275,57 @@ function BrushSizeSelector() {
 // ═══════════════════════════════════════════════════════════════
 
 function LayerSelector() {
+  const currentLayer = LAYERS.find(l => l.id === targetLayer.value);
+
   return (
-    <div style={{ marginBottom: "12px" }}>
+    <div>
       <div style={{
         fontSize: "11px",
         color: "var(--text-secondary)",
-        marginBottom: "4px",
+        marginBottom: "6px",
       }}>
-        绘制层
+        绘制到层
       </div>
-      <select
-        value={targetLayer.value}
-        onChange={(e: Event) => targetLayer.value = parseInt((e.target as HTMLSelectElement).value)}
-        style={{
-          width: "100%",
-          padding: "4px 8px",
-          fontSize: "12px",
-          background: "var(--bg-input)",
-          border: "1px solid var(--border)",
-          borderRadius: "3px",
-          color: "var(--text)",
-          cursor: "pointer",
-        }}
-      >
-        {LAYERS.map((layer: { id: number; label: string }) => (
-          <option key={layer.id} value={layer.id}>
-            {layer.label} (z:{layer.id})
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// 搜索框
-// ═══════════════════════════════════════════════════════════════
-
-function SearchBox() {
-  return (
-    <div style={{ marginBottom: "12px" }}>
-      <input
-        type="text"
-        placeholder="搜索..."
-        value={searchQuery.value}
-        onInput={(e: Event) => searchQuery.value = (e.target as HTMLInputElement).value}
-        style={{
-          width: "100%",
-          padding: "4px 8px",
-          fontSize: "12px",
-          background: "var(--bg-input)",
-          border: "1px solid var(--border)",
-          borderRadius: "3px",
-          color: "var(--text)",
-          outline: "none",
-        }}
-      />
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// 分类标签
-// ═══════════════════════════════════════════════════════════════
-
-function CategoryTabs() {
-  const groups = prefabsByCategory.value;
-  const categories = Array.from(groups.keys());
-  
-  return (
-    <div style={{
-      display: "flex",
-      gap: "4px",
-      marginBottom: "12px",
-      flexWrap: "wrap",
-    }}>
-      <button
-        onClick={() => selectedCategory.value = "all"}
-        style={{
-          padding: "2px 8px",
-          fontSize: "11px",
-          background: selectedCategory.value === "all" ? "var(--accent)" : "var(--bg-input)",
-          border: "1px solid var(--border)",
-          borderRadius: "3px",
-          cursor: "pointer",
-          color: selectedCategory.value === "all" ? "#fff" : "var(--text)",
-        }}
-      >
-        全部
-      </button>
-      {categories.map((cat: string) => (
-        <button
-          key={cat}
-          onClick={() => selectedCategory.value = cat}
-          style={{
-            padding: "2px 8px",
-            fontSize: "11px",
-            background: selectedCategory.value === cat ? "var(--accent)" : "var(--bg-input)",
-            border: "1px solid var(--border)",
-            borderRadius: "3px",
-            cursor: "pointer",
-            color: selectedCategory.value === cat ? "#fff" : "var(--text)",
-            textTransform: "capitalize",
-          }}
-        >
-          {cat}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// Prefab 网格
-// ═══════════════════════════════════════════════════════════════
-
-function PrefabGrid() {
-  const prefabList = filteredPrefabs.value;
-  
-  return (
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(4, 1fr)",
-      gap: "4px",
-      maxHeight: "200px",
-      overflowY: "auto",
-    }}>
-      {prefabList.map((prefab: { id: string; name: string; category: string }) => (
-        <PrefabTile
-          key={prefab.id}
-          prefab={prefab}
-          isActive={activePrefabId.value === prefab.id}
-        />
-      ))}
-    </div>
-  );
-}
-
-interface PrefabTileProps {
-  prefab: { id: string; name: string; category: string };
-  isActive: boolean;
-}
-
-function PrefabTile({ prefab, isActive }: PrefabTileProps) {
-  return (
-    <button
-      onClick={() => setSinglePrefabBrush(prefab.id)}
-      style={{
-        aspectRatio: "1",
+      
+      <div style={{
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        background: isActive ? "var(--accent)" : "var(--bg-input)",
-        border: `2px solid ${isActive ? "var(--accent)" : "var(--border)"}`,
-        borderRadius: "4px",
-        cursor: "pointer",
-        padding: "4px",
-      }}
-      title={prefab.name}
-    >
-      <div style={{
-        width: "24px",
-        height: "24px",
-        background: getCategoryColor(prefab.category),
-        borderRadius: "2px",
-        marginBottom: "2px",
-      }} />
-      <span style={{
-        fontSize: "9px",
-        color: isActive ? "#fff" : "var(--text)",
-        textAlign: "center",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-        maxWidth: "100%",
+        gap: "3px",
       }}>
-        {prefab.name}
-      </span>
-    </button>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// 当前笔刷预览
-// ═══════════════════════════════════════════════════════════════
-
-function CurrentBrushPreview() {
-  const pattern = brushPattern.value;
-  const currentPrefab = activePrefabId.value;
-  
-  if (!currentPrefab) {
-    return (
-      <div style={{
-        marginTop: "12px",
-        padding: "8px",
-        background: "var(--bg-input)",
-        borderRadius: "3px",
-        textAlign: "center",
-        color: "var(--text-secondary)",
-        fontSize: "11px",
-      }}>
-        请选择一个 Prefab
-      </div>
-    );
-  }
-  
-  return (
-    <div style={{
-      marginTop: "12px",
-      padding: "8px",
-      background: "var(--bg-input)",
-      borderRadius: "3px",
-    }}>
-      <div style={{
-        fontSize: "11px",
-        color: "var(--text-secondary)",
-        marginBottom: "4px",
-      }}>
-        当前笔刷
-      </div>
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-      }}>
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${Math.min(brushSize.value, 5)}, 1fr)`,
-          gap: "1px",
-        }}>
-          {pattern.slice(0, 25).map((cell: { prefabId: string }, i: number) => (
-            <div
-              key={i}
-              style={{
-                width: "12px",
-                height: "12px",
-                background: cell.prefabId ? "var(--accent)" : "transparent",
-                border: "1px solid var(--border)",
-              }}
-            />
-          ))}
-        </div>
-        <div style={{
-          fontSize: "11px",
-          color: "var(--text)",
-        }}>
-          {pattern.length > 25 ? `+${pattern.length - 25} more` : `${pattern.length} 格`}
-        </div>
+        {LAYERS.filter(l => l.id >= 0 && l.id <= 50).map(layer => (
+          <button
+            key={layer.id}
+            onClick={() => targetLayer.value = layer.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "6px 8px",
+              background: targetLayer.value === layer.id ? "var(--accent)" : "var(--bg-input)",
+              border: "1px solid var(--border)",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "11px",
+              color: targetLayer.value === layer.id ? "#fff" : "var(--text)",
+              textAlign: "left",
+            }}
+          >
+            <div style={{
+              width: "8px",
+              height: "8px",
+              borderRadius: "50%",
+              background: layer.color,
+              flexShrink: 0,
+            }} />
+            <span style={{ flex: 1 }}>{layer.label}</span>
+            {targetLayer.value === layer.id && (
+              <span style={{ fontSize: "10px", opacity: 0.8 }}>✓</span>
+            )}
+          </button>
+        ))}
       </div>
     </div>
   );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// 辅助函数
-// ═══════════════════════════════════════════════════════════════
-
-function getCategoryColor(category: string): string {
-  const colors: Record<string, string> = {
-    environment: "#4a7c59",
-    walls: "#8b7355",
-    characters: "#d4574a",
-    items: "#f4a742",
-    system: "#666",
-  };
-  return colors[category] || "#4a90d9";
 }
 
 export default BrushPalette;

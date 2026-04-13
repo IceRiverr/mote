@@ -1,7 +1,7 @@
 import { registerEditor } from "../registry";
 import { EntityInspector } from "../../components/inspector/EntityInspector";
-import { LayerPanel } from "./panels/LayerPanel";
 import { BrushPalette } from "./panels/BrushPalette";
+import { activeTool } from "../../store/selection";
 
 function InspectorEditor({ areaId }: { areaId: string }) {
   return (
@@ -12,22 +12,16 @@ function InspectorEditor({ areaId }: { areaId: string }) {
       display: "flex",
       flexDirection: "column",
     }}>
-      {/* Brush Palette */}
+      {/* Brush Palette - 唯一的 Prefab 选择和笔刷配置入口 */}
       <div style={{
         borderBottom: "1px solid var(--border)",
+        flexShrink: 0,
       }}>
         <BrushPalette />
       </div>
       
-      {/* Layer Panel */}
-      <div style={{
-        borderBottom: "1px solid var(--border)",
-      }}>
-        <LayerPanel />
-      </div>
-      
-      {/* Entity Inspector */}
-      <div style={{ flex: 1 }}>
+      {/* Entity Inspector - 只在选中实体时显示属性 */}
+      <div style={{ flex: 1, minHeight: 0 }}>
         <EntityInspector />
       </div>
     </div>

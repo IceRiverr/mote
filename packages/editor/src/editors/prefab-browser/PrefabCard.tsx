@@ -1,29 +1,40 @@
 // ═══════════════════════════════════════════════════════════════
-// PrefabCard.tsx - Prefab 卡片组件
+// PrefabCard.tsx - Prefab 卡片组件（支持点击设为笔刷）
 // ═══════════════════════════════════════════════════════════════
 
 import type { Prefab } from "../../data/Prefab";
 import { getPrefabThumbnail } from "../../data/Prefab";
+import { activeTool } from "../../store/selection";
+import { setSinglePrefabBrush, activePrefabId } from "../../store/brush";
 
 interface PrefabCardProps {
   prefab: Prefab;
-  onClick?: () => void;
+  isActive?: boolean;
   onDoubleClick?: () => void;
   onContextMenu?: (e: MouseEvent) => void;
 }
 
 export function PrefabCard({
   prefab,
-  onClick,
+  isActive = false,
   onDoubleClick,
   onContextMenu,
 }: PrefabCardProps) {
   const thumbnail = getPrefabThumbnail(prefab);
   const hasSprite = prefab.components.Sprite;
 
+  const handleClick = () => {
+    // 设为当前笔刷
+    setSinglePrefabBrush(prefab.id);
+    // 自动切换到笔刷工具
+    if (activeTool.value !== "brush") {
+      activeTool.value = "brush";
+    }
+  };
+
   return (
     <div
-      onClick={onClick}
+      onClick={handleClick}
       onDblClick={onDoubleClick}
       onContextMenu={onContextMenu}
       draggable
@@ -39,15 +50,21 @@ export function PrefabCard({
         gap: "4px",
         padding: "8px",
         borderRadius: "4px",
-        cursor: "grab",
-        transition: "background 0.15s",
+        cursor: "pointer",
+        transition: "all 0.15s",
         minWidth: "64px",
+        background: isActive ? "rgba(74, 144, 217, 0.2)" : "transparent",
+        border: isActive ? "2px solid #4a90d9" : "2px solid transparent",
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.background = "#3a3a3a";
+        if (!isActive) {
+          (e.currentTarget as HTMLDivElement).style.background = "#3a3a3a";
+        }
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.background = "transparent";
+        if (!isActive) {
+          (e.currentTarget as HTMLDivElement).style.background = "transparent";
+        }
       }}
     >
       {/* 缩略图区域 */}
@@ -61,7 +78,8 @@ export function PrefabCard({
           alignItems: "center",
           justifyContent: "center",
           overflow: "hidden",
-          border: "1px solid #444",
+          border: isActive ? "2px solid #4a90d9" : "1px solid #444",
+          boxShadow: isActive ? "0 0 8px rgba(74, 144, 217, 0.5)" : "none",
         }}
       >
         {thumbnail?.startsWith("sprite:") ? (
@@ -81,7 +99,7 @@ export function PrefabCard({
           </div>
         ) : (
           // 默认图标
-          <span style={{ fontSize: "24px", opacity: 0.5 }}>
+          <span style={{ fontSize: "24px", opacity: isActive ? 1 : 0.5 }}>
             {hasSprite ? "🎨" : "📦"}
           </span>
         )}
@@ -91,17 +109,40 @@ export function PrefabCard({
       <span
         style={{
           fontSize: "11px",
-          color: "#ccc",
+          color: isActive ? "#4a90d9" : "#ccc",
           textAlign: "center",
           maxWidth: "60px",
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
+          fontWeight: isActive ? 600 : 400,
         }}
         title={prefab.name}
       >
         {prefab.name}
       </span>
+
+      {/* 选中标记 */}
+      {isActive && (
+        <div
+          style={{
+            position: "absolute",
+            top: "4px",
+            right: "4px",
+            width: "12px",
+            height: "12px",
+            background: "#4a90d9",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "8px",
+            color: "#fff",
+          }}
+        >
+          ✓
+        </div>
+      )}
     </div>
   );
 }

@@ -5,11 +5,9 @@
 
 import type { Command } from "../store/history";
 import { currentScene, bumpVersion, getEntity } from "../store/scene";
-import { gridIndex, getEntityLayer } from "../store/gridIndex";
-import { prefabs } from "../store/prefabs";
+import { gridIndex } from "../store/gridIndex";
 import type { SceneEntity } from "../data/Scene";
 import { createSceneEntity } from "../data/Scene";
-import type { BrushCell } from "../store/brush";
 
 // ═══════════════════════════════════════════════════════════════
 // PaintBrushCommand - 多格笔刷绘制命令
@@ -32,31 +30,18 @@ export class PaintBrushCommand implements Command {
     this.label = label;
   }
 
-  /**
-   * 添加绘制记录
-   */
   addRecord(
     gridX: number,
     gridY: number,
     layer: number,
     oldEntity: SceneEntity | null,
-    newPrefabId: string | null,
-    gridSize: number
+    newEntity: SceneEntity | null,
   ): void {
-    // 检查是否已有相同位置的记录
     const existingIndex = this.records.findIndex(
       r => r.gridX === gridX && r.gridY === gridY && r.layer === layer
     );
 
-    const worldX = gridX * gridSize;
-    const worldY = gridY * gridSize;
-
-    const newEntity = newPrefabId
-      ? createSceneEntity(newPrefabId, worldX, worldY)
-      : null;
-
     if (existingIndex >= 0) {
-      // 更新最终值，保留原始值
       this.records[existingIndex].newEntity = newEntity;
     } else {
       this.records.push({
@@ -69,9 +54,6 @@ export class PaintBrushCommand implements Command {
     }
   }
 
-  /**
-   * 检查是否有实际变更
-   */
   hasChanges(): boolean {
     for (const record of this.records) {
       const oldId = record.oldEntity?.id;
@@ -81,9 +63,6 @@ export class PaintBrushCommand implements Command {
     return false;
   }
 
-  /**
-   * 获取统计信息
-   */
   getStats(): { added: number; removed: number; replaced: number } {
     let added = 0, removed = 0, replaced = 0;
     for (const record of this.records) {
@@ -101,15 +80,15 @@ export class PaintBrushCommand implements Command {
     if (!scene) return;
 
     if (this.executed) {
-      // Redo 路径：重新应用所有变更
+      // Redo 路径
       for (const record of this.records) {
-        // 删除旧实体
         if (record.oldEntity) {
           scene.entities = scene.entities.filter(e => e.id !== record.oldEntity!.id);
+          gridIndex.deleteByEntityId(record.oldEntity.id);
         }
-        // 添加新实体
         if (record.newEntity) {
           scene.entities.push({ ...record.newEntity });
+          gridIndex.set(record.gridX, record.gridY, record.layer, record.newEntity.id);
         }
       }
       bumpVersion();
@@ -123,13 +102,13 @@ export class PaintBrushCommand implements Command {
     if (!scene) return;
 
     for (const record of this.records) {
-      // 删除新实体
       if (record.newEntity) {
         scene.entities = scene.entities.filter(e => e.id !== record.newEntity!.id);
+        gridIndex.delete(record.gridX, record.gridY, record.layer);
       }
-      // 恢复旧实体
       if (record.oldEntity) {
         scene.entities.push({ ...record.oldEntity });
+        gridIndex.set(record.gridX, record.gridY, record.layer, record.oldEntity.id);
       }
     }
 
@@ -144,7 +123,6 @@ export class PaintBrushCommand implements Command {
 export class EraseCommand implements Command {
   readonly label: string;
   private erasedEntities: Array<{ entity: SceneEntity; gridX: number; gridY: number; layer: number }> = [];
-  private gridSize: number;
 
   constructor(
     centerGridX: number,
@@ -155,19 +133,13 @@ export class EraseCommand implements Command {
     label = "擦除"
   ) {
     this.label = label;
-    this.gridSize = gridSize;
-
-    const scene = currentScene.value;
-    if (!scene) return;
 
     const radius = Math.floor(brushSize / 2);
-
     for (let dy = -radius; dy <= radius; dy++) {
       for (let dx = -radius; dx <= radius; dx++) {
         const gridX = centerGridX + dx;
         const gridY = centerGridY + dy;
 
-        // 找到该位置的实体
         const entityId = gridIndex.get(gridX, gridY, targetLayer);
         if (entityId) {
           const entity = getEntity(entityId);
@@ -194,6 +166,10 @@ export class EraseCommand implements Command {
 
     const erasedIds = new Set(this.erasedEntities.map(e => e.entity.id));
     scene.entities = scene.entities.filter(e => !erasedIds.has(e.id));
+    
+    for (const { gridX, gridY, layer } of this.erasedEntities) {
+      gridIndex.delete(gridX, gridY, layer);
+    }
 
     bumpVersion();
   }
@@ -202,8 +178,9 @@ export class EraseCommand implements Command {
     const scene = currentScene.value;
     if (!scene || this.erasedEntities.length === 0) return;
 
-    for (const { entity } of this.erasedEntities) {
+    for (const { entity, gridX, gridY, layer } of this.erasedEntities) {
       scene.entities.push(entity);
+      gridIndex.set(gridX, gridY, layer, entity.id);
     }
 
     bumpVersion();
@@ -216,39 +193,31 @@ export class EraseCommand implements Command {
 
 export class FloodFillCommand implements Command {
   readonly label = "填充";
-  private filledGrids: Array<{ gridX: number; gridY: number; oldEntity: SceneEntity | null }> = [];
-  private newPrefabId: string;
-  private targetLayer: number;
-  private gridSize: number;
-  private startX: number;
-  private startY: number;
+  private filledGrids: Array<{
+    gridX: number;
+    gridY: number;
+    oldEntity: SceneEntity | null;
+    newEntity: SceneEntity;
+  }> = [];
 
   constructor(
     startGridX: number,
     startGridY: number,
     newPrefabId: string,
-    targetLayer: number,
-    gridSize: number
+    private targetLayer: number,
+    private gridSize: number
   ) {
-    this.startX = startGridX;
-    this.startY = startGridY;
-    this.newPrefabId = newPrefabId;
-    this.targetLayer = targetLayer;
-    this.gridSize = gridSize;
-
-    this.calculateFill();
+    this.calculateFill(startGridX, startGridY, newPrefabId);
   }
 
-  private calculateFill(): void {
+  private calculateFill(startX: number, startY: number, newPrefabId: string): void {
     const scene = currentScene.value;
     if (!scene) return;
 
-    // BFS 填充
     const visited = new Set<string>();
-    const queue: Array<{ x: number; y: number }> = [{ x: this.startX, y: this.startY }];
+    const queue: Array<{ x: number; y: number }> = [{ x: startX, y: startY }];
 
-    // 获取起始位置的参考实体
-    const startEntityId = gridIndex.get(this.startX, this.startY, this.targetLayer);
+    const startEntityId = gridIndex.get(startX, startY, this.targetLayer);
     const startEntity = startEntityId ? getEntity(startEntityId) : null;
     const startPrefabId = startEntity?.prefab ?? null;
 
@@ -259,28 +228,26 @@ export class FloodFillCommand implements Command {
       if (visited.has(key)) continue;
       visited.add(key);
 
-      // 检查边界
       const worldX = x * this.gridSize;
       const worldY = y * this.gridSize;
       if (worldX < 0 || worldX >= scene.width || worldY < 0 || worldY >= scene.height) {
         continue;
       }
 
-      // 检查是否匹配（相同 prefab 或都为空）
       const entityId = gridIndex.get(x, y, this.targetLayer);
       const entity = entityId ? getEntity(entityId) : null;
       const prefabId = entity?.prefab ?? null;
 
       if (prefabId !== startPrefabId) continue;
 
-      // 记录填充
+      const newEntity = createSceneEntity(newPrefabId, worldX, worldY);
       this.filledGrids.push({
         gridX: x,
         gridY: y,
         oldEntity: entity ? { ...entity } : null,
+        newEntity,
       });
 
-      // 加入邻居
       queue.push({ x: x + 1, y });
       queue.push({ x: x - 1, y });
       queue.push({ x, y: y + 1 });
@@ -296,17 +263,14 @@ export class FloodFillCommand implements Command {
     const scene = currentScene.value;
     if (!scene || this.filledGrids.length === 0) return;
 
-    for (const { gridX, gridY, oldEntity } of this.filledGrids) {
-      // 删除旧实体
+    for (const { gridX, gridY, oldEntity, newEntity } of this.filledGrids) {
       if (oldEntity) {
         scene.entities = scene.entities.filter(e => e.id !== oldEntity.id);
+        gridIndex.delete(gridX, gridY, this.targetLayer);
       }
 
-      // 创建新实体
-      const worldX = gridX * this.gridSize;
-      const worldY = gridY * this.gridSize;
-      const newEntity = createSceneEntity(this.newPrefabId, worldX, worldY);
       scene.entities.push(newEntity);
+      gridIndex.set(gridX, gridY, this.targetLayer, newEntity.id);
     }
 
     bumpVersion();
@@ -316,22 +280,15 @@ export class FloodFillCommand implements Command {
     const scene = currentScene.value;
     if (!scene || this.filledGrids.length === 0) return;
 
-    const newIds = new Set<string>();
-
-    for (const { oldEntity } of this.filledGrids) {
-      // 删除新创建的实体
-      if (oldEntity) {
-        newIds.add(oldEntity.id);
-      }
+    for (const { newEntity } of this.filledGrids) {
+      scene.entities = scene.entities.filter(e => e.id !== newEntity.id);
+      gridIndex.deleteByEntityId(newEntity.id);
     }
 
-    // 先删除所有新实体
-    scene.entities = scene.entities.filter(e => !newIds.has(e.id));
-
-    // 恢复旧实体
-    for (const { oldEntity } of this.filledGrids) {
+    for (const { gridX, gridY, oldEntity } of this.filledGrids) {
       if (oldEntity) {
         scene.entities.push(oldEntity);
+        gridIndex.set(gridX, gridY, this.targetLayer, oldEntity.id);
       }
     }
 
@@ -340,7 +297,7 @@ export class FloodFillCommand implements Command {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PickPrefabCommand - 吸取工具（不产生历史记录，但为了统一接口）
+// PickPrefabResult - 吸取工具结果
 // ═══════════════════════════════════════════════════════════════
 
 export class PickPrefabResult {

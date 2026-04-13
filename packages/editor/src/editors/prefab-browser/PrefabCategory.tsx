@@ -6,6 +6,7 @@ import { useState } from "preact/hooks";
 import type { Prefab } from "../../data/Prefab";
 import { PrefabCard } from "./PrefabCard";
 import { spawnPrefab } from "../../store/scene";
+import { activePrefabId } from "../../store/brush";
 
 interface PrefabCategoryProps {
   name: string;
@@ -82,6 +83,7 @@ export function PrefabCategory({
             <PrefabCard
               key={prefab.id}
               prefab={prefab}
+              isActive={activePrefabId.value === prefab.id}
               onDoubleClick={() => {
                 // 双击在场景中心创建
                 spawnPrefab(prefab.id, 320, 240);

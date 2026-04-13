@@ -405,12 +405,17 @@ export function SpriteEditorHeader() {
       {/* ── Generate Prefab Dialog ── */}
       {showGenerateDialog && sheet && (
         <GeneratePrefabDialog
-          frames={selectedFrameIds.value.map(id => sheet.frames.find(f => f.id === id)!).filter(Boolean)}
+          frames={selectedFrameIds.value
+            .map(id => {
+              const frame = sheet.frames[id];
+              return frame ? { ...frame, id } : null;
+            })
+            .filter((f): f is NonNullable<typeof f> => f !== null)}
           atlas={{
             id: sheet.id,
             name: sheet.name,
             image: sheet.image,
-            frames: sheet.frames,
+            frames: Object.entries(sheet.frames).map(([id, frame]) => ({ ...frame, id })),
           }}
           onClose={() => setShowGenerateDialog(false)}
           onGenerated={(count) => {

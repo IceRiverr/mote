@@ -5,6 +5,8 @@
 
 import type { Command } from "../store/history";
 import { currentScene, bumpVersion } from "../store/scene";
+import { gridIndex } from "../store/gridIndex";
+import { prefabs } from "../store/prefabs";
 import type { SceneEntity } from "../data/Scene";
 import { createSceneEntity, snapToGrid } from "../data/Scene";
 
@@ -34,6 +36,15 @@ export class AddEntityCommand implements Command {
     if (!scene) return;
     
     scene.entities.push(this.entity);
+    
+    // 同步到 GridIndex
+    const prefab = prefabs.value.get(this.entity.prefab);
+    const layer = prefab?.components?.Sprite?.layer ?? 0;
+    const gridSize = gridIndex.getGridSize();
+    const gridX = Math.floor(this.entity.x / gridSize);
+    const gridY = Math.floor(this.entity.y / gridSize);
+    gridIndex.set(gridX, gridY, layer, this.entity.id);
+    
     bumpVersion();
   }
 
@@ -42,6 +53,8 @@ export class AddEntityCommand implements Command {
     if (!scene) return;
     
     scene.entities = scene.entities.filter(e => e.id !== this.entity.id);
+    gridIndex.deleteByEntityId(this.entity.id);
+    
     bumpVersion();
   }
 }
@@ -71,6 +84,8 @@ export class RemoveEntityCommand implements Command {
     if (!scene) return;
     
     scene.entities = scene.entities.filter(e => e.id !== this.entityId);
+    gridIndex.deleteByEntityId(this.entityId);
+    
     bumpVersion();
   }
 
@@ -81,6 +96,15 @@ export class RemoveEntityCommand implements Command {
     if (!scene) return;
     
     scene.entities.push(this.entity);
+    
+    // 同步到 GridIndex
+    const prefab = prefabs.value.get(this.entity.prefab);
+    const layer = prefab?.components?.Sprite?.layer ?? 0;
+    const gridSize = gridIndex.getGridSize();
+    const gridX = Math.floor(this.entity.x / gridSize);
+    const gridY = Math.floor(this.entity.y / gridSize);
+    gridIndex.set(gridX, gridY, layer, this.entity.id);
+    
     bumpVersion();
   }
 }
@@ -122,8 +146,23 @@ export class MoveEntityCommand implements Command {
     
     const entity = scene.entities.find(e => e.id === this.entityId);
     if (entity) {
+      // 先删除旧位置
+      const prefab = prefabs.value.get(entity.prefab);
+      const layer = prefab?.components?.Sprite?.layer ?? 0;
+      const gridSize = gridIndex.getGridSize();
+      const oldGridX = Math.floor(entity.x / gridSize);
+      const oldGridY = Math.floor(entity.y / gridSize);
+      gridIndex.delete(oldGridX, oldGridY, layer);
+      
+      // 更新位置
       entity.x = x;
       entity.y = y;
+      
+      // 设置新位置
+      const newGridX = Math.floor(entity.x / gridSize);
+      const newGridY = Math.floor(entity.y / gridSize);
+      gridIndex.set(newGridX, newGridY, layer, entity.id);
+      
       bumpVersion();
     }
   }
@@ -180,9 +219,23 @@ export class MoveEntitiesCommand implements Command {
     for (const move of this.moves) {
       const entity = scene.entities.find(e => e.id === move.id);
       if (entity) {
+        // 先删除旧位置
+        const prefab = prefabs.value.get(entity.prefab);
+        const layer = prefab?.components?.Sprite?.layer ?? 0;
+        const gridSize = gridIndex.getGridSize();
+        const oldGridX = Math.floor(entity.x / gridSize);
+        const oldGridY = Math.floor(entity.y / gridSize);
+        gridIndex.delete(oldGridX, oldGridY, layer);
+        
+        // 更新位置
         const pos = fn(move);
         entity.x = pos.x;
         entity.y = pos.y;
+        
+        // 设置新位置
+        const newGridX = Math.floor(entity.x / gridSize);
+        const newGridY = Math.floor(entity.y / gridSize);
+        gridIndex.set(newGridX, newGridY, layer, entity.id);
       }
     }
     bumpVersion();

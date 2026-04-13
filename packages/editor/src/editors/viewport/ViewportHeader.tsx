@@ -3,17 +3,10 @@ import {
   activeTool,
   viewportZoom,
   viewportZoomLocked,
+  TOOLS,
+  setTool,
   type ToolType,
 } from "../../store/selection";
-
-const tools: { id: ToolType; label: string; icon: string; shortcut: string }[] = [
-  { id: "select", label: "选择", icon: "↖", shortcut: "V" },
-  { id: "brush", label: "笔刷", icon: "✏️", shortcut: "B" },
-  { id: "eraser", label: "橡皮", icon: "🧹", shortcut: "E" },
-  { id: "fill", label: "填充", icon: "🪣", shortcut: "G" },
-  { id: "eyedropper", label: "吸管", icon: "💉", shortcut: "I" },
-  { id: "entity", label: "实体", icon: "◇", shortcut: "N" },
-];
 
 export function ViewportHeader() {
   const zoom = viewportZoom.value;
@@ -57,13 +50,11 @@ export function ViewportHeader() {
         flexShrink: 0,
       }}
     >
-      {tools.map((t) => (
+      {TOOLS.map((t) => (
         <button
           key={t.id}
           title={`${t.label} (${t.shortcut})`}
-          onClick={() => {
-            activeTool.value = t.id;
-          }}
+          onClick={() => setTool(t.id)}
           style={{
             background:
               activeTool.value === t.id ? "var(--accent)" : "transparent",

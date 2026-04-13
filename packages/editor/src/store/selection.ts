@@ -43,8 +43,6 @@ export const activeEntityDefId = signal<string | null>(null);
 /** Currently selected entity instance ID (for inspection/editing) */
 export const selectedEntityId = signal<string | null>(null);
 
-
-
 /**
  * Predefined scale steps for TilePalette.
  * Includes fractional (1/4, 1/2) and integer (1-8) values.
@@ -74,3 +72,33 @@ export function parseDisplayScale(raw: string): number | null {
   if (isNaN(val) || val < 0.25 || val > 8) return null;
   return val;
 }
+
+// ═══════════════════════════════════════════════════════════════
+// 工具切换
+// ═══════════════════════════════════════════════════════════════
+
+/** 工具定义 */
+export const TOOLS: { id: ToolType; label: string; icon: string; shortcut: string }[] = [
+  { id: "select", label: "选择", icon: "↖", shortcut: "V" },
+  { id: "brush", label: "笔刷", icon: "✏️", shortcut: "B" },
+  { id: "eraser", label: "橡皮", icon: "🧹", shortcut: "E" },
+  { id: "fill", label: "填充", icon: "🪣", shortcut: "G" },
+  { id: "eyedropper", label: "吸管", icon: "💉", shortcut: "I" },
+  { id: "entity", label: "实体", icon: "◇", shortcut: "N" },
+];
+
+/** 设置当前工具 */
+export function setTool(tool: ToolType): void {
+  activeTool.value = tool;
+}
+
+/** 通过快捷键切换工具 */
+export function setToolByShortcut(key: string): boolean {
+  const tool = TOOLS.find(t => t.shortcut.toLowerCase() === key.toLowerCase());
+  if (tool) {
+    activeTool.value = tool.id;
+    return true;
+  }
+  return false;
+}
+

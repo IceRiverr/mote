@@ -9,6 +9,7 @@ import { getFileSystem } from '../fs/FileSystem';
 import { getPrefabFS } from '../fs/PrefabFS';
 import { getSceneFS } from '../fs/SceneFS';
 import { PROJECT_FILE } from './Project';
+import { newScene } from '../store/scene';
 
 // ═══════════════════════════════════════════════════════════════
 // 状态
@@ -430,6 +431,9 @@ export function createInMemoryProject(): void {
   
   // 设置当前项目
   setProject(project);
+  
+  // 自动创建默认场景（640x480）
+  newScene(640, 480);
   
   console.log('In-memory project created:', project.id);
 }

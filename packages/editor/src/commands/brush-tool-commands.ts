@@ -4,10 +4,37 @@
 // ═══════════════════════════════════════════════════════════════
 
 import type { Command } from "../store/history";
-import { currentScene, bumpVersion, getEntity } from "../store/scene";
-import { gridIndex } from "../store/gridIndex";
+import { currentScene, bumpVersion } from "../store/scene";
+import { prefabs } from "../store/prefabs";
 import type { SceneEntity } from "../data/Scene";
 import { createSceneEntity } from "../data/Scene";
+
+// ═══════════════════════════════════════════════════════════════
+// 辅助函数：查找指定网格位置的实体
+// ═══════════════════════════════════════════════════════════════
+
+function findEntityAtGrid(
+  gridX: number,
+  gridY: number,
+  layer: number,
+  gridSize: number
+): SceneEntity | undefined {
+  const scene = currentScene.value;
+  if (!scene) return undefined;
+
+  const targetX = gridX * gridSize;
+  const targetY = gridY * gridSize;
+
+  for (let i = scene.entities.length - 1; i >= 0; i--) {
+    const entity = scene.entities[i];
+    const prefab = prefabs.value.get(entity.prefab);
+    const entityLayer = prefab?.components?.Sprite?.layer ?? 0;
+    if (entityLayer === layer && entity.x === targetX && entity.y === targetY) {
+      return entity;
+    }
+  }
+  return undefined;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // PaintBrushCommand - 多格笔刷绘制命令
@@ -80,15 +107,13 @@ export class PaintBrushCommand implements Command {
     if (!scene) return;
 
     if (this.executed) {
-      // Redo 路径
+      // Redo 路径：重新应用变更
       for (const record of this.records) {
         if (record.oldEntity) {
           scene.entities = scene.entities.filter(e => e.id !== record.oldEntity!.id);
-          gridIndex.deleteByEntityId(record.oldEntity.id);
         }
         if (record.newEntity) {
           scene.entities.push({ ...record.newEntity });
-          gridIndex.set(record.gridX, record.gridY, record.layer, record.newEntity.id);
         }
       }
       bumpVersion();
@@ -104,11 +129,9 @@ export class PaintBrushCommand implements Command {
     for (const record of this.records) {
       if (record.newEntity) {
         scene.entities = scene.entities.filter(e => e.id !== record.newEntity!.id);
-        gridIndex.delete(record.gridX, record.gridY, record.layer);
       }
       if (record.oldEntity) {
         scene.entities.push({ ...record.oldEntity });
-        gridIndex.set(record.gridX, record.gridY, record.layer, record.oldEntity.id);
       }
     }
 
@@ -140,17 +163,14 @@ export class EraseCommand implements Command {
         const gridX = centerGridX + dx;
         const gridY = centerGridY + dy;
 
-        const entityId = gridIndex.get(gridX, gridY, targetLayer);
-        if (entityId) {
-          const entity = getEntity(entityId);
-          if (entity) {
-            this.erasedEntities.push({
-              entity: { ...entity },
-              gridX,
-              gridY,
-              layer: targetLayer,
-            });
-          }
+        const entity = findEntityAtGrid(gridX, gridY, targetLayer, gridSize);
+        if (entity) {
+          this.erasedEntities.push({
+            entity: { ...entity },
+            gridX,
+            gridY,
+            layer: targetLayer,
+          });
         }
       }
     }
@@ -166,11 +186,6 @@ export class EraseCommand implements Command {
 
     const erasedIds = new Set(this.erasedEntities.map(e => e.entity.id));
     scene.entities = scene.entities.filter(e => !erasedIds.has(e.id));
-    
-    for (const { gridX, gridY, layer } of this.erasedEntities) {
-      gridIndex.delete(gridX, gridY, layer);
-    }
-
     bumpVersion();
   }
 
@@ -178,9 +193,8 @@ export class EraseCommand implements Command {
     const scene = currentScene.value;
     if (!scene || this.erasedEntities.length === 0) return;
 
-    for (const { entity, gridX, gridY, layer } of this.erasedEntities) {
+    for (const { entity } of this.erasedEntities) {
       scene.entities.push(entity);
-      gridIndex.set(gridX, gridY, layer, entity.id);
     }
 
     bumpVersion();
@@ -215,14 +229,13 @@ export class FloodFillCommand implements Command {
     if (!scene) return;
 
     const visited = new Set<string>();
-    const queue: Array<{ x: number; y: number }> = [{ x: startX, y: startY }];
+    const stack: Array<{ x: number; y: number }> = [{ x: startX, y: startY }];
 
-    const startEntityId = gridIndex.get(startX, startY, this.targetLayer);
-    const startEntity = startEntityId ? getEntity(startEntityId) : null;
+    const startEntity = findEntityAtGrid(startX, startY, this.targetLayer, this.gridSize);
     const startPrefabId = startEntity?.prefab ?? null;
 
-    while (queue.length > 0) {
-      const { x, y } = queue.shift()!;
+    while (stack.length > 0) {
+      const { x, y } = stack.pop()!;
       const key = `${x},${y}`;
 
       if (visited.has(key)) continue;
@@ -234,8 +247,7 @@ export class FloodFillCommand implements Command {
         continue;
       }
 
-      const entityId = gridIndex.get(x, y, this.targetLayer);
-      const entity = entityId ? getEntity(entityId) : null;
+      const entity = findEntityAtGrid(x, y, this.targetLayer, this.gridSize);
       const prefabId = entity?.prefab ?? null;
 
       if (prefabId !== startPrefabId) continue;
@@ -248,10 +260,10 @@ export class FloodFillCommand implements Command {
         newEntity,
       });
 
-      queue.push({ x: x + 1, y });
-      queue.push({ x: x - 1, y });
-      queue.push({ x, y: y + 1 });
-      queue.push({ x, y: y - 1 });
+      stack.push({ x: x + 1, y });
+      stack.push({ x: x - 1, y });
+      stack.push({ x, y: y + 1 });
+      stack.push({ x, y: y - 1 });
     }
   }
 
@@ -263,14 +275,11 @@ export class FloodFillCommand implements Command {
     const scene = currentScene.value;
     if (!scene || this.filledGrids.length === 0) return;
 
-    for (const { gridX, gridY, oldEntity, newEntity } of this.filledGrids) {
+    for (const { oldEntity, newEntity } of this.filledGrids) {
       if (oldEntity) {
         scene.entities = scene.entities.filter(e => e.id !== oldEntity.id);
-        gridIndex.delete(gridX, gridY, this.targetLayer);
       }
-
       scene.entities.push(newEntity);
-      gridIndex.set(gridX, gridY, this.targetLayer, newEntity.id);
     }
 
     bumpVersion();
@@ -282,13 +291,11 @@ export class FloodFillCommand implements Command {
 
     for (const { newEntity } of this.filledGrids) {
       scene.entities = scene.entities.filter(e => e.id !== newEntity.id);
-      gridIndex.deleteByEntityId(newEntity.id);
     }
 
-    for (const { gridX, gridY, oldEntity } of this.filledGrids) {
+    for (const { oldEntity } of this.filledGrids) {
       if (oldEntity) {
         scene.entities.push(oldEntity);
-        gridIndex.set(gridX, gridY, this.targetLayer, oldEntity.id);
       }
     }
 
@@ -305,16 +312,13 @@ export class PickPrefabResult {
   layer: number = 0;
 }
 
-export function pickPrefab(gridX: number, gridY: number, layer: number): PickPrefabResult {
+export function pickPrefab(gridX: number, gridY: number, layer: number, gridSize: number): PickPrefabResult {
   const result = new PickPrefabResult();
 
-  const entityId = gridIndex.get(gridX, gridY, layer);
-  if (entityId) {
-    const entity = getEntity(entityId);
-    if (entity) {
-      result.prefabId = entity.prefab;
-      result.layer = layer;
-    }
+  const entity = findEntityAtGrid(gridX, gridY, layer, gridSize);
+  if (entity) {
+    result.prefabId = entity.prefab;
+    result.layer = layer;
   }
 
   return result;

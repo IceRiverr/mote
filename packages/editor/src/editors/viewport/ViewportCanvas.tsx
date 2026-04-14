@@ -31,9 +31,35 @@ import {
   brushMode,
   BrushMode,
 } from "../../store/brush";
-import { gridIndex } from "../../store/gridIndex";
 import type { SceneEntity } from "../../data/Scene";
 import { createSceneEntity } from "../../data/Scene";
+
+// ═══════════════════════════════════════════════════════════════
+// 辅助函数：查找指定网格位置的实体
+// ═══════════════════════════════════════════════════════════════
+
+function findEntityAtGrid(
+  gridX: number,
+  gridY: number,
+  layer: number,
+  gridSize: number
+): SceneEntity | undefined {
+  const scene = currentScene.value;
+  if (!scene) return undefined;
+
+  const targetX = gridX * gridSize;
+  const targetY = gridY * gridSize;
+
+  for (let i = scene.entities.length - 1; i >= 0; i--) {
+    const entity = scene.entities[i];
+    const p = prefabs.value.get(entity.prefab);
+    const entityLayer = p?.components?.Sprite?.layer ?? 0;
+    if (entityLayer === layer && entity.x === targetX && entity.y === targetY) {
+      return entity;
+    }
+  }
+  return undefined;
+}
 import {
   executeCommand,
   undo,
@@ -472,8 +498,7 @@ export function ViewportCanvas() {
       paintedCells.value.add(cellKey);
       
       // 检查该位置是否已有实体
-      const existingId = gridIndex.get(pos.x, pos.y, layer);
-      const existingEntity = existingId ? getEntity(existingId) : null;
+      const existingEntity = findEntityAtGrid(pos.x, pos.y, layer, gridSize);
       
       // 创建新实体（和 Command 中保持一致）
       const newEntity = createSceneEntity(pos.prefabId, pos.x * gridSize, pos.y * gridSize);
@@ -499,15 +524,12 @@ export function ViewportCanvas() {
       
       // 添加到场景
       currentScene.value.entities.push(newEntity);
-      
-      // 同步到 GridIndex
-      gridIndex.set(pos.x, pos.y, layer, newEntity.id);
     }
     
     bumpVersion();
   }
 
-  function eraseAt(gridX: number, gridY: number): void {
+  function eraseAt(gridX: number, gridY: number, gridSize: number): void {
     if (!currentScene.value) return;
     
     const layer = targetLayer.value;
@@ -523,20 +545,16 @@ export function ViewportCanvas() {
         if (paintedCells.value.has(cellKey)) continue;
         paintedCells.value.add(cellKey);
         
-        const entityId = gridIndex.get(x, y, layer);
-        if (entityId) {
-          const entity = getEntity(entityId);
-          if (entity && currentBrushCmd.value) {
-            (currentBrushCmd.value as PaintBrushCommand).addRecord(
-              x, y, layer, entity ?? null, null
-            );
-          }
+        const entity = findEntityAtGrid(x, y, layer, gridSize);
+        if (entity && currentBrushCmd.value) {
+          (currentBrushCmd.value as PaintBrushCommand).addRecord(
+            x, y, layer, entity, null
+          );
           
           // 实时删除
           currentScene.value.entities = currentScene.value.entities.filter(
-            e => e.id !== entityId
+            e => e.id !== entity.id
           );
-          gridIndex.delete(x, y, layer);
         }
       }
     }
@@ -555,9 +573,9 @@ export function ViewportCanvas() {
     }
   }
 
-  function eyedropperAt(gridX: number, gridY: number): void {
+  function eyedropperAt(gridX: number, gridY: number, gridSize: number): void {
     const layer = targetLayer.value;
-    const result = pickPrefab(gridX, gridY, layer);
+    const result = pickPrefab(gridX, gridY, layer, gridSize);
     
     if (result.prefabId) {
       setSinglePrefabBrush(result.prefabId);
@@ -609,7 +627,7 @@ export function ViewportCanvas() {
           isPainting.value = true;
           paintedCells.value = new Set();
           currentBrushCmd.value = new PaintBrushCommand("擦除");
-          eraseAt(gridPos.x, gridPos.y);
+          eraseAt(gridPos.x, gridPos.y, scene.grid.size);
           draw();
           break;
           
@@ -619,7 +637,7 @@ export function ViewportCanvas() {
           break;
           
         case "eyedropper":
-          eyedropperAt(gridPos.x, gridPos.y);
+          eyedropperAt(gridPos.x, gridPos.y, scene.grid.size);
           draw();
           break;
           
@@ -712,7 +730,7 @@ export function ViewportCanvas() {
       if (activeTool.value === "brush") {
         paintAt(gridPos.x, gridPos.y, scene.grid.size);
       } else {
-        eraseAt(gridPos.x, gridPos.y);
+        eraseAt(gridPos.x, gridPos.y, scene.grid.size);
       }
       draw();
       return;

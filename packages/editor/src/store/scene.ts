@@ -5,8 +5,6 @@
 import { signal, computed } from '@preact/signals';
 import type { Scene, SceneEntity, GridSettings } from '../data/Scene';
 import { createScene, createSceneEntity, snapToGrid } from '../data/Scene';
-import { gridIndex, getEntityLayer } from './gridIndex';
-import { prefabs } from './prefabs';
 
 // ═══════════════════════════════════════════════════════════════
 // 状态
@@ -51,34 +49,6 @@ export const gridSettings = computed(() => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// GridIndex 同步
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * 同步实体到 GridIndex
- */
-function syncEntityToGridIndex(entity: SceneEntity, remove: boolean = false): void {
-  const layer = getEntityLayer(entity, prefabs.value);
-  const gridX = Math.floor(entity.x / gridIndex.getGridSize());
-  const gridY = Math.floor(entity.y / gridIndex.getGridSize());
-  
-  if (remove) {
-    gridIndex.deleteByEntityId(entity.id);
-  } else {
-    gridIndex.set(gridX, gridY, layer, entity.id);
-  }
-}
-
-/**
- * 重建 GridIndex
- */
-function rebuildGridIndex(): void {
-  const scene = currentScene.value;
-  if (!scene) return;
-  gridIndex.rebuildFromEntities(scene.entities, e => getEntityLayer(e, prefabs.value));
-}
-
-// ═══════════════════════════════════════════════════════════════
 // 场景操作
 // ═══════════════════════════════════════════════════════════════
 
@@ -88,7 +58,6 @@ function rebuildGridIndex(): void {
 export function loadScene(scene: Scene): void {
   currentScene.value = scene;
   selectedEntityIds.value = new Set();
-  rebuildGridIndex();
   bumpVersion();
 }
 
@@ -147,9 +116,6 @@ export function addEntity(entity: SceneEntity): void {
     entities: [...currentScene.value.entities, entity],
   };
   
-  // 同步到 GridIndex
-  syncEntityToGridIndex(entity);
-  
   bumpVersion();
 }
 
@@ -193,11 +159,8 @@ export function spawnPrefab(
 export function removeEntity(entityId: string): boolean {
   if (!currentScene.value) return false;
   
-  const entity = currentScene.value.entities.find(e => e.id === entityId);
-  if (!entity) return false;
-  
-  // 从 GridIndex 删除
-  syncEntityToGridIndex(entity, true);
+  const index = currentScene.value.entities.findIndex(e => e.id === entityId);
+  if (index === -1) return false;
   
   currentScene.value = {
     ...currentScene.value,
@@ -243,12 +206,6 @@ export function updateEntity(entityId: string, updates: Partial<SceneEntity>): b
  * 移动实体
  */
 export function moveEntity(entityId: string, x: number, y: number): boolean {
-  const entity = getEntity(entityId);
-  if (!entity) return false;
-  
-  // 从 GridIndex 删除旧位置
-  syncEntityToGridIndex(entity, true);
-  
   // 网格吸附
   if (snapEnabled.value && currentScene.value?.grid.snap) {
     const snapped = snapToGrid(x, y, currentScene.value.grid.size);
@@ -256,17 +213,7 @@ export function moveEntity(entityId: string, x: number, y: number): boolean {
     y = snapped.y;
   }
   
-  const result = updateEntity(entityId, { x, y });
-  
-  // 同步新位置到 GridIndex
-  if (result) {
-    const updatedEntity = getEntity(entityId);
-    if (updatedEntity) {
-      syncEntityToGridIndex(updatedEntity);
-    }
-  }
-  
-  return result;
+  return updateEntity(entityId, { x, y });
 }
 
 // ═══════════════════════════════════════════════════════════════

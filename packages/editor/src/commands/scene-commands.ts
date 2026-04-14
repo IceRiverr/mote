@@ -5,10 +5,8 @@
 
 import type { Command } from "../store/history";
 import { currentScene, bumpVersion } from "../store/scene";
-import { gridIndex } from "../store/gridIndex";
-import { prefabs } from "../store/prefabs";
 import type { SceneEntity } from "../data/Scene";
-import { createSceneEntity, snapToGrid } from "../data/Scene";
+import { createSceneEntity } from "../data/Scene";
 
 // ═══════════════════════════════════════════════════════════════
 // AddEntityCommand - 添加实体
@@ -34,27 +32,14 @@ export class AddEntityCommand implements Command {
   execute(): void {
     const scene = currentScene.value;
     if (!scene) return;
-    
     scene.entities.push(this.entity);
-    
-    // 同步到 GridIndex
-    const prefab = prefabs.value.get(this.entity.prefab);
-    const layer = prefab?.components?.Sprite?.layer ?? 0;
-    const gridSize = gridIndex.getGridSize();
-    const gridX = Math.floor(this.entity.x / gridSize);
-    const gridY = Math.floor(this.entity.y / gridSize);
-    gridIndex.set(gridX, gridY, layer, this.entity.id);
-    
     bumpVersion();
   }
 
   undo(): void {
     const scene = currentScene.value;
     if (!scene) return;
-    
     scene.entities = scene.entities.filter(e => e.id !== this.entity.id);
-    gridIndex.deleteByEntityId(this.entity.id);
-    
     bumpVersion();
   }
 }
@@ -70,41 +55,22 @@ export class RemoveEntityCommand implements Command {
 
   constructor(entityId: string) {
     this.entityId = entityId;
-    
-    const scene = currentScene.value;
-    if (scene) {
-      this.entity = scene.entities.find(e => e.id === entityId) ?? null;
-    }
+    this.entity = currentScene.value?.entities.find(e => e.id === entityId) ?? null;
   }
 
   execute(): void {
     if (!this.entity) return;
-    
     const scene = currentScene.value;
     if (!scene) return;
-    
     scene.entities = scene.entities.filter(e => e.id !== this.entityId);
-    gridIndex.deleteByEntityId(this.entityId);
-    
     bumpVersion();
   }
 
   undo(): void {
     if (!this.entity) return;
-    
     const scene = currentScene.value;
     if (!scene) return;
-    
     scene.entities.push(this.entity);
-    
-    // 同步到 GridIndex
-    const prefab = prefabs.value.get(this.entity.prefab);
-    const layer = prefab?.components?.Sprite?.layer ?? 0;
-    const gridSize = gridIndex.getGridSize();
-    const gridX = Math.floor(this.entity.x / gridSize);
-    const gridY = Math.floor(this.entity.y / gridSize);
-    gridIndex.set(gridX, gridY, layer, this.entity.id);
-    
     bumpVersion();
   }
 }
@@ -125,11 +91,8 @@ export class MoveEntityCommand implements Command {
     this.entityId = entityId;
     this.newX = newX;
     this.newY = newY;
-    
-    const scene = currentScene.value;
-    const entity = scene?.entities.find(e => e.id === entityId);
-    this.oldX = entity?.x ?? newX;
-    this.oldY = entity?.y ?? newY;
+    this.oldX = currentScene.value?.entities.find(e => e.id === entityId)?.x ?? newX;
+    this.oldY = currentScene.value?.entities.find(e => e.id === entityId)?.y ?? newY;
   }
 
   execute(): void {
@@ -143,26 +106,10 @@ export class MoveEntityCommand implements Command {
   private apply(x: number, y: number): void {
     const scene = currentScene.value;
     if (!scene) return;
-    
     const entity = scene.entities.find(e => e.id === this.entityId);
     if (entity) {
-      // 先删除旧位置
-      const prefab = prefabs.value.get(entity.prefab);
-      const layer = prefab?.components?.Sprite?.layer ?? 0;
-      const gridSize = gridIndex.getGridSize();
-      const oldGridX = Math.floor(entity.x / gridSize);
-      const oldGridY = Math.floor(entity.y / gridSize);
-      gridIndex.delete(oldGridX, oldGridY, layer);
-      
-      // 更新位置
       entity.x = x;
       entity.y = y;
-      
-      // 设置新位置
-      const newGridX = Math.floor(entity.x / gridSize);
-      const newGridY = Math.floor(entity.y / gridSize);
-      gridIndex.set(newGridX, newGridY, layer, entity.id);
-      
       bumpVersion();
     }
   }
@@ -182,14 +129,9 @@ export class MoveEntitiesCommand implements Command {
     newY: number;
   }>;
 
-  constructor(
-    entityIds: string[],
-    deltaX: number,
-    deltaY: number
-  ) {
+  constructor(entityIds: string[], deltaX: number, deltaY: number) {
     const scene = currentScene.value;
     this.moves = [];
-    
     for (const id of entityIds) {
       const entity = scene?.entities.find(e => e.id === id);
       if (entity) {
@@ -215,27 +157,12 @@ export class MoveEntitiesCommand implements Command {
   private apply(fn: (m: typeof this.moves[0]) => { x: number; y: number }): void {
     const scene = currentScene.value;
     if (!scene) return;
-    
     for (const move of this.moves) {
       const entity = scene.entities.find(e => e.id === move.id);
       if (entity) {
-        // 先删除旧位置
-        const prefab = prefabs.value.get(entity.prefab);
-        const layer = prefab?.components?.Sprite?.layer ?? 0;
-        const gridSize = gridIndex.getGridSize();
-        const oldGridX = Math.floor(entity.x / gridSize);
-        const oldGridY = Math.floor(entity.y / gridSize);
-        gridIndex.delete(oldGridX, oldGridY, layer);
-        
-        // 更新位置
         const pos = fn(move);
         entity.x = pos.x;
         entity.y = pos.y;
-        
-        // 设置新位置
-        const newGridX = Math.floor(entity.x / gridSize);
-        const newGridY = Math.floor(entity.y / gridSize);
-        gridIndex.set(newGridX, newGridY, layer, entity.id);
       }
     }
     bumpVersion();
@@ -260,11 +187,7 @@ export class UpdateEntityCommand implements Command {
     this.label = label;
     this.entityId = entityId;
     this.newValues = newValues;
-    
-    const scene = currentScene.value;
-    const entity = scene?.entities.find(e => e.id === entityId);
-    
-    // 保存原始值
+    const entity = currentScene.value?.entities.find(e => e.id === entityId);
     this.oldValues = {};
     if (entity) {
       for (const key of Object.keys(newValues) as Array<keyof SceneEntity>) {
@@ -284,7 +207,6 @@ export class UpdateEntityCommand implements Command {
   private apply(values: Partial<SceneEntity>): void {
     const scene = currentScene.value;
     if (!scene) return;
-    
     const entity = scene.entities.find(e => e.id === this.entityId);
     if (entity) {
       Object.assign(entity, values);

@@ -11,11 +11,6 @@ export {
 } from './scene-commands';
 
 export {
-  PaintEntitiesCommand,
-  EraseEntitiesCommand,
-} from './brush-commands';
-
-export {
   PaintBrushCommand,
   EraseCommand,
   FloodFillCommand,

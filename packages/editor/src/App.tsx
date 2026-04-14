@@ -15,7 +15,6 @@ import { useEffect } from "preact/hooks";
 import { LayoutRoot } from "./components/LayoutRoot";
 import { MenuBar } from "./components/MenuBar";
 import { StatusBar } from "./components/StatusBar";
-import { undo, redo } from "./store/history";
 import { activeTool, type ToolType } from "./store/selection";
 import { loadBuiltinEntityDefs } from "./store/entityDefs";
 import {
@@ -53,27 +52,6 @@ export function App() {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
         saveCurrentProject();
-        return;
-      }
-
-      // Ctrl+Z / Cmd+Z -> Undo
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "z") {
-        e.preventDefault();
-        undo();
-        return;
-      }
-
-      // Ctrl+Shift+Z / Cmd+Shift+Z -> Redo
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "Z") {
-        e.preventDefault();
-        redo();
-        return;
-      }
-
-      // Ctrl+Y / Cmd+Y -> Redo (alternative)
-      if ((e.ctrlKey || e.metaKey) && e.key === "y") {
-        e.preventDefault();
-        redo();
         return;
       }
 

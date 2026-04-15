@@ -393,6 +393,13 @@ export class FileSystem {
   }
 
   /**
+   * 检查是否已打开项目根目录
+   */
+  hasRoot(): boolean {
+    return this.projectRoot !== null;
+  }
+
+  /**
    * 写入文件
    */
   async writeFile(path: string, content: string): Promise<boolean> {

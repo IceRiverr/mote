@@ -5,7 +5,6 @@
 
 import { useState } from 'preact/hooks';
 import { ImportDialog } from './ImportDialog';
-import { GeneratePrefabDialog } from './GeneratePrefabDialog';
 import {
   spriteSheets,
   activeSpriteSheetId,
@@ -24,6 +23,12 @@ import {
   MODE_NAMES,
   EditorMode,
 } from './state';
+import { spriteSheetToJson } from '../../data/io-v2';
+import {
+  isFileSystemAccessSupported,
+  exportSpriteSheetWithPicker,
+  downloadAsFallback,
+} from '../../data/fs-access';
 
 // ═══════════════════════════════════════════════════════════════
 // Mode Selector — Blender-style dropdown with tooltips
@@ -81,13 +86,69 @@ function ModeSelector() {
 
 export function SpriteEditorHeader() {
   const [showImportDialog, setShowImportDialog] = useState(false);
-  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const sheet = activeSpriteSheet.value;
   const sheets = spriteSheets.value;
   const mode = spriteEditorMode.value;
   const zoom = spriteEditorZoom.value;
   const hasContent = !!sheet;
   const selectedCount = selectedFrameIds.value.length;
+
+  // 导出处理函数
+  const handleExport = async () => {
+    if (!sheet) return;
+    setExporting(true);
+    try {
+      if (isFileSystemAccessSupported()) {
+        await exportSpriteSheetWithPicker(sheet, { saveImage: false });
+      } else {
+        const json = spriteSheetToJson(sheet);
+        
+        const header = JSON.stringify({
+          type: json.type,
+          version: json.version,
+          id: json.id,
+          name: json.name,
+          image: json.image,
+          slicing: json.slicing,
+        }, null, 2);
+        const headerWithoutBrace = header.slice(0, -1).trimEnd();
+        
+        const framesLines = json.frames.map((frame: any) => {
+          const fields: Record<string, unknown> = {
+            id: frame.id,
+            x: frame.x,
+            y: frame.y,
+            w: frame.w,
+            h: frame.h,
+          };
+          if (frame.collider) fields.collider = frame.collider;
+          if (frame.tags) fields.tags = frame.tags;
+          if (frame.properties) fields.properties = frame.properties;
+          if (frame.trimmed !== undefined) fields.trimmed = frame.trimmed;
+          if (frame.sourceWidth !== undefined) fields.sourceWidth = frame.sourceWidth;
+          if (frame.sourceHeight !== undefined) fields.sourceHeight = frame.sourceHeight;
+          if (frame.offsetX !== undefined) fields.offsetX = frame.offsetX;
+          if (frame.offsetY !== undefined) fields.offsetY = frame.offsetY;
+          if (frame.rotated !== undefined) fields.rotated = frame.rotated;
+          return JSON.stringify(fields);
+        });
+        
+        let output = headerWithoutBrace + ',\n  "frames": [\n';
+        output += framesLines.map((line: string) => '    ' + line).join(',\n');
+        output += '\n  ]\n}';
+        
+        const safeName = sheet.name.replace(/[^a-zA-Z0-9_\-]/g, '_');
+        downloadAsFallback(output, `${safeName}.mote-sprite.json`);
+      }
+    } catch (e: any) {
+      if (e.name !== 'AbortError') {
+        alert('导出失败：' + e.message);
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div
@@ -293,26 +354,6 @@ export function SpriteEditorHeader() {
           </button>
         )}
 
-        {/* Generate Prefab — only when frames selected */}
-        {selectedCount > 0 && (
-          <button
-            onClick={() => setShowGenerateDialog(true)}
-            style={{
-              fontSize: 11,
-              padding: '3px 10px',
-              height: 24,
-              background: 'rgba(74, 144, 217, 0.2)',
-              color: '#4a90d9',
-              border: '1px solid rgba(74, 144, 217, 0.5)',
-              borderRadius: 3,
-              cursor: 'pointer',
-            }}
-            title={`从选中的 ${selectedCount} 个帧生成 Prefab`}
-          >
-            ➕ Prefab ({selectedCount})
-          </button>
-        )}
-
         {/* Import */}
         <button
           onClick={() => setShowImportDialog(true)}
@@ -329,6 +370,28 @@ export function SpriteEditorHeader() {
         >
           导入
         </button>
+
+        {/* Export */}
+        {hasContent && (
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            title="导出精灵图 JSON"
+            style={{
+              fontSize: 11,
+              padding: '3px 10px',
+              height: 24,
+              background: 'var(--accent)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 3,
+              cursor: exporting ? 'not-allowed' : 'pointer',
+              opacity: exporting ? 0.7 : 1,
+            }}
+          >
+            {exporting ? '导出中...' : '导出'}
+          </button>
+        )}
       </div>
 
       {/* ── Row 2: Search bar + Image dimensions (only when has content) ── */}
@@ -400,29 +463,6 @@ export function SpriteEditorHeader() {
       {/* ── Import Dialog (Centered Modal) ── */}
       {showImportDialog && (
         <ImportDialog onClose={() => setShowImportDialog(false)} />
-      )}
-
-      {/* ── Generate Prefab Dialog ── */}
-      {showGenerateDialog && sheet && (
-        <GeneratePrefabDialog
-          frames={selectedFrameIds.value
-            .map(id => {
-              const frame = sheet.frames[id];
-              return frame ? { ...frame, id } : null;
-            })
-            .filter((f): f is NonNullable<typeof f> => f !== null)}
-          atlas={{
-            id: sheet.id,
-            name: sheet.name,
-            image: sheet.image,
-            frames: Object.entries(sheet.frames).map(([id, frame]) => ({ ...frame, id })),
-          }}
-          onClose={() => setShowGenerateDialog(false)}
-          onGenerated={(count) => {
-            alert(`成功生成 ${count} 个 Prefab`);
-            selectedFrameIds.value = []; // 清空选择
-          }}
-        />
       )}
     </div>
   );

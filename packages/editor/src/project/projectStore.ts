@@ -380,7 +380,7 @@ function setProject(project: Project): void {
   lastSavedAt.value = Date.now();
 }
 
-async function initializeSubsystems(): Promise<void> {
+export async function initializeSubsystems(): Promise<void> {
   // 初始化 PrefabFS
   const prefabFS = getPrefabFS();
   await prefabFS.initialize();

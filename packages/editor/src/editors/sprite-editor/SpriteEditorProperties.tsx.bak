@@ -16,9 +16,8 @@ import {
 } from './state';
 import { COLLIDER_PRESETS } from '../../data/Collider';
 import type { ColliderShape } from '../../data/Collider';
+import type { FrameDataWithId } from '../../data/SpriteSheet';
 import { getPrefabFS } from '../../fs/PrefabFS';
-import { getFileSystem } from '../../fs/FileSystem';
-import { OpenProjectDialog } from '../../components/OpenProjectDialog';
 
 // ── Collider Preset Button ────────────────────────────────────
 
@@ -66,340 +65,89 @@ function PresetButton({ label, icon, active, onClick }: PresetButtonProps) {
   );
 }
 
-// ── Generate Prefab Button ───────────────────────────────────
+// ── Export Button ─────────────────────────────────────────────
 
-function GeneratePrefabButton() {
+function ExportButton() {
   const sheet = activeSpriteSheet.value;
-  const selected = selectedFrameIds.value;
-  const [showDialog, setShowDialog] = useState(false);
-  const [showOpenProjectDialog, setShowOpenProjectDialog] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [prefix, setPrefix] = useState(sheet?.name || '');
-  const [category, setCategory] = useState('environment');
-  const [autoCollider, setAutoCollider] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  
+  if (!sheet) return null;
 
-  if (!sheet || selected.length === 0) return null;
-
-  const handleGenerate = async () => {
-    // 严格模式：检查是否已打开文件夹（检查 FileSystem 的 rootHandle）
-    const fs = getFileSystem();
-    if (!fs.hasRoot()) {
-      console.log('[GeneratePrefab] No project folder opened, showing dialog');
-      setShowOpenProjectDialog(true);
-      return;
-    }
-
-    setIsGenerating(true);
+  const handleExport = async () => {
+    setExporting(true);
     try {
-      const prefabFS = getPrefabFS();
-      await prefabFS.initialize();
-
-      let successCount = 0;
-      let skipCount = 0;
-      
-      for (let i = 0; i < selected.length; i++) {
-        const frameId = selected[i];
-        const frame = sheet.frames[frameId];
+      if (isFileSystemAccessSupported()) {
+        // Use File System Access API for directory selection
+        await exportSpriteSheetWithPicker(sheet, { saveImage: false });
+      } else {
+        // Fallback to download
+        const json = spriteSheetToJson(sheet);
         
-        if (!frame) {
-          console.warn(`Frame ${frameId} not found in sheet`);
-          continue;
-        }
-
-        // 使用帧的原始 ID 作为 Prefab ID 的一部分，避免重复
-        // 例如：wall_frame_110, grass_frame_120
-        const prefabId = `${prefix}_${frameId}`;
+        const header = JSON.stringify({
+          type: json.type,
+          version: json.version,
+          id: json.id,
+          name: json.name,
+          image: json.image,
+          slicing: json.slicing,
+        }, null, 2);
+        const headerWithoutBrace = header.slice(0, -1).trimEnd();
         
-        if (prefabFS.has(prefabId)) {
-          console.warn(`Prefab ${prefabId} already exists, skipping`);
-          skipCount++;
-          continue;
-        }
-
-        const components: Record<string, any> = {
-          Transform: {
-            x: 0,
-            y: 0,
-            rotation: 0,
-            scaleX: 1,
-            scaleY: 1,
-          },
-          Sprite: {
-            atlas: sheet.id,
-            frame: frameId,
-            layer: 0,
-            tint: '#ffffff',
-            flipX: false,
-            flipY: false,
-            alpha: 1,
-            visible: true,
-          },
-        };
-
-        if (autoCollider && frame.collider && frame.collider.length > 0) {
-          components.Collider = {
-            shapes: frame.collider,
-            isTrigger: false,
-            material: 'default',
-            layer: 1,
-            mask: 0xFFFFFFFF,
+        const framesLines = json.frames.map((frame: any) => {
+          const fields: Record<string, unknown> = {
+            id: frame.id,
+            x: frame.x,
+            y: frame.y,
+            w: frame.w,
+            h: frame.h,
           };
-        }
-
-        const prefab = {
-          id: prefabId,
-          name: prefabId,
-          category,
-          components,
-        };
-
-        const success = await prefabFS.save(prefab, category);
-        if (success) {
-          successCount++;
-        } else {
-          console.warn(`Failed to save prefab: ${prefabId}`);
-        }
+          if (frame.collider) fields.collider = frame.collider;
+          if (frame.tags) fields.tags = frame.tags;
+          if (frame.properties) fields.properties = frame.properties;
+          if (frame.trimmed !== undefined) fields.trimmed = frame.trimmed;
+          if (frame.sourceWidth !== undefined) fields.sourceWidth = frame.sourceWidth;
+          if (frame.sourceHeight !== undefined) fields.sourceHeight = frame.sourceHeight;
+          if (frame.offsetX !== undefined) fields.offsetX = frame.offsetX;
+          if (frame.offsetY !== undefined) fields.offsetY = frame.offsetY;
+          if (frame.rotated !== undefined) fields.rotated = frame.rotated;
+          return JSON.stringify(fields);
+        });
+        
+        let output = headerWithoutBrace + ',\n  "frames": [\n';
+        output += framesLines.map((line: string) => '    ' + line).join(',\n');
+        output += '\n  ]\n}';
+        
+        const safeName = sheet.name.replace(/[^a-zA-Z0-9_\-]/g, '_');
+        downloadAsFallback(output, `${safeName}.mote-sprite.json`);
       }
-
-      alert(`成功生成 ${successCount} 个 Prefab${skipCount > 0 ? `，跳过 ${skipCount} 个 (已存在)` : ''}`);
-      setShowDialog(false);
-    } catch (err) {
-      console.error('Failed to generate prefabs:', err);
-      alert('生成失败：' + (err as Error).message);
+    } catch (e: any) {
+      if (e.name !== 'AbortError') {
+        alert('导出失败: ' + e.message);
+      }
     } finally {
-      setIsGenerating(false);
+      setExporting(false);
     }
   };
 
-  const categories = [
-    { id: 'environment', name: '环境' },
-    { id: 'characters', name: '角色' },
-    { id: 'items', name: '物品' },
-    { id: 'effects', name: '特效' },
-    { id: 'ui', name: 'UI' },
-  ];
-
   return (
-    <>
-      <button
-        onClick={async () => {
-          // 先检查是否已打开文件夹
-          const fs = getFileSystem();
-          if (!fs.hasRoot()) {
-            setShowOpenProjectDialog(true);
-            return;
-          }
-          setShowDialog(true);
-        }}
-        style={{
-          width: '100%',
-          padding: '8px 12px',
-          background: 'rgba(74, 144, 217, 0.2)',
-          border: '1px solid rgba(74, 144, 217, 0.5)',
-          borderRadius: 4,
-          color: '#4a90d9',
-          cursor: 'pointer',
-          fontSize: 11,
-          fontWeight: 'bold',
-          marginTop: 8,
-        }}
-      >
-        ➕ 生成 {selected.length} 个 Prefab
-      </button>
-
-      {showDialog && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowDialog(false);
-          }}
-        >
-          <div
-            style={{
-              width: 420,
-              background: '#2a2a2a',
-              borderRadius: 8,
-              border: '1px solid #444',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            {/* Header */}
-            <div
-              style={{
-                padding: '16px 20px',
-                borderBottom: '1px solid #444',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#fff' }}>
-                生成 Prefab
-              </h2>
-              <button
-                onClick={() => setShowDialog(false)}
-                style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 18, padding: 0 }}
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Content */}
-            <div style={{ padding: 20 }}>
-              {/* Prefix */}
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#aaa', marginBottom: 6, textTransform: 'uppercase' }}>
-                  ID 前缀
-                </label>
-                <input
-                  type="text"
-                  value={prefix}
-                  onInput={(e) => setPrefix((e.target as HTMLInputElement).value)}
-                  placeholder="例如：wall, grass"
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    fontSize: 13,
-                    background: '#1a1a1a',
-                    border: '1px solid #444',
-                    borderRadius: 4,
-                    color: '#fff',
-                    outline: 'none',
-                  }}
-                />
-                <p style={{ margin: '6px 0 0 0', fontSize: 10, color: '#666' }}>
-                  格式：{prefix}_frame_001, {prefix}_frame_010...
-                </p>
-              </div>
-
-              {/* Category */}
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#aaa', marginBottom: 6, textTransform: 'uppercase' }}>
-                  分类
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory((e.target as HTMLSelectElement).value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    fontSize: 13,
-                    background: '#1a1a1a',
-                    border: '1px solid #444',
-                    borderRadius: 4,
-                    color: '#fff',
-                    outline: 'none',
-                  }}
-                >
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Auto Collider */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <input
-                  type="checkbox"
-                  id="auto-collider"
-                  checked={autoCollider}
-                  onChange={(e) => setAutoCollider((e.target as HTMLInputElement).checked)}
-                  style={{ width: 16, height: 16 }}
-                />
-                <label htmlFor="auto-collider" style={{ fontSize: 12, color: '#e0e0e0', cursor: 'pointer' }}>
-                  自动添加碰撞体（如果帧有定义）
-                </label>
-              </div>
-
-              {/* Preview */}
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#aaa', marginBottom: 6, textTransform: 'uppercase' }}>
-                  预览
-                </div>
-                <div style={{ maxHeight: 100, overflowY: 'auto', background: '#1a1a1a', borderRadius: 4, padding: 8 }}>
-                  {selected.slice(0, 5).map((frameId, i) => {
-                    return (
-                      <div key={frameId} style={{ padding: '2px 0', fontSize: 11, color: '#888', fontFamily: 'monospace' }}>
-                        {prefix}_{frameId}
-                      </div>
-                    );
-                  })}
-                  {selected.length > 5 && (
-                    <div style={{ padding: '2px 0', fontSize: 11, color: '#666' }}>
-                      ...等 {selected.length - 5} 个
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div
-              style={{
-                padding: '16px 20px',
-                borderTop: '1px solid #444',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: 10,
-              }}
-            >
-              <button
-                onClick={() => setShowDialog(false)}
-                disabled={isGenerating}
-                style={{
-                  padding: '8px 16px',
-                  fontSize: 13,
-                  background: 'transparent',
-                  border: '1px solid #444',
-                  borderRadius: 4,
-                  color: '#aaa',
-                  cursor: 'pointer',
-                }}
-              >
-                取消
-              </button>
-              <button
-                onClick={handleGenerate}
-                disabled={isGenerating || !prefix.trim()}
-                style={{
-                  padding: '8px 20px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  background: '#4a90d9',
-                  border: 'none',
-                  borderRadius: 4,
-                  color: '#fff',
-                  cursor: isGenerating || !prefix.trim() ? 'not-allowed' : 'pointer',
-                  opacity: isGenerating || !prefix.trim() ? 0.6 : 1,
-                }}
-              >
-                {isGenerating ? '生成中...' : `生成 Prefab`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Open Project Dialog */}
-      {showOpenProjectDialog && (
-        <OpenProjectDialog
-          onClose={() => setShowOpenProjectDialog(false)}
-          onOpened={() => {
-            setShowOpenProjectDialog(false);
-            setShowDialog(true); // 项目打开后自动显示生成对话框
-          }}
-        />
-      )}
-    </>
+    <button
+      onClick={handleExport}
+      disabled={exporting}
+      title="导出精灵图 JSON"
+      style={{
+        background: 'var(--accent)',
+        border: 'none',
+        borderRadius: 3,
+        cursor: exporting ? 'not-allowed' : 'pointer',
+        color: '#fff',
+        fontSize: 10,
+        padding: '3px 8px',
+        fontWeight: 'bold',
+        opacity: exporting ? 0.7 : 1,
+      }}
+    >
+      {exporting ? '导出中...' : '导出'}
+    </button>
   );
 }
 
@@ -459,7 +207,7 @@ function FrameInfoSection() {
     return (
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>
-          多选：{selected.length} 帧
+          多选: {selected.length} 帧
         </div>
         <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
           {selected.slice(0, 5).join(', ')}
@@ -483,7 +231,7 @@ function FrameInfoSection() {
         </span>
       </div>
       <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
-        位置：({frame.frame.x}, {frame.frame.y})
+        位置: ({frame.frame.x}, {frame.frame.y})
       </div>
     </div>
   );
@@ -561,7 +309,7 @@ function ColliderSection() {
   );
 }
 
-// ── Tags Section ─────────────────────────────────────────────
+// ── Tags Section ──────────────────────────────────────────────
 
 function TagsSection() {
   const [expanded, setExpanded] = useState(true);
@@ -713,7 +461,7 @@ function TagsSection() {
   );
 }
 
-// ── Properties Panel ─────────────────────────────────────────
+// ── Properties Panel ──────────────────────────────────────────
 
 export function SpriteEditorProperties() {
   if (!propertiesPanelVisible.value) return null;
@@ -744,22 +492,25 @@ export function SpriteEditorProperties() {
         <span style={{ fontSize: 11, fontWeight: 'bold', color: 'var(--text-primary)' }}>
           属性
         </span>
-        <button
-          onClick={() => {
-            propertiesPanelVisible.value = false;
-          }}
-          title="隐藏属性面板 (N)"
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            color: 'var(--text-secondary)',
-            fontSize: 12,
-            padding: '2px 4px',
-          }}
-        >
-          ×
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <ExportButton />
+          <button
+            onClick={() => {
+              propertiesPanelVisible.value = false;
+            }}
+            title="隐藏属性面板 (N)"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-secondary)',
+              fontSize: 12,
+              padding: '2px 4px',
+            }}
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       {/* Content */}
@@ -773,13 +524,12 @@ export function SpriteEditorProperties() {
         <FrameInfoSection />
         <ColliderSection />
         <TagsSection />
-        <GeneratePrefabButton />
       </div>
     </div>
   );
 }
 
-// ── Toggle Button (shown when panel is hidden) ───────────────
+// ── Toggle Button (shown when panel is hidden) ────────────────
 
 export function PropertiesToggleButton() {
   if (propertiesPanelVisible.value) return null;

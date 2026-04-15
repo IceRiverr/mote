@@ -1,0 +1,24 @@
+{
+  "id": "tiny-dungeon_tilemap_packed_01",
+  "name": "tiny-dungeon_tilemap_packed_01",
+  "category": "environment",
+  "components": {
+    "Transform": {
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "scaleX": 1,
+      "scaleY": 1
+    },
+    "Sprite": {
+      "atlas": "sheet_1776183793673_pjbf",
+      "frame": "frame_28",
+      "layer": 0,
+      "tint": "#ffffff",
+      "flipX": false,
+      "flipY": false,
+      "alpha": 1,
+      "visible": true
+    }
+  }
+}

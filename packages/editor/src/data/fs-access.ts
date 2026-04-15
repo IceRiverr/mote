@@ -198,18 +198,19 @@ export async function readJsonFile(
 
 /**
  * 写入 JSON 内容到文件
+ * 支持直接传入已格式化的字符串（如紧凑格式的 SpriteSheet）
  */
 export async function writeJsonFile(
   fileHandle: FileSystemFileHandle,
-  data: unknown,
+  data: unknown | string,
   options: { pretty?: boolean } = {}
 ): Promise<void> {
   try {
     const writable = await (fileHandle as any).createWritable();
-    const json = options.pretty !== false
-      ? JSON.stringify(data, null, 2)
-      : JSON.stringify(data);
-    await writable.write(json);
+    const content = typeof data === 'string'
+      ? data
+      : (options.pretty !== false ? JSON.stringify(data, null, 2) : JSON.stringify(data));
+    await writable.write(content);
     await writable.close();
   } catch (e) {
     console.error("Failed to write JSON file:", e);
@@ -257,53 +258,6 @@ export function isFileSystemAccessSupported(): boolean {
 }
 
 /**
- * 将 SpriteSheet 转换为紧凑格式的 JSON 字符串（每个 frame 一行）
- */
-async function formatSpriteSheetJson(sheet: any): Promise<string> {
-  const { spriteSheetToJson } = await import('./io-v2');
-  const json = spriteSheetToJson(sheet);
-  
-  // 构建头部（不包含 frames 数组）
-  const header = {
-    type: json.type,
-    version: json.version,
-    id: json.id,
-    name: json.name,
-    image: json.image,
-    slicing: json.slicing,
-  };
-  
-  const headerStr = JSON.stringify(header, null, 2).slice(0, -1).trimEnd();
-  
-  // 每个 frame 一行
-  const framesLines = json.frames.map((frame: any) => {
-    const fields: Record<string, unknown> = {
-      id: frame.id,
-      x: frame.x,
-      y: frame.y,
-      w: frame.w,
-      h: frame.h,
-    };
-    if (frame.collider) fields.collider = frame.collider;
-    if (frame.tags) fields.tags = frame.tags;
-    if (frame.properties) fields.properties = frame.properties;
-    if (frame.trimmed !== undefined) fields.trimmed = frame.trimmed;
-    if (frame.sourceWidth !== undefined) fields.sourceWidth = frame.sourceWidth;
-    if (frame.sourceHeight !== undefined) fields.sourceHeight = frame.sourceHeight;
-    if (frame.offsetX !== undefined) fields.offsetX = frame.offsetX;
-    if (frame.offsetY !== undefined) fields.offsetY = frame.offsetY;
-    if (frame.rotated !== undefined) fields.rotated = frame.rotated;
-    return JSON.stringify(fields);
-  });
-  
-  let output = headerStr + ',\n  "frames": [\n';
-  output += framesLines.map((line: string) => '    ' + line).join(',\n');
-  output += '\n  ]\n}';
-  
-  return output;
-}
-
-/**
  * 导出 SpriteSheet 到文件（使用文件选择器）
  */
 export async function exportSpriteSheetWithPicker(
@@ -320,7 +274,9 @@ export async function exportSpriteSheetWithPicker(
     });
     
     const writable = await (handle as any).createWritable();
-    const json = await formatSpriteSheetJson(sheet);
+    // 使用 io.ts 的格式化函数
+    const { formatSpriteSheetJson } = await import('./io');
+    const json = formatSpriteSheetJson(sheet);
     await writable.write(json);
     await writable.close();
   } catch (e: any) {

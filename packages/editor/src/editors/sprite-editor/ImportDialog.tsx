@@ -492,7 +492,7 @@ export function ImportDialog({ onClose }: Props) {
         img.src = url;
       });
       
-      const { spriteSheetFromJson } = await import('../../data/io-v2');
+      const { spriteSheetFromJson } = await import('../../data/io');
       const sheet = spriteSheetFromJson({
         type: 'mote-sprite',
         version: '1.0.0',

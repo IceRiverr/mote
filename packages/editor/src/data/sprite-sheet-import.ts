@@ -76,7 +76,7 @@ export function readJsonFile(file: File): Promise<unknown> {
 // Import functions for different formats (used by ImportDialog)
 // ═══════════════════════════════════════════════════════════════
 
-import { spriteSheetFromJson } from "./io-v2";
+import { spriteSheetFromJson } from "./io";
 
 /**
  * Import grid-based sprite sheet from image file

@@ -38,6 +38,8 @@ export type Slicing = GridSlicing | PackedSlicing | XmlSlicing | ManualSlicing;
 
 /** Frame data — atomic sprite unit */
 export interface FrameData {
+  /** Frame name — string reference key used across resources */
+  name?: string;
   x: number;
   y: number;
   w: number;
@@ -56,11 +58,6 @@ export interface FrameData {
   offsetY?: number;
   /** Whether rotated 90° CW in atlas */
   rotated?: boolean;
-}
-
-/** Frame data with ID for array export format */
-export interface FrameDataWithId extends FrameData {
-  id: string;
 }
 
 // ── SpriteSheet ───────────────────────────────────────────────

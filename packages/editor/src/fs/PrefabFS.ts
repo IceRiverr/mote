@@ -17,7 +17,7 @@ import { FileSystem, getFileSystem } from './FileSystem';
 /**
  * Prefab 文件扩展名
  */
-export const PREFAB_EXTENSION = '.prefab.json';
+export const PREFAB_EXTENSION = '.mote-prefab.json';
 
 /**
  * Prefab 元数据（用于索引）
@@ -26,7 +26,7 @@ export interface PrefabMeta {
   id: string;
   name: string;
   category: string;
-  path: string;           // 文件路径，如 "prefabs/environment/grass_01.prefab.json"
+  path: string;           // 文件路径，如 "prefabs/environment/grass_01.mote-prefab.json"
   lastModified: number;
 }
 
@@ -84,7 +84,7 @@ export class PrefabFS {
    * @param category - 分类（决定子目录），可选
    */
   async save(prefab: Prefab, category?: string): Promise<boolean> {
-    const cat = category || prefab.category || 'uncategorized';
+    const cat = category || prefab.tags?.[0] || 'uncategorized';
     const fileName = `${prefab.id}${PREFAB_EXTENSION}`;
     const filePath = `prefabs/${cat}/${fileName}`;
 
@@ -153,15 +153,15 @@ export class PrefabFS {
 
       const prefab = data as Prefab;
       
-      // 提取分类
-      const category = this.extractCategoryFromPath(filePath);
+      // 提取分类（文件路径决定）
+      const fileCategory = this.extractCategoryFromPath(filePath);
       
       // 更新缓存
       this.cache.set(prefab.id, prefab);
       this.metaCache.set(prefab.id, {
         id: prefab.id,
         name: prefab.name,
-        category,
+        category: fileCategory,
         path: filePath,
         lastModified: Date.now(),
       });
@@ -215,11 +215,10 @@ export class PrefabFS {
     // 确保目标目录存在
     await this.fs.createDirectory(`prefabs/${targetCategory}`);
 
-    // 更新 Prefab
+    // 更新 Prefab（保持 tags 不变，仅修改 id）
     const updatedPrefab: Prefab = {
       ...prefab,
       id: targetId,
-      category: targetCategory,
     };
 
     // 保存到新位置
@@ -363,7 +362,7 @@ export class PrefabFS {
       const prefab: Prefab = {
         id,
         name: id,
-        category,
+        tags: [category],
         components: {
           Transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
           Sprite: {
@@ -447,7 +446,7 @@ export class PrefabFS {
 
   private extractCategoryFromPath(filePath: string): string {
     const parts = filePath.split('/');
-    // prefabs/category/name.prefab.json
+    // prefabs/category/name.mote-prefab.json
     if (parts.length >= 2) {
       return parts[parts.length - 2];
     }

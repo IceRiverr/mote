@@ -71,7 +71,7 @@ export async function testPrefabFS(): Promise<void> {
   const prefab = createPrefab(
     'test_grass',
     '测试草地',
-    'environment',
+    ['environment'],
     {
       Transform: { x: 0, y: 0 },
       Sprite: { atlas: 'terrain', frame: 'grass_01' },

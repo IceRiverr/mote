@@ -4,11 +4,10 @@
 
 import { signal, computed, type ReadonlySignal } from '@preact/signals';
 import type { Project, ProjectInfo, ProjectSettings } from './Project';
-import { createProject, validateProject, touchProject, generateProjectId, DEFAULT_PROJECT_NAME } from './Project';
+import { createProject, validateProject, touchProject, generateProjectId, DEFAULT_PROJECT_NAME, generateProjectFileName } from './Project';
 import { getFileSystem } from '../fs/FileSystem';
 import { getPrefabFS } from '../fs/PrefabFS';
 import { getSceneFS } from '../fs/SceneFS';
-import { PROJECT_FILE } from './Project';
 import { newScene } from '../store/scene';
 
 // ═══════════════════════════════════════════════════════════════
@@ -73,16 +72,13 @@ export async function createNewProject(
     const id = generateProjectId(name);
     const project = createProject(id, name, settings);
 
-    // 创建标准目录结构
-    await fs.createDirectory('prefabs');
-    await fs.createDirectory('prefabs/characters');
-    await fs.createDirectory('prefabs/environment');
-    await fs.createDirectory('prefabs/items');
-    await fs.createDirectory('scenes');
-    await fs.createDirectory('sprites');
+    // 创建标准目录结构（仅 assets 和 src）
+    await fs.createDirectory('assets');
+    await fs.createDirectory('src');
 
     // 保存项目文件
-    await saveProjectFile(project);
+    const fileName = generateProjectFileName(project.name);
+    await saveProjectFile(project, fileName);
 
     // 初始化子系统
     await initializeSubsystems();
@@ -105,31 +101,21 @@ export async function createNewProject(
 }
 
 /**
- * 打开现有项目
+ * 扫描当前目录中的项目文件
  */
-export async function openExistingProject(): Promise<Project | null> {
+export async function scanProjectsInDirectory(): Promise<string[]> {
+  const fs = getFileSystem();
+  return await fs.scanProjectFiles();
+}
+
+/**
+ * 按文件名加载并打开项目
+ */
+export async function loadAndOpenProject(fileName: string): Promise<Project | null> {
   try {
-    isLoading.value = true;
-
-    const fs = getFileSystem();
-    
-    // 选择项目目录
-    const success = await fs.openProject();
-    if (!success) {
-      console.log('User cancelled project opening');
-      return null;
-    }
-
-    // 加载项目文件
-    const project = await loadProjectFile();
+    const project = await loadProjectFile(fileName);
     if (!project) {
-      console.error('Failed to load project.json');
-      
-      // 询问是否创建新项目
-      if (confirm('No project.json found. Create new project here?')) {
-        return await createNewProject();
-      }
-      
+      console.error(`Failed to load project file: ${fileName}`);
       return null;
     }
 
@@ -146,10 +132,66 @@ export async function openExistingProject(): Promise<Project | null> {
     }
 
     // 添加到最近项目
-    addToRecentProjects(project);
+    addToRecentProjects(project, fileName);
 
-    console.log('Project opened:', project.id);
+    console.log('Project opened:', project.id, 'from', fileName);
     return project;
+  } catch (err) {
+    console.error('Failed to open project:', err);
+    return null;
+  }
+}
+
+/**
+ * 打开现有项目
+ * 0 个 -> 提示创建新项目
+ * 1 个 -> 直接打开
+ * 多个 -> prompt 让用户选择（UI 层建议改用 OpenProjectDialog）
+ */
+export async function openExistingProject(): Promise<Project | null> {
+  try {
+    isLoading.value = true;
+
+    const fs = getFileSystem();
+    
+    // 选择项目目录
+    const success = await fs.openProject();
+    if (!success) {
+      console.log('User cancelled project opening');
+      return null;
+    }
+
+    const projectFiles = await scanProjectsInDirectory();
+
+    if (projectFiles.length === 0) {
+      console.error('No .mote-project.json found');
+      if (confirm('未找到项目文件。是否在此创建新项目？')) {
+        return await createNewProject();
+      }
+      return null;
+    }
+
+    if (projectFiles.length === 1) {
+      return await loadAndOpenProject(projectFiles[0]);
+    }
+
+    // 多个项目文件：简单 prompt 选择（MenuBar 场景下的降级方案）
+    const list = projectFiles.map((f, i) => `${i + 1}. ${f}`).join('\n');
+    const choice = prompt(`该目录包含多个项目文件，请选择要打开的项目（输入完整文件名或序号）：\n${list}`, projectFiles[0]);
+    if (!choice) return null;
+
+    const selected = projectFiles.find((f, i) => f === choice || `${i + 1}` === choice || `${i + 1}.` === choice);
+    if (!selected) {
+      // 尝试直接匹配用户输入
+      const exact = projectFiles.find(f => f.toLowerCase() === choice.toLowerCase());
+      if (!exact) {
+        alert('未找到匹配的项目文件');
+        return null;
+      }
+      return await loadAndOpenProject(exact);
+    }
+
+    return await loadAndOpenProject(selected);
 
   } catch (err) {
     console.error('Failed to open project:', err);
@@ -336,13 +378,14 @@ export function saveRecentProjects(): void {
 /**
  * 添加到最近项目
  */
-function addToRecentProjects(project: Project): void {
+function addToRecentProjects(project: Project, fileName?: string): void {
   const info: ProjectInfo = {
     id: project.id,
     name: project.name,
     path: '', // 暂时无法获取路径
+    projectFileName: fileName || project.projectFileName || generateProjectFileName(project.name),
     lastOpened: Date.now(),
-    modifiedAt: new Date(project.modifiedAt).getTime(),
+    modifiedAt: new Date(project.modifiedAt || Date.now()).getTime(),
   };
 
   // 去重并移到最前
@@ -390,22 +433,23 @@ export async function initializeSubsystems(): Promise<void> {
   await sceneFS.initialize();
 }
 
-async function saveProjectFile(project: Project): Promise<boolean> {
+async function saveProjectFile(project: Project, fileName?: string): Promise<boolean> {
   const fs = getFileSystem();
+  const name = fileName || project.projectFileName || generateProjectFileName(project.name);
   const content = JSON.stringify(project, null, 2);
-  return await fs.writeFile(PROJECT_FILE, content);
+  return await fs.writeFile(name, content);
 }
 
-async function loadProjectFile(): Promise<Project | null> {
+async function loadProjectFile(fileName: string): Promise<Project | null> {
   const fs = getFileSystem();
-  const content = await fs.readFile(PROJECT_FILE);
+  const content = await fs.readFile(fileName);
   
   if (!content) return null;
 
   try {
     const data = JSON.parse(content);
     if (validateProject(data)) {
-      return data;
+      return { ...data, projectFileName: fileName };
     }
     console.error('Invalid project file format');
     return null;

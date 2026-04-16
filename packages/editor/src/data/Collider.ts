@@ -107,13 +107,6 @@ export function colliderToJson(c: ColliderData): Record<string, unknown> {
 export function colliderFromJson(obj: unknown): ColliderData | undefined {
   if (!obj || typeof obj !== 'object') return undefined;
   const o = obj as Record<string, unknown>;
-  // Legacy boolean format
-  if (typeof o === 'boolean' || (o as any) === true) {
-    return { shapes: [{ type: 'full' }] };
-  }
-  if (Array.isArray(o)) {
-    return { shapes: o as ColliderShape[] };
-  }
   if (Array.isArray(o.shapes)) {
     return {
       shapes: o.shapes as ColliderShape[],

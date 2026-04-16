@@ -7,7 +7,7 @@ import type { Command } from "../store/history";
 import { currentScene, bumpVersion } from "../store/scene";
 import { prefabs } from "../store/prefabs";
 import type { SceneEntity } from "../data/Scene";
-import { createSceneEntity } from "../data/Scene";
+import { createSceneEntity, getEntityTransform } from "../data/Scene";
 
 // ═══════════════════════════════════════════════════════════════
 // 辅助函数：查找指定网格位置的实体
@@ -29,7 +29,8 @@ function findEntityAtGrid(
     const entity = scene.entities[i];
     const prefab = prefabs.value.get(entity.prefab);
     const entityLayer = prefab?.components?.Sprite?.layer ?? 0;
-    if (entityLayer === layer && entity.x === targetX && entity.y === targetY) {
+    const t = getEntityTransform(entity);
+    if (entityLayer === layer && t.x === targetX && t.y === targetY) {
       return entity;
     }
   }

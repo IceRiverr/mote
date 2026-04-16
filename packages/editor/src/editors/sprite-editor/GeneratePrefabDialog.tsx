@@ -4,17 +4,17 @@
 
 import { useState } from 'preact/hooks';
 import { getPrefabFS } from '../../fs/PrefabFS';
-import type { FrameData, FrameDataWithId } from '../../data/SpriteSheet';
+import type { FrameData } from '../../data/SpriteSheet';
 
 interface SpriteAtlasInfo {
   id: string;
   name: string;
   image: string;
-  frames: FrameDataWithId[];
+  frames: FrameData[];
 }
 
 interface GeneratePrefabDialogProps {
-  frames: FrameDataWithId[];
+  frames: FrameData[];
   atlas: SpriteAtlasInfo;
   onClose: () => void;
   onGenerated?: (count: number) => void;
@@ -75,7 +75,7 @@ export function GeneratePrefabDialog({
           },
           Sprite: {
             atlas: atlas.id,
-            frame: frame.id,
+            frame: frame.name ?? '',
             layer: 0,
             tint: '#ffffff',
             flipX: false,

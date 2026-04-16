@@ -41,8 +41,8 @@ export interface SpriteAtlas {
 export interface GeneratePrefabOptions {
   /** ID 前缀（批量生成时使用） */
   prefix?: string;
-  /** 分类 */
-  category?: string;
+  /** 标签列表 */
+  tags?: string[];
   /** 是否自动添加 Collider（如果 frame 有 collider 数据） */
   autoCollider?: boolean;
 }
@@ -55,7 +55,7 @@ export function generatePrefabFromFrame(
   atlas: SpriteAtlas,
   options: GeneratePrefabOptions = {}
 ): Prefab {
-  const { prefix, category = 'from-sprite', autoCollider = true } = options;
+  const { prefix, tags = ['from-sprite'], autoCollider = true } = options;
   
   // 生成 ID
   const frameNum = frame.id.replace('frame_', '');
@@ -101,7 +101,7 @@ export function generatePrefabFromFrame(
   return {
     id,
     name,
-    category,
+    tags,
     components,
   };
 }

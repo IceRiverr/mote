@@ -6,7 +6,7 @@
 import type { Command } from "../store/history";
 import { currentScene, bumpVersion } from "../store/scene";
 import type { SceneEntity } from "../data/Scene";
-import { createSceneEntity } from "../data/Scene";
+import { createSceneEntity, getEntityTransform, setEntityTransform } from "../data/Scene";
 
 // ═══════════════════════════════════════════════════════════════
 // AddEntityCommand - 添加实体
@@ -91,8 +91,9 @@ export class MoveEntityCommand implements Command {
     this.entityId = entityId;
     this.newX = newX;
     this.newY = newY;
-    this.oldX = currentScene.value?.entities.find(e => e.id === entityId)?.x ?? newX;
-    this.oldY = currentScene.value?.entities.find(e => e.id === entityId)?.y ?? newY;
+    const t = currentScene.value?.entities.find(e => e.id === entityId);
+    this.oldX = t ? getEntityTransform(t).x : newX;
+    this.oldY = t ? getEntityTransform(t).y : newY;
   }
 
   execute(): void {
@@ -108,8 +109,7 @@ export class MoveEntityCommand implements Command {
     if (!scene) return;
     const entity = scene.entities.find(e => e.id === this.entityId);
     if (entity) {
-      entity.x = x;
-      entity.y = y;
+      setEntityTransform(entity, { x, y });
       bumpVersion();
     }
   }
@@ -135,12 +135,13 @@ export class MoveEntitiesCommand implements Command {
     for (const id of entityIds) {
       const entity = scene?.entities.find(e => e.id === id);
       if (entity) {
+        const t = getEntityTransform(entity);
         this.moves.push({
           id,
-          oldX: entity.x,
-          oldY: entity.y,
-          newX: entity.x + deltaX,
-          newY: entity.y + deltaY
+          oldX: t.x,
+          oldY: t.y,
+          newX: t.x + deltaX,
+          newY: t.y + deltaY
         });
       }
     }
@@ -161,8 +162,7 @@ export class MoveEntitiesCommand implements Command {
       const entity = scene.entities.find(e => e.id === move.id);
       if (entity) {
         const pos = fn(move);
-        entity.x = pos.x;
-        entity.y = pos.y;
+        setEntityTransform(entity, { x: pos.x, y: pos.y });
       }
     }
     bumpVersion();

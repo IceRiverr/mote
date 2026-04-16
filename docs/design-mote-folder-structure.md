@@ -14,6 +14,7 @@
 - **引擎不关心目录结构**：引擎只认路径和扩展名，目录组织完全由用户自由决定
 - **扩展名即类型**：资源类型由文件扩展名标识，不由所在目录决定
 - **轻量优先**：参考 Godot 的轻量路径模型，不引入 GUID、.meta 文件等重型机制
+- **不兼容旧格式**：本规范为当前最优设计，旧数据需一次性手动迁移到本规范，引擎和编辑器不维护任何向后兼容代码
 
 ### 1.2 与主流引擎对比
 
@@ -37,12 +38,12 @@
 
 ```
 games/{project-name}/
-├── project.json          # 项目定义文件（必须）
-├── assets/               # 资源目录（名称可配置）
-└── src/                  # TypeScript 源码目录（名称可配置）
+├── snake.mote-project.json   # 项目定义文件（必须）
+├── assets/                    # 资源目录（名称可配置）
+└── src/                       # TypeScript 源码目录（名称可配置）
 ```
 
-- **project.json**：项目入口，定义元信息和关键配置
+- **`.mote-project.json`**：项目入口，定义元信息和关键配置。一个目录内可以有多个项目文件
 - **assets/**：所有游戏资源的根目录，类似 UE 的 Content/
 - **src/**：TypeScript 源码目录，编译后产物放入 dist/
 
@@ -169,6 +170,7 @@ function resolveAssetPath(ref: string): string {
 | `.mote-prefab.json` | Prefab | 预制体定义 |
 | `.mote-scene.json` | Scene | 场景定义 |
 | `.mote-tilemap.json` | Tilemap | 瓦片地图定义 |
+| `.mote-project.json` | Project | 项目定义文件 |
 | `.png` / `.webp` / `.jpg` | Image | 图片资源 |
 | `.mp3` / `.ogg` / `.wav` | Audio | 音频资源 |
 
@@ -186,6 +188,7 @@ function getLoader(path: string): AssetLoader {
   if (path.endsWith('.mote-prefab.json'))  return prefabLoader;
   if (path.endsWith('.mote-scene.json'))   return sceneLoader;
   if (path.endsWith('.mote-tilemap.json')) return tilemapLoader;
+  if (path.endsWith('.mote-project.json')) return projectLoader;
   if (/\.(png|webp|jpg)$/.test(path))     return imageLoader;
   if (/\.(mp3|ogg|wav)$/.test(path))      return audioLoader;
   throw new Error(`Unknown asset type: "${path}"`);
@@ -196,15 +199,16 @@ function getLoader(path: string): AssetLoader {
 
 ## 5. 核心文件格式
 
-### 5.1 project.json
+### 5.1 `.mote-project.json`
 
 项目定义文件，位于游戏根目录，是引擎加载项目的唯一入口。
 
 ```json
 {
+  "type": "mote-project",
+  "version": "1.0.0",
   "id": "tiny-dungeon",
   "name": "Tiny Dungeon",
-  "version": "1.0.0",
   "assetsDir": "assets",
   "srcDir": "src",
   "entryScene": "scenes/main.mote-scene.json",
@@ -216,66 +220,178 @@ function getLoader(path: string): AssetLoader {
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
+| type | string | 固定为 `"mote-project"` |
+| version | string | 格式版本，当前为 `"1.0.0"` |
 | id | string | 项目唯一标识 |
 | name | string | 项目显示名称 |
-| version | string | 语义化版本号 |
 | assetsDir | string | 资源目录名，相对于项目根 |
 | srcDir | string | 源码目录名，相对于项目根 |
 | entryScene | string | 入口场景，相对于 assetsDir |
-| entryScript | string | 入口脚本，相对于 srcDir |
+| entryScript | string | 入口脚本（源码，如 `main.ts`），相对于 srcDir；由构建系统映射到运行产物 |
 
-**关键设计**：entryScene 相对 assetsDir 解析，entryScript 相对 srcDir 解析。如果将来重命名 assets/ 为 content/，只需修改 assetsDir 字段，所有资源引用不受影响。
+**关键设计**：
+1. 文件名采用 `{project-name}.mote-project.json` 形式，如 `snake.mote-project.json`
+2. 一个目录下**允许存在多个** `.mote-project.json` 文件。编辑器打开目录时会扫描所有项目文件，由用户选择具体打开哪一个
+3. entryScene 相对 assetsDir 解析，entryScript 相对 srcDir 解析。如果将来重命名 assets/ 为 content/，只需修改 assetsDir 字段，所有资源引用不受影响
+4. 构建系统负责将 `entryScript` 编译/打包为引擎可运行的模块。运行时加载的是构建产物，不是直接读取源码文件
 
-### 5.2 Scene（.mote-scene.json）
+### 5.2 通用格式约定
+
+以下约定适用于所有 `.mote-*.json` 资源文件。
+
+#### `id` 字段语义
+- `id` 是**人类可读的标识符**，用于调试、日志和编辑器展示
+- **禁止**用 `id` 做跨文件引用。所有跨资源引用必须使用相对 `assets/` 的文件路径
+- `id` 允许包含字母、数字、下划线、连字符，建议采用 `kebab-case` 或 `snake_case`
+
+#### 坐标与旋转
+- **坐标系**：2D 像素坐标，原点在左上角，`+x` 向右，`+y` 向下（Web/Canvas 惯例）
+- **旋转单位**：`rotation` 字段统一使用**度数（degrees）**，正值为顺时针。引擎内部可按需转换为弧度
+
+#### 颜色格式
+- 所有颜色字符串统一为 **Hex 格式**
+- 支持 `#RRGGBB` 和 `#RRGGBBAA`
+- 不支持 CSS 颜色名（如 `"red"`），保证解析结果唯一
+
+---
+
+### 5.3 Scene（.mote-scene.json）
 
 ```json
 {
+  "type": "mote-scene",
+  "version": "1.0.0",
   "id": "main-scene",
   "name": "Main Scene",
   "entities": [
     {
+      "id": "entity-001",
       "prefab": "prefabs/environment/ground-tile.mote-prefab.json",
+      "parent": null,
       "overrides": {
-        "Transform": { "x": 100, "y": 200 }
+        "Transform": { "x": 100, "y": 200, "rotation": 0, "scaleX": 1, "scaleY": 1 }
+      }
+    },
+    {
+      "id": "entity-002",
+      "name": "Child Object",
+      "prefab": "prefabs/ui/coin.mote-prefab.json",
+      "parent": "entity-001",
+      "visible": true,
+      "overrides": {
+        "Transform": { "x": 16, "y": 0 }
       }
     }
   ]
 }
 ```
 
-### 5.3 Prefab（.mote-prefab.json）
+字段说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| type | string | 固定为 `"mote-scene"` |
+| version | string | 格式版本，当前为 `"1.0.0"` |
+| id | string | 场景标识符 |
+| name | string | 场景显示名称 |
+| entities | array | 场景中的实体列表 |
+| entities[].id | string | 实体唯一标识（在场景文件内唯一） |
+| entities[].prefab | string | Prefab 文件路径，相对 `assets/` |
+| entities[].name | string | 可选，覆盖显示名称 |
+| entities[].parent | string \| null | 可选，父实体 `id`。`null` 表示根节点 |
+| entities[].visible | boolean | 可选，是否可见 |
+| entities[].overrides | object | 组件覆盖值，结构与 Prefab `components` 一致 |
+
+### 5.4 Prefab（.mote-prefab.json）
 
 ```json
 {
+  "type": "mote-prefab",
+  "version": "1.0.0",
   "id": "ground_tile",
   "name": "Ground Tile",
+  "tags": ["environment", "dungeon"],
   "components": {
     "Transform": { "x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1 },
     "Sprite": {
       "atlas": "sprites/tiny-dungeon_tilemap_packed.mote-sprite.json",
       "frame": "frame_100",
-      "layer": 0
+      "layer": 0,
+      "tint": "#FFFFFF",
+      "alpha": 1.0,
+      "visible": true
     }
   }
 }
 ```
 
-### 5.4 Sprite Atlas（.mote-sprite.json）
+字段说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| type | string | 固定为 `"mote-prefab"` |
+| version | string | 格式版本，当前为 `"1.0.0"` |
+| id | string | Prefab 标识符 |
+| name | string | 显示名称 |
+| tags | string[] | 可选，分类标签 |
+| components | object | 组件数据 |
+| components.Transform | object | 位置、旋转、缩放 |
+| components.Sprite | object | Sprite 渲染数据 |
+| components.Sprite.atlas | string | Sprite Atlas 文件路径，相对 `assets/` |
+| components.Sprite.frame | string | 帧名称 |
+| components.Sprite.layer | number | 渲染层级 |
+| components.Sprite.tint | string | 可选，染色（Hex 格式） |
+| components.Sprite.alpha | number | 可选，透明度 `0.0` ~ `1.0` |
+| components.Sprite.visible | boolean | 可选，是否可见 |
+
+### 5.5 Sprite Atlas（.mote-sprite.json）
 
 ```json
 {
+  "type": "mote-sprite",
+  "version": "1.0.0",
   "id": "sheet_tiny_dungeon",
+  "name": "tiny-dungeon_tilemap_packed",
   "image": "sprites/tiny-dungeon_tilemap_packed.png",
-  "frameWidth": 16,
-  "frameHeight": 16,
-  "frames": {
-    "frame_0":   { "x": 0,  "y": 0,  "w": 16, "h": 16 },
-    "frame_100": { "x": 0,  "y": 96, "w": 16, "h": 16 }
-  }
+  "slicing": {
+    "mode": "grid",
+    "tileWidth": 16,
+    "tileHeight": 16
+  },
+  "frames": [
+    { "name": "frame_0",   "x": 0,  "y": 0,  "w": 16, "h": 16 },
+    { "name": "frame_14",  "x": 32, "y": 16, "w": 16, "h": 16, "collider": { "shapes": [{ "type": "full" }] } },
+    { "name": "frame_100", "x": 0,  "y": 96, "w": 16, "h": 16 }
+  ]
 }
 ```
 
-> **注意**：image 字段遵循统一路径规则，相对 assets/ 解析，不做 sibling-relative 特殊处理。这是"单一规则，零特例"原则的直接体现。
+字段说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| type | string | 固定为 `"mote-sprite"` |
+| version | string | 格式版本，当前为 `"1.0.0"` |
+| id | string | 图集标识符（用于调试和编辑器展示） |
+| name | string | 图集显示名称 |
+| image | string | 图片文件路径，**相对 `assets/` 解析** |
+| slicing | object | 切片模式及参数 |
+| slicing.mode | string | `"grid" \| "packed" \| "xml" \| "manual"` |
+| slicing.tileWidth | number | grid 模式下单元宽度 |
+| slicing.tileHeight | number | grid 模式下单元高度 |
+| slicing.margin | number | grid 模式下边距 |
+| slicing.spacing | number | grid 模式下间距 |
+| slicing.source | string | packed/xml 模式下源文件路径 |
+| frames | array | 帧列表，**顺序有意义** |
+| frames[].name | string | 帧的字符串引用键（跨资源引用时使用） |
+| frames[].x / y / w / h | number | 帧在图集中的像素坐标和尺寸 |
+| frames[].collider | object | 可选，碰撞体数据。格式为 `{ shapes: ColliderShape[] }` |
+| frames[].tags | string[] | 可选，帧标签 |
+
+> **注意**：
+> 1. `image` 字段遵循统一路径规则，相对 `assets/` 解析，不做 sibling-relative 特殊处理。
+> 2. `frames` 为数组格式，顺序保留。数组索引可作为 tilemap 的整数 tile ID，但**跨资源引用必须使用 `name`**。
+> 3. `id` 字段仅用于调试展示，禁止作为跨文件引用键。
 
 ---
 
@@ -287,7 +403,7 @@ function getLoader(path: string): AssetLoader {
 
 ```
 assets/
-├── .manifest.json        # 自动生成，不手动编辑
+├── manifest.json         # 自动生成，不手动编辑
 ├── sprites/
 ├── prefabs/
 └── ...
@@ -350,6 +466,7 @@ fetch prefab → 解析 → fetch sprite → 解析 → fetch png → 组装
 | D6 | 不采用 Unity 的 GUID 机制 | 轻量引擎不需要 .meta 文件系统，保持人类可读 |
 | D7 | project.json 中 entryScene 相对 assetsDir | 与引擎内部路径规则统一，改名 assets/ 只需改一处 |
 | D8 | 预留 manifest 但不立即实现 | 当前设计不依赖 manifest，未来可无缝引入 |
+| D9 | 不维护向后兼容代码 | 团队规模小，维护兼容层的成本高于一次性迁移数据；保证代码库极简 |
 
 ---
 
@@ -360,3 +477,4 @@ fetch prefab → 解析 → fetch sprite → 解析 → fetch png → 组装
 | 重命名/移动文件会断引用 | 需手动更新所有引用该资源的文件 | 未来编辑器提供安全重构工具 + manifest 依赖图 |
 | 无全局资源索引 | 查找"谁引用了这个资源"需全文搜索 | 引入 manifest 后自动建立依赖图 |
 | 串行加载链 | 首次加载场景需多次 RTT | 引入 manifest 后支持依赖预加载 |
+| 旧项目需手动迁移 | 旧格式数据无法直接打开 | 提供一次性迁移脚本或文档说明 |

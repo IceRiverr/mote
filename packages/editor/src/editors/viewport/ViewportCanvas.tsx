@@ -32,7 +32,7 @@ import {
   BrushMode,
 } from "../../store/brush";
 import type { SceneEntity } from "../../data/Scene";
-import { createSceneEntity } from "../../data/Scene";
+import { createSceneEntity, getEntityTransform, setEntityTransform } from "../../data/Scene";
 
 // ═══════════════════════════════════════════════════════════════
 // 辅助函数：查找指定网格位置的实体
@@ -54,7 +54,8 @@ function findEntityAtGrid(
     const entity = scene.entities[i];
     const p = prefabs.value.get(entity.prefab);
     const entityLayer = p?.components?.Sprite?.layer ?? 0;
-    if (entityLayer === layer && entity.x === targetX && entity.y === targetY) {
+    const t = getEntityTransform(entity);
+    if (entityLayer === layer && t.x === targetX && t.y === targetY) {
       return entity;
     }
   }
@@ -295,7 +296,7 @@ export function ViewportCanvas() {
         const layerA = getPrefab(a.prefab)?.components.Sprite?.layer ?? 0;
         const layerB = getPrefab(b.prefab)?.components.Sprite?.layer ?? 0;
         // 同层按 Y 坐标排序（顶视角遮挡）
-        return layerA - layerB || a.y - b.y;
+        return layerA - layerB || getEntityTransform(a).y - getEntityTransform(b).y;
       });
     
     for (const entity of sortedEntities) {
@@ -426,17 +427,19 @@ export function ViewportCanvas() {
     
     ctx.save();
     
+    const t = getEntityTransform(entity);
+    
     // 应用 Entity 变换
-    ctx.translate(entity.x, entity.y);
-    ctx.rotate((entity.rotation || 0) * Math.PI / 180);
-    ctx.scale(entity.scaleX || 1, entity.scaleY || 1);
+    ctx.translate(t.x, t.y);
+    ctx.rotate(t.rotation * Math.PI / 180);
+    ctx.scale(t.scaleX, t.scaleY);
 
     // 绘制 Sprite（如果有）
     const sprite = prefab.components.Sprite;
     if (sprite?.visible !== false) {
       // TODO: 实际从 Atlas 加载图像并绘制
       // 现在先用色块代替
-      ctx.fillStyle = getPrefabColor(prefab.category);
+      ctx.fillStyle = getPrefabColor(prefab.tags?.[0] ?? '');
       ctx.fillRect(-8, -8, 16, 16);
       
       // 绘制图标/首字母
@@ -464,7 +467,7 @@ export function ViewportCanvas() {
   }
 
   // 根据分类获取颜色
-  function getPrefabColor(category: string): string {
+  function getPrefabColor(tag: string): string {
     const colors: Record<string, string> = {
       environment: "#4a7c59",
       walls: "#8b7355",
@@ -472,7 +475,7 @@ export function ViewportCanvas() {
       items: "#f4a742",
       system: "#666",
     };
-    return colors[category] || "#4a90d9";
+    return colors[tag] || "#4a90d9";
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -662,9 +665,13 @@ export function ViewportCanvas() {
               selectedEntityIds.value.size > 0
                 ? Array.from(selectedEntityIds.value).map(id => {
                     const entity = getEntity(id);
-                    return [id, entity ? { x: entity.x, y: entity.y } : { x: 0, y: 0 }];
+                    const t = entity ? getEntityTransform(entity) : { x: 0, y: 0 };
+                    return [id, { x: t.x, y: t.y }];
                   })
-                : [[clickedEntity.id, { x: clickedEntity.x, y: clickedEntity.y }]]
+                : (() => {
+                    const t = getEntityTransform(clickedEntity);
+                    return [[clickedEntity.id, { x: t.x, y: t.y }]];
+                  })()
             );
           } else {
             // 点击空白处：开始框选
@@ -784,8 +791,7 @@ export function ViewportCanvas() {
         for (const [id, startPos] of moveEntitiesStart.value) {
           const entity = getEntity(id);
           if (entity) {
-            entity.x = startPos.x;
-            entity.y = startPos.y;
+            setEntityTransform(entity, { x: startPos.x, y: startPos.y });
           }
         }
         

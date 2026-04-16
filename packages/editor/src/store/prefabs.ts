@@ -25,11 +25,12 @@ export const prefabVersion = signal(0);
 // 计算属性
 // ═══════════════════════════════════════════════════════════════
 
-/** 所有分类列表 */
+/** 所有分类列表（从 tags 的第一项提取） */
 export const categories = computed(() => {
   const cats = new Set<string>();
   for (const prefab of prefabs.value.values()) {
-    cats.add(prefab.category);
+    const tag = prefab.tags?.[0];
+    if (tag) cats.add(tag);
   }
   return ['all', ...Array.from(cats).sort()];
 });
@@ -42,8 +43,8 @@ export const filteredPrefabs = computed(() => {
   const result: Prefab[] = [];
   
   for (const prefab of prefabs.value.values()) {
-    // 分类过滤
-    if (category !== 'all' && prefab.category !== category) {
+    // 分类过滤（匹配第一个 tag）
+    if (category !== 'all' && prefab.tags?.[0] !== category) {
       continue;
     }
     
@@ -58,10 +59,12 @@ export const filteredPrefabs = computed(() => {
     result.push(prefab);
   }
   
-  // 按分类和名称排序
+  // 按首标签和名称排序
   return result.sort((a, b) => {
-    if (a.category !== b.category) {
-      return a.category.localeCompare(b.category);
+    const tagA = a.tags?.[0] ?? '';
+    const tagB = b.tags?.[0] ?? '';
+    if (tagA !== tagB) {
+      return tagA.localeCompare(tagB);
     }
     return a.name.localeCompare(b.name);
   });
@@ -72,9 +75,10 @@ export const prefabsByCategory = computed(() => {
   const groups = new Map<string, Prefab[]>();
   
   for (const prefab of filteredPrefabs.value) {
-    const list = groups.get(prefab.category) || [];
+    const tag = prefab.tags?.[0] ?? 'uncategorized';
+    const list = groups.get(tag) || [];
     list.push(prefab);
-    groups.set(prefab.category, list);
+    groups.set(tag, list);
   }
   
   return groups;

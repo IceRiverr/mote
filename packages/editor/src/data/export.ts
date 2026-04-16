@@ -11,7 +11,7 @@ import { exportBuildBundle, downloadBuildBundle, sceneToJson, prefabToJson } fro
  */
 export function exportScene(scene: Scene): void {
   const data = sceneToJson(scene);
-  downloadJson(data, `${scene.name || scene.id}.scene.json`);
+  downloadJson(data, `${scene.name || scene.id}.mote-scene.json`);
 }
 
 /**
@@ -19,7 +19,7 @@ export function exportScene(scene: Scene): void {
  */
 export function exportPrefab(prefab: Prefab): void {
   const data = prefabToJson(prefab);
-  downloadJson(data, `${prefab.id}.prefab.json`);
+  downloadJson(data, `${prefab.id}.mote-prefab.json`);
 }
 
 /**

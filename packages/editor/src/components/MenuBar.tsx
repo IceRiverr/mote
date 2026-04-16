@@ -4,7 +4,6 @@
 
 import { useState, useRef, useEffect } from 'preact/hooks';
 import {
-  createNewProject,
   openExistingProject,
   saveCurrentProject,
   closeProject,
@@ -16,9 +15,11 @@ import {
 } from '../project';
 import { currentScene, newScene, saveScene } from '../store/scene';
 import { exportScene } from '../data/export';
+import { NewProjectDialog } from './NewProjectDialog';
 
 export function MenuBar() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // 点击外部关闭菜单
@@ -87,7 +88,7 @@ export function MenuBar() {
     if (!confirmed) return;
 
     await closeProject();
-    createInMemoryProject();
+    setShowNewProjectDialog(true);
     setActiveMenu(null);
   }
 
@@ -144,9 +145,10 @@ export function MenuBar() {
   }
 
   return (
-    <div
-      ref={menuRef}
-      style={{
+    <>
+      <div
+        ref={menuRef}
+        style={{
         height: 32,
         background: '#2a2a2a',
         borderBottom: '1px solid #111',
@@ -259,5 +261,13 @@ export function MenuBar() {
         </div>
       ))}
     </div>
+
+    {showNewProjectDialog && (
+      <NewProjectDialog
+        onClose={() => setShowNewProjectDialog(false)}
+        onCreated={() => setShowNewProjectDialog(false)}
+      />
+    )}
+  </>
   );
 }

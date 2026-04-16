@@ -4,8 +4,8 @@
 // 标准目录结构：
 // project/
 // ├── scenes/
-// │   ├── level_01.scene.json
-// │   ├── level_02.scene.json
+// │   ├── level_01.mote-scene.json
+// │   ├── level_02.mote-scene.json
 // │   └── ...
 // └── ...
 // ═══════════════════════════════════════════════════════════════
@@ -17,7 +17,7 @@ import { FileSystem, getFileSystem } from './FileSystem';
 /**
  * Scene 文件扩展名
  */
-export const SCENE_EXTENSION = '.scene.json';
+export const SCENE_EXTENSION = '.mote-scene.json';
 
 /**
  * Scene 元数据
@@ -409,16 +409,20 @@ export class SceneFS {
         width: scene.width,
         height: scene.height,
       },
-      entities: scene.entities.map(e => ({
-        id: e.id,
-        prefab: e.prefab,
-        x: e.x,
-        y: e.y,
-        rotation: e.rotation,
-        scaleX: e.scaleX,
-        scaleY: e.scaleY,
-        overrides: e.overrides,
-      })),
+      entities: scene.entities.map(e => {
+        const t = e.overrides?.Transform;
+        return {
+          id: e.id,
+          prefab: e.prefab,
+          parent: e.parent,
+          x: t?.x ?? 0,
+          y: t?.y ?? 0,
+          rotation: t?.rotation ?? 0,
+          scaleX: t?.scaleX ?? 1,
+          scaleY: t?.scaleY ?? 1,
+          overrides: e.overrides,
+        };
+      }),
     };
   }
 

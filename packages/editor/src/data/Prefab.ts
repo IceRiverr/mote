@@ -22,8 +22,8 @@ export interface Prefab {
   /** 显示名称 */
   name: string;
   
-  /** 分类，用于浏览器分组 */
-  category: string;
+  /** 标签列表，用于浏览器分组和过滤（可选） */
+  tags?: string[];
   
   /** 组件配置 */
   components: PrefabComponents;
@@ -41,7 +41,7 @@ export interface Prefab {
 export function createPrefab(
   id: string,
   name: string,
-  category: string = 'uncategorized',
+  tags: string[] = [],
   components: PrefabComponents = {}
 ): Prefab {
   // 确保至少包含 Transform
@@ -52,7 +52,7 @@ export function createPrefab(
   return {
     id,
     name,
-    category,
+    tags,
     components,
   };
 }
@@ -63,15 +63,15 @@ export function createPrefab(
 export function createPrefabFromSprite(
   id: string,
   name: string,
-  category: string,
-  atlasId: string,
+  tags: string[],
+  atlasPath: string,
   frameId: string,
   collider?: any
 ): Prefab {
   const components: PrefabComponents = {
     Transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
     Sprite: {
-      atlas: atlasId,
+      atlas: atlasPath,
       frame: frameId,
       layer: 0,
       tint: '#ffffff',
@@ -96,7 +96,7 @@ export function createPrefabFromSprite(
   return {
     id,
     name,
-    category,
+    tags,
     components,
   };
 }

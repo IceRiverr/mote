@@ -16,6 +16,7 @@ import type {
   PackedSlicing,
   XmlSlicing,
 } from "./SpriteSheet";
+import { validateAssetPath } from "@mote/engine/core/path";
 
 // ═══════════════════════════════════════════════════════════════
 // JSON 类型定义
@@ -43,11 +44,7 @@ export interface SceneEntityJson {
   id: string;
   prefab: string;
   name?: string;
-  x: number;
-  y: number;
-  rotation?: number;
-  scaleX?: number;
-  scaleY?: number;
+  parent?: string | null;
   overrides?: Record<string, Record<string, any>>;
   visible?: boolean;
 }
@@ -58,7 +55,7 @@ export interface PrefabJson {
   version: string;
   id: string;
   name: string;
-  category: string;
+  tags?: string[];
   components: Record<string, Record<string, any>>;
   thumbnail?: string;
   description?: string;
@@ -92,12 +89,12 @@ export interface SpriteSheetJson {
     source?: string;
   };
   frames: Array<{
-    id: string;
+    name: string;
     x: number;
     y: number;
     w: number;
     h: number;
-    collider?: ColliderShape[];
+    collider?: { shapes: ColliderShape[] };
     tags?: string[];
     properties?: Record<string, unknown>;
     trimmed?: boolean;
@@ -141,15 +138,10 @@ function entityToJson(entity: SceneEntity): SceneEntityJson {
   const json: SceneEntityJson = {
     id: entity.id,
     prefab: entity.prefab,
-    x: entity.x,
-    y: entity.y,
   };
 
-  // 只序列化非默认值
   if (entity.name) json.name = entity.name;
-  if (entity.rotation) json.rotation = entity.rotation;
-  if (entity.scaleX !== undefined && entity.scaleX !== 1) json.scaleX = entity.scaleX;
-  if (entity.scaleY !== undefined && entity.scaleY !== 1) json.scaleY = entity.scaleY;
+  if (entity.parent !== undefined && entity.parent !== null) json.parent = entity.parent;
   if (entity.visible === false) json.visible = false;
   if (entity.overrides && Object.keys(entity.overrides).length > 0) {
     json.overrides = entity.overrides;
@@ -181,15 +173,16 @@ export function sceneFromJson(json: SceneJson): Scene {
  * JSON → Entity
  */
 function entityFromJson(json: SceneEntityJson): SceneEntity {
+  const error = validateAssetPath(json.prefab);
+  if (error) {
+    throw new Error(`Invalid prefab path in scene entity ${json.id}: ${error}`);
+  }
+
   return {
     id: json.id,
     prefab: json.prefab,
     name: json.name,
-    x: json.x,
-    y: json.y,
-    rotation: json.rotation,
-    scaleX: json.scaleX,
-    scaleY: json.scaleY,
+    parent: json.parent ?? null,
     visible: json.visible !== false,
     overrides: json.overrides,
   };
@@ -233,26 +226,38 @@ export async function loadScene(
  * Prefab → JSON
  */
 export function prefabToJson(prefab: Prefab): PrefabJson {
-  return {
+  const json: PrefabJson = {
     type: "mote-prefab",
     version: "1.0.0",
     id: prefab.id,
     name: prefab.name,
-    category: prefab.category,
     components: deepClone(prefab.components),
     thumbnail: prefab.thumbnail,
     description: prefab.description,
   };
+  if (prefab.tags && prefab.tags.length > 0) {
+    json.tags = [...prefab.tags];
+  }
+  return json;
 }
 
 /**
  * JSON → Prefab
  */
 export function prefabFromJson(json: PrefabJson): Prefab {
+  // 验证 Sprite atlas 路径
+  const atlas = json.components.Sprite?.atlas;
+  if (atlas) {
+    const error = validateAssetPath(atlas);
+    if (error) {
+      throw new Error(`Invalid atlas path in prefab ${json.id}: ${error}`);
+    }
+  }
+
   return {
     id: json.id,
     name: json.name,
-    category: json.category,
+    tags: json.tags ? [...json.tags] : undefined,
     components: deepClone(json.components),
     thumbnail: json.thumbnail,
     description: json.description,
@@ -374,7 +379,6 @@ export function isPrefabJson(json: unknown): json is PrefabJson {
     typeof obj.version === "string" &&
     typeof obj.id === "string" &&
     typeof obj.name === "string" &&
-    typeof obj.category === "string" &&
     obj.components !== undefined &&
     typeof obj.components === "object"
   );
@@ -469,8 +473,8 @@ export function detectJsonType(
 /**
  * SpriteSheet → JSON
  */
-export function spriteSheetToJson(sheet: SpriteSheet): SpriteSheetJson {
-  const imagePath = sheet.sourcePath ?? sheet.image;
+export function spriteSheetToJson(sheet: SpriteSheet, overrideImagePath?: string): SpriteSheetJson {
+  const imagePath = overrideImagePath ?? sheet.sourcePath ?? sheet.image;
   
   const slicing: SpriteSheetJson["slicing"] = { mode: sheet.slicing.mode };
 
@@ -491,14 +495,14 @@ export function spriteSheetToJson(sheet: SpriteSheet): SpriteSheetJson {
   const frames: SpriteSheetJson["frames"] = [];
   for (const [frameId, frame] of Object.entries(sheet.frames)) {
     const entry: SpriteSheetJson["frames"][number] = {
-      id: frameId,
+      name: frameId,
       x: frame.x,
       y: frame.y,
       w: frame.w,
       h: frame.h,
     };
     if (frame.collider && frame.collider.length > 0) {
-      entry.collider = frame.collider.map((c) => ({ ...c }));
+      entry.collider = { shapes: frame.collider.map((c) => ({ ...c })) };
     }
     if (frame.tags && frame.tags.length > 0) entry.tags = [...frame.tags];
     if (frame.properties && Object.keys(frame.properties).length > 0) {
@@ -531,6 +535,11 @@ export function spriteSheetFromJson(
   json: SpriteSheetJson,
   imageUrl: string,
 ): SpriteSheet {
+  // 验证 image 路径
+  const imageError = validateAssetPath(json.image);
+  if (imageError) {
+    throw new Error(`Invalid image path in sprite sheet ${json.id}: ${imageError}`);
+  }
   let slicing: Slicing;
   switch (json.slicing.mode) {
     case "grid":
@@ -561,19 +570,26 @@ export function spriteSheetFromJson(
   }
 
   const frames: Record<string, FrameData> = {};
-  const frameArray = Array.isArray(json.frames) 
-    ? json.frames 
-    : Object.entries(json.frames as Record<string, FrameData>).map(([id, f]) => ({ id, ...f }));
-  
+  const frameArray = Array.isArray(json.frames)
+    ? json.frames
+    : Object.entries(json.frames as Record<string, FrameData>).map(([id, f]) => ({ name: id, ...f }));
+
   for (const f of frameArray) {
+    const frameName = f.name ?? (f as any).id;
+    if (!frameName) continue;
     const frame: FrameData = {
       x: f.x,
       y: f.y,
       w: f.w,
       h: f.h,
     };
-    if (f.collider && f.collider.length > 0) {
-      frame.collider = f.collider as ColliderShape[];
+    if (f.collider) {
+      const colliderShapes = Array.isArray(f.collider)
+        ? (f.collider as ColliderShape[])
+        : (f.collider as { shapes?: ColliderShape[] }).shapes;
+      if (colliderShapes && colliderShapes.length > 0) {
+        frame.collider = colliderShapes;
+      }
     }
     if (f.tags && f.tags.length > 0) frame.tags = [...f.tags];
     if (f.properties && Object.keys(f.properties).length > 0) {
@@ -585,7 +601,7 @@ export function spriteSheetFromJson(
     if (f.offsetX !== undefined) frame.offsetX = f.offsetX;
     if (f.offsetY !== undefined) frame.offsetY = f.offsetY;
     if (f.rotated !== undefined) frame.rotated = f.rotated;
-    frames[f.id] = frame;
+    frames[frameName] = frame;
   }
 
   let imageWidth = 0;
@@ -610,8 +626,8 @@ export function spriteSheetFromJson(
 /**
  * 将 SpriteSheet 转换为紧凑格式的 JSON 字符串（每个 frame 一行）
  */
-export function formatSpriteSheetJson(sheet: SpriteSheet): string {
-  const json = spriteSheetToJson(sheet);
+export function formatSpriteSheetJson(sheet: SpriteSheet, overrideImagePath?: string): string {
+  const json = spriteSheetToJson(sheet, overrideImagePath);
   
   const header = {
     type: json.type,
@@ -626,7 +642,7 @@ export function formatSpriteSheetJson(sheet: SpriteSheet): string {
   
   const framesLines = json.frames.map((frame) => {
     const fields: Record<string, unknown> = {
-      id: frame.id,
+      name: frame.name,
       x: frame.x,
       y: frame.y,
       w: frame.w,

@@ -2,28 +2,9 @@
 // sprite-sheet-import.ts — SpriteSheet import for new architecture
 // ═══════════════════════════════════════════════════════════════
 
-import type { SpriteSheet, FrameData, FrameDataWithId, Slicing } from "./SpriteSheet";
+import type { SpriteSheet, FrameData, Slicing } from "./SpriteSheet";
 import { createGridSpriteSheet } from "./SpriteSheet";
-
-/**
- * SpriteSheet JSON format (from .mote-sprite.json files)
- */
-export interface SpriteSheetJson {
-  type: "mote-sprite";
-  version: string;
-  id: string;
-  name: string;
-  image: string;
-  slicing: {
-    mode: "grid" | "packed" | "xml" | "manual";
-    tileWidth?: number;
-    tileHeight?: number;
-    margin?: number;
-    spacing?: number;
-    source?: string;
-  };
-  frames: FrameDataWithId[];
-}
+import type { SpriteSheetJson } from "./io";
 
 /**
  * Load image from File object

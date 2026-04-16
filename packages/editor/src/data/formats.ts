@@ -1,3 +1,5 @@
+import type { ColliderData } from './Collider';
+
 // ═══════════════════════════════════════════════════════════════
 // formats.ts — JSON file format type definitions for Mote project files
 // Defines the on-disk schema for all .json files:
@@ -33,7 +35,7 @@ export interface SpriteSheetJson {
   version: '1.0.0';
   id: string;
   name: string;
-  image: string;  // relative path to image (relative to this JSON file)
+  image: string;  // relative path to image (relative to assets/)
   slicing: {
     mode: 'grid' | 'packed' | 'xml' | 'manual';
     tileWidth?: number;
@@ -42,14 +44,14 @@ export interface SpriteSheetJson {
     spacing?: number;
     source?: string;
   };
-  /** Frames as array for better readability and diff-friendliness */
+  /** Frames as array for stable ordering and diff-friendliness */
   frames: Array<{
-    id: string;
+    name: string;
     x: number;
     y: number;
     w: number;
     h: number;
-    collider?: Array<{ type: string; [key: string]: unknown }>;
+    collider?: ColliderData;
     tags?: string[];
     properties?: Record<string, unknown>;
     trimmed?: boolean;

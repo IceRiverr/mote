@@ -209,7 +209,7 @@ function CurrentBrushInfo() {
             color: "var(--text-secondary)",
           }}>
             {pattern.length > 1 ? `${pattern.length} 格` : "单格"} · 
-            {prefab.category}
+            {prefab.tags?.[0] ?? ''}
           </div>
         </div>
       </div>

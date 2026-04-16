@@ -1,9 +1,14 @@
 {
-  "id": "my_project_mnvp9109",
-  "name": "My Project",
+  "type": "mote-project",
+  "id": "gg01_mo1o8nel",
+  "name": "gg01",
   "version": "1.0.0",
-  "createdAt": "2026-04-12T11:47:46.905Z",
-  "modifiedAt": "2026-04-12T11:47:46.905Z",
+  "assetsDir": "assets",
+  "srcDir": "src",
+  "entryScript": "main.ts",
+  "createdAt": "2026-04-16T16:06:06.717Z",
+  "modifiedAt": "2026-04-16T16:06:06.717Z",
+  "projectFileName": "gg01.mote-project.json",
   "settings": {
     "defaultSceneWidth": 640,
     "defaultSceneHeight": 480,

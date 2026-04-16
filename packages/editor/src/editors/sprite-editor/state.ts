@@ -44,13 +44,6 @@ export const colliderTool = signal<ColliderTool>('full');
 export const showColliderOverlay = signal(true);
 
 // ═══════════════════════════════════════════════════════════════
-// Legacy compatibility (to be removed)
-// ═══════════════════════════════════════════════════════════════
-
-/** @deprecated Use editorMode === 'collider' instead */
-export const colliderEditMode = computed(() => editorMode.value === 'collider');
-
-// ═══════════════════════════════════════════════════════════════
 // UI State
 // ═══════════════════════════════════════════════════════════════
 

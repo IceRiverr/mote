@@ -306,3 +306,43 @@ export function downloadJson(data: unknown, filename: string): void {
   const json = JSON.stringify(data, null, 2);
   downloadAsFallback(json, filename);
 }
+
+// ═══════════════════════════════════════════════════════════════
+// 项目内保存 SpriteSheet
+// ═══════════════════════════════════════════════════════════════
+
+import type { Project } from "./project";
+
+/**
+ * 将 SpriteSheet 保存到项目目录中。
+ * 自动根据保存路径推断 image 的相对 assets/ 路径。
+ */
+export async function saveSpriteSheetToProject(
+  project: Project,
+  sheet: any,
+  relativePath?: string
+): Promise<void> {
+  const assetsDir = project.config.assetsDir || "assets";
+  const assetsHandle = await (project.folderHandle as any).getDirectoryHandle(assetsDir);
+
+  // 默认保存到 assets/sprites/{sheet.name}.mote-sprite.json
+  const safeName = (sheet.name || "untitled").replace(/\s+/g, "_");
+  const defaultPath = `sprites/${safeName}.mote-sprite.json`;
+  const savePath = relativePath || defaultPath;
+
+  // 推断 image 的相对路径（假设 json 和 png 在同一目录）
+  const rawImageName = sheet.sourcePath || sheet.name || "image.png";
+  const imageName = rawImageName.split("/").pop() || rawImageName;
+  const jsonDir = savePath.split("/").slice(0, -1).join("/");
+  const imageRelativePath = jsonDir ? `${jsonDir}/${imageName}` : imageName;
+
+  // 写入文件
+  const fileHandle = await getFileHandle(assetsHandle, savePath, { create: true });
+  if (!fileHandle) {
+    throw new Error(`Failed to create file handle for ${savePath}`);
+  }
+
+  const { spriteSheetToJson } = await import("./io");
+  const json = spriteSheetToJson(sheet, imageRelativePath);
+  await writeJsonFile(fileHandle, json);
+}

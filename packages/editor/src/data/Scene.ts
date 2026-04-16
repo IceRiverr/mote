@@ -10,26 +10,14 @@ export interface SceneEntity {
   /** 实体唯一 ID */
   id: string;
   
-  /** 引用的 Prefab ID */
+  /** 引用的 Prefab 文件路径（相对于 assets/） */
   prefab: string;
   
   /** 显示名称覆盖（可选） */
   name?: string;
   
-  /** X 坐标（像素） */
-  x: number;
-  
-  /** Y 坐标（像素） */
-  y: number;
-  
-  /** 旋转角度（度，可选） */
-  rotation?: number;
-  
-  /** X 轴缩放（可选） */
-  scaleX?: number;
-  
-  /** Y 轴缩放（可选） */
-  scaleY?: number;
+  /** 父实体 ID（可选，null 表示根节点） */
+  parent?: string | null;
   
   /** 组件属性覆盖（可选） */
   overrides?: {
@@ -112,28 +100,39 @@ export function createScene(
  * 从 Prefab 创建实体
  */
 export function createSceneEntity(
-  prefabId: string,
+  prefabPath: string,
   x: number,
   y: number,
   options?: {
     id?: string;
     name?: string;
+    parent?: string | null;
     rotation?: number;
     scaleX?: number;
     scaleY?: number;
     overrides?: Record<string, any>;
   }
 ): SceneEntity {
+  const overrides: Record<string, any> = options?.overrides ? { ...options.overrides } : {};
+  
+  // Transform 覆盖统一放入 overrides
+  const transform: Record<string, number> = {};
+  if (x !== 0) transform.x = x;
+  if (y !== 0) transform.y = y;
+  if (options?.rotation !== undefined && options.rotation !== 0) transform.rotation = options.rotation;
+  if (options?.scaleX !== undefined && options.scaleX !== 1) transform.scaleX = options.scaleX;
+  if (options?.scaleY !== undefined && options.scaleY !== 1) transform.scaleY = options.scaleY;
+  
+  if (Object.keys(transform).length > 0) {
+    overrides.Transform = { ...overrides.Transform, ...transform };
+  }
+  
   return {
     id: options?.id || generateEntityId(),
-    prefab: prefabId,
+    prefab: prefabPath,
     name: options?.name,
-    x,
-    y,
-    rotation: options?.rotation,
-    scaleX: options?.scaleX,
-    scaleY: options?.scaleY,
-    overrides: options?.overrides,
+    parent: options?.parent ?? null,
+    overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
     visible: true,
   };
 }
@@ -160,6 +159,40 @@ export function resetEntityIdCounter(): void {
 }
 
 /**
+ * 获取实体的 Transform 值（从 overrides 读取，提供默认值）
+ */
+export function getEntityTransform(entity: SceneEntity): {
+  x: number;
+  y: number;
+  rotation: number;
+  scaleX: number;
+  scaleY: number;
+} {
+  const t = entity.overrides?.Transform;
+  return {
+    x: t?.x ?? 0,
+    y: t?.y ?? 0,
+    rotation: t?.rotation ?? 0,
+    scaleX: t?.scaleX ?? 1,
+    scaleY: t?.scaleY ?? 1,
+  };
+}
+
+/**
+ * 设置实体的 Transform 值（写入 overrides）
+ */
+export function setEntityTransform(
+  entity: SceneEntity,
+  transform: Partial<{ x: number; y: number; rotation: number; scaleX: number; scaleY: number }>
+): void {
+  entity.overrides = entity.overrides || {};
+  entity.overrides.Transform = {
+    ...(entity.overrides.Transform || {}),
+    ...transform,
+  };
+}
+
+/**
  * 验证场景数据是否有效
  */
 export function validateScene(scene: any): scene is Scene {
@@ -180,8 +213,6 @@ export function validateEntity(entity: any): entity is SceneEntity {
   if (!entity || typeof entity !== 'object') return false;
   if (!entity.id || typeof entity.id !== 'string') return false;
   if (!entity.prefab || typeof entity.prefab !== 'string') return false;
-  if (typeof entity.x !== 'number') return false;
-  if (typeof entity.y !== 'number') return false;
   
   return true;
 }
@@ -190,11 +221,16 @@ export function validateEntity(entity: any): entity is SceneEntity {
  * 克隆实体（生成新的 ID）
  */
 export function cloneEntity(entity: SceneEntity, newX?: number, newY?: number): SceneEntity {
+  const overrides = entity.overrides ? { ...entity.overrides } : {};
+  if (newX !== undefined || newY !== undefined) {
+    overrides.Transform = { ...overrides.Transform };
+    if (newX !== undefined) overrides.Transform.x = newX;
+    if (newY !== undefined) overrides.Transform.y = newY;
+  }
   return {
     ...entity,
     id: generateEntityId(),
-    x: newX ?? entity.x,
-    y: newY ?? entity.y,
+    overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
   };
 }
 
@@ -233,11 +269,7 @@ export function exportToECS(scene: Scene): object {
       id: e.id,
       prefab: e.prefab,
       name: e.name,
-      x: e.x,
-      y: e.y,
-      rotation: e.rotation,
-      scaleX: e.scaleX,
-      scaleY: e.scaleY,
+      parent: e.parent,
       overrides: e.overrides,
     })),
   };

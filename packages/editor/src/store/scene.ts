@@ -4,7 +4,7 @@
 
 import { signal, computed } from '@preact/signals';
 import type { Scene, SceneEntity, GridSettings } from '../data/Scene';
-import { createScene, createSceneEntity, snapToGrid } from '../data/Scene';
+import { createScene, createSceneEntity, snapToGrid, getEntityTransform, setEntityTransform } from '../data/Scene';
 
 // ═══════════════════════════════════════════════════════════════
 // 状态
@@ -206,14 +206,21 @@ export function updateEntity(entityId: string, updates: Partial<SceneEntity>): b
  * 移动实体
  */
 export function moveEntity(entityId: string, x: number, y: number): boolean {
+  if (!currentScene.value) return false;
+  
   // 网格吸附
-  if (snapEnabled.value && currentScene.value?.grid.snap) {
+  if (snapEnabled.value && currentScene.value.grid.snap) {
     const snapped = snapToGrid(x, y, currentScene.value.grid.size);
     x = snapped.x;
     y = snapped.y;
   }
   
-  return updateEntity(entityId, { x, y });
+  const entity = currentScene.value.entities.find(e => e.id === entityId);
+  if (!entity) return false;
+  
+  setEntityTransform(entity, { x, y });
+  bumpVersion();
+  return true;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -261,7 +268,10 @@ export function selectEntitiesInRect(x1: number, y1: number, x2: number, y2: num
   const maxY = Math.max(y1, y2);
   
   const ids = currentScene.value.entities
-    .filter(e => e.x >= minX && e.x <= maxX && e.y >= minY && e.y <= maxY)
+    .filter(e => {
+      const t = getEntityTransform(e);
+      return t.x >= minX && t.x <= maxX && t.y >= minY && t.y <= maxY;
+    })
     .map(e => e.id);
   
   selectedEntityIds.value = new Set(ids);
@@ -355,8 +365,9 @@ export function findEntityAt(x: number, y: number, tolerance: number = 8): Scene
   
   for (const entity of entities) {
     // 简单的距离检测（后续可改进为使用 Collider）
-    const dx = entity.x - x;
-    const dy = entity.y - y;
+    const t = getEntityTransform(entity);
+    const dx = t.x - x;
+    const dy = t.y - y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     
     if (dist <= tolerance) {

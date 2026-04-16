@@ -35,3 +35,8 @@ export { EventBus } from './event';
 
 // Resource
 export { ResourceStore } from './resource';
+
+// Asset System
+export { validateAssetPath, resolveAssetPath } from './path';
+export { AssetLoader, LoaderRegistry, assetLoaders } from './loader';
+export { AssetManager } from './asset-manager';

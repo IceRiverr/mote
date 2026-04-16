@@ -6,6 +6,7 @@ import { useState } from "preact/hooks";
 import { singleSelectedEntity, updateEntity } from "../../store/scene";
 import { prefabs, getPrefab } from "../../store/prefabs";
 import { ComponentPanel } from "./ComponentPanel";
+import { getEntityTransform } from "../../data/Scene";
 
 // 模拟的组件 Schema（实际应从 component-schemas.json 加载）
 const COMPONENT_SCHEMAS: Record<string, any> = {
@@ -99,7 +100,7 @@ export function EntityInspector() {
           <div>ID: {entity.id}</div>
           <div>Prefab: {entity.prefab}</div>
           <div>
-            位置: ({Math.round(entity.x)}, {Math.round(entity.y)})
+            位置: ({Math.round(getEntityTransform(entity).x)}, {Math.round(getEntityTransform(entity).y)})
           </div>
         </div>
       </div>

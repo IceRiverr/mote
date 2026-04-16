@@ -26,7 +26,9 @@ import {
 import {
   isFileSystemAccessSupported,
   exportSpriteSheetWithPicker,
+  saveSpriteSheetToProject,
 } from '../../data/fs-access';
+import { currentProject } from '../../store/project';
 
 // ═══════════════════════════════════════════════════════════════
 // Mode Selector — Blender-style dropdown with tooltips
@@ -97,7 +99,14 @@ export function SpriteEditorHeader() {
     if (!sheet) return;
     setExporting(true);
     try {
-      await exportSpriteSheetWithPicker(sheet);
+      const project = currentProject.value;
+      if (project) {
+        await saveSpriteSheetToProject(project, sheet);
+      } else if (isFileSystemAccessSupported()) {
+        await exportSpriteSheetWithPicker(sheet);
+      } else {
+        alert('请先打开一个项目，或启用文件系统访问 API');
+      }
     } catch (e: any) {
       if (e.name !== 'AbortError') {
         alert('导出失败：' + e.message);

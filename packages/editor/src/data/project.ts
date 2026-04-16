@@ -89,8 +89,19 @@ export interface Project {
 // 常量
 // ═══════════════════════════════════════════════════════════════
 
-const PROJECT_FILE = "project.mote-project.json";
+const PROJECT_FILE_EXTENSION = ".mote-project.json";
 const DEFAULT_VERSION = "1.0.0";
+
+/**
+ * 生成项目文件名
+ */
+export function generateProjectFileName(name: string): string {
+  const sanitized = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return `${sanitized || "untitled"}${PROJECT_FILE_EXTENSION}`;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // 项目操作
@@ -132,7 +143,23 @@ export async function loadProject(
   folderHandle: FileSystemDirectoryHandle
 ): Promise<Project | null> {
   try {
-    const configHandle = await getFileHandle(folderHandle, PROJECT_FILE, {
+    // 扫描目录下唯一的 .mote-project.json
+    const files: string[] = [];
+    for await (const [name, entry] of (folderHandle as any).entries()) {
+      if (entry.kind === "file" && name.endsWith(PROJECT_FILE_EXTENSION)) {
+        files.push(name);
+      }
+    }
+
+    if (files.length === 0) {
+      return null;
+    }
+
+    if (files.length > 1) {
+      console.warn("Multiple .mote-project.json files found in directory");
+    }
+
+    const configHandle = await getFileHandle(folderHandle, files[0], {
       create: false,
     });
 
@@ -169,14 +196,15 @@ export async function createProject(
 ): Promise<Project | null> {
   try {
     const config = createProjectConfig(name);
+    const fileName = generateProjectFileName(name);
 
-    // 创建 project.mote-project.json
-    const configHandle = await getFileHandle(folderHandle, PROJECT_FILE, {
+    // 创建 .mote-project.json
+    const configHandle = await getFileHandle(folderHandle, fileName, {
       create: true,
     });
 
     if (!configHandle) {
-      throw new Error(`Failed to create ${PROJECT_FILE}`);
+      throw new Error(`Failed to create ${fileName}`);
     }
 
     await writeJsonFile(configHandle, config);

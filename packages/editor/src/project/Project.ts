@@ -110,7 +110,7 @@ export function createProject(
     entryScript: 'main.ts',
     createdAt: now,
     modifiedAt: now,
-    projectFileName: PROJECT_FILE,
+    projectFileName: generateProjectFileName(name),
     settings: {
       defaultSceneWidth: 640,
       defaultSceneHeight: 480,
@@ -178,6 +178,18 @@ export function serializeProject(project: Project): string {
 export const DEFAULT_PROJECT_NAME = 'Untitled Project';
 
 /**
- * 项目文件名（固定）
+ * 项目文件扩展名
  */
-export const PROJECT_FILE = 'project.mote-project.json';
+export const PROJECT_FILE_EXTENSION = '.mote-project.json';
+
+/**
+ * 根据项目名称生成项目文件名
+ * e.g. "Snake Game" -> "snake_game.mote-project.json"
+ */
+export function generateProjectFileName(name: string): string {
+  const sanitized = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return `${sanitized || 'untitled'}${PROJECT_FILE_EXTENSION}`;
+}

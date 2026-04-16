@@ -38,12 +38,12 @@
 
 ```
 games/{project-name}/
-├── project.mote-project.json # 项目定义文件（必须）
+├── snake.mote-project.json   # 项目定义文件（必须）
 ├── assets/                    # 资源目录（名称可配置）
 └── src/                       # TypeScript 源码目录（名称可配置）
 ```
 
-- **`project.mote-project.json`**：项目入口，定义元信息和关键配置。一个目录仅对应一个项目
+- **`.mote-project.json`**：项目入口，定义元信息和关键配置。一个目录仅对应一个项目
 - **assets/**：所有游戏资源的根目录，类似 UE 的 Content/
 - **src/**：TypeScript 源码目录，编译后产物放入 dist/
 
@@ -172,6 +172,7 @@ function resolveAssetPath(ref: string): string {
 | `.mote-tilemap.json` | Tilemap | 瓦片地图定义 |
 | `.mote-project.json` | Project | 项目定义文件 |
 | `.png` / `.webp` / `.jpg` | Image | 图片资源 |
+| `.png` / `.webp` / `.jpg` | Image | 图片资源 |
 | `.mp3` / `.ogg` / `.wav` | Audio | 音频资源 |
 
 统一命名模式为 `.mote-{type}.json`，好处包括：
@@ -189,6 +190,8 @@ function getLoader(path: string): AssetLoader {
   if (path.endsWith('.mote-scene.json'))   return sceneLoader;
   if (path.endsWith('.mote-tilemap.json')) return tilemapLoader;
   if (path.endsWith('.mote-project.json')) return projectLoader;
+  if (/\.(png|webp|jpg)$/.test(path))     return imageLoader;
+  if (/\.(mp3|ogg|wav)$/.test(path))      return audioLoader;
   if (/\.(png|webp|jpg)$/.test(path))     return imageLoader;
   if (/\.(mp3|ogg|wav)$/.test(path))      return audioLoader;
   throw new Error(`Unknown asset type: "${path}"`);
@@ -230,7 +233,7 @@ function getLoader(path: string): AssetLoader {
 | entryScript | string | 入口脚本（源码，如 `main.ts`），相对于 srcDir；由构建系统映射到运行产物 |
 
 **关键设计**：
-1. 文件名固定为 `project.mote-project.json`，位于项目根目录
+1. 文件名采用 `{project-name}.mote-project.json` 形式，如 `snake.mote-project.json`
 2. **一个目录仅对应一个项目**。编辑器通过该文件识别项目边界
 3. entryScene 相对 assetsDir 解析，entryScript 相对 srcDir 解析。如果将来重命名 assets/ 为 content/，只需修改 assetsDir 字段，所有资源引用不受影响
 4. 构建系统负责将 `entryScript` 编译/打包为引擎可运行的模块。运行时加载的是构建产物，不是直接读取源码文件

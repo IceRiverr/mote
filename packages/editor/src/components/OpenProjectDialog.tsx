@@ -106,7 +106,7 @@ export function OpenProjectDialog({ onClose, onOpened }: Props) {
         {/* Content */}
         <div style={{ padding: 20, minHeight: 160 }}>
           <p style={{ margin: '0 0 20px 0', fontSize: 13, color: '#aaa', lineHeight: 1.6 }}>
-            每个文件夹对应一个 Mote 项目。选择包含 <code style={{ color: '#4a90d9' }}>project.mote-project.json</code> 的目录。
+            每个文件夹对应一个 Mote 项目。选择包含 <code style={{ color: '#4a90d9' }}>.mote-project.json</code> 的目录。
           </p>
 
           <div style={{
@@ -121,7 +121,7 @@ export function OpenProjectDialog({ onClose, onOpened }: Props) {
           }}>
             <div style={{ color: '#4a90d9' }}>my-project/</div>
             <div style={{ paddingLeft: 16 }}>
-              <div>project.mote-project.json</div>
+              <div>snake.mote-project.json</div>
               <div>assets/</div>
               <div>src/</div>
             </div>

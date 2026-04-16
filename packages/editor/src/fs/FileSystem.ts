@@ -561,18 +561,7 @@ export class FileSystem {
     return results;
   }
 
-  /**
-   * 扫描项目根目录下的所有 .mote-project.json 文件
-   */
-  async scanProjectFiles(): Promise<string[]> {
-    const files: string[] = [];
-    for await (const entry of this.listDirectory()) {
-      if (entry.kind === 'file' && entry.name.endsWith('.mote-project.json')) {
-        files.push(entry.name);
-      }
-    }
-    return files;
-  }
+
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -129,7 +129,7 @@ export function NewProjectDialog({ onClose, onCreated }: Props) {
               autoFocus
             />
             <p style={{ margin: '6px 0 0 0', fontSize: 10, color: '#666' }}>
-              项目文件将保存为 {name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'untitled'}.mote-project.json
+              项目文件将保存为 project.mote-project.json
             </p>
           </div>
 

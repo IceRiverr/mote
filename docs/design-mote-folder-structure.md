@@ -38,12 +38,12 @@
 
 ```
 games/{project-name}/
-├── snake.mote-project.json   # 项目定义文件（必须）
+├── project.mote-project.json # 项目定义文件（必须）
 ├── assets/                    # 资源目录（名称可配置）
 └── src/                       # TypeScript 源码目录（名称可配置）
 ```
 
-- **`.mote-project.json`**：项目入口，定义元信息和关键配置。一个目录内可以有多个项目文件
+- **`project.mote-project.json`**：项目入口，定义元信息和关键配置。一个目录仅对应一个项目
 - **assets/**：所有游戏资源的根目录，类似 UE 的 Content/
 - **src/**：TypeScript 源码目录，编译后产物放入 dist/
 
@@ -230,8 +230,8 @@ function getLoader(path: string): AssetLoader {
 | entryScript | string | 入口脚本（源码，如 `main.ts`），相对于 srcDir；由构建系统映射到运行产物 |
 
 **关键设计**：
-1. 文件名采用 `{project-name}.mote-project.json` 形式，如 `snake.mote-project.json`
-2. 一个目录下**允许存在多个** `.mote-project.json` 文件。编辑器打开目录时会扫描所有项目文件，由用户选择具体打开哪一个
+1. 文件名固定为 `project.mote-project.json`，位于项目根目录
+2. **一个目录仅对应一个项目**。编辑器通过该文件识别项目边界
 3. entryScene 相对 assetsDir 解析，entryScript 相对 srcDir 解析。如果将来重命名 assets/ 为 content/，只需修改 assetsDir 字段，所有资源引用不受影响
 4. 构建系统负责将 `entryScript` 编译/打包为引擎可运行的模块。运行时加载的是构建产物，不是直接读取源码文件
 

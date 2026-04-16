@@ -17,8 +17,7 @@ export {
   touchProject,
   serializeProject,
   DEFAULT_PROJECT_NAME,
-  generateProjectFileName,
-  PROJECT_FILE_EXTENSION,
+  PROJECT_FILE,
 } from './Project';
 
 // Store

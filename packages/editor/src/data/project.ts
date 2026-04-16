@@ -74,17 +74,6 @@ export interface ProjectConfig {
 }
 
 /**
- * 生成项目文件名
- */
-export function generateProjectFileName(name: string): string {
-  const sanitized = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  return `${sanitized || "untitled"}${PROJECT_FILE_EXTENSION}`;
-}
-
-/**
  * 项目运行时状态
  */
 export interface Project {
@@ -100,7 +89,7 @@ export interface Project {
 // 常量
 // ═══════════════════════════════════════════════════════════════
 
-const PROJECT_FILE_EXTENSION = ".mote-project.json";
+const PROJECT_FILE = "project.mote-project.json";
 const DEFAULT_VERSION = "1.0.0";
 
 // ═══════════════════════════════════════════════════════════════
@@ -140,32 +129,10 @@ export function createProjectConfig(name: string, id?: string): ProjectConfig {
  * 读取项目配置
  */
 export async function loadProject(
-  folderHandle: FileSystemDirectoryHandle,
-  fileName?: string
+  folderHandle: FileSystemDirectoryHandle
 ): Promise<Project | null> {
   try {
-    let targetFileName = fileName;
-
-    // 如果没有指定文件名，扫描目录下唯一的 .mote-project.json
-    if (!targetFileName) {
-      const files: string[] = [];
-      for await (const [name, entry] of (folderHandle as any).entries()) {
-        if (entry.kind === "file" && name.endsWith(PROJECT_FILE_EXTENSION)) {
-          files.push(name);
-        }
-      }
-      if (files.length === 0) {
-        return null;
-      }
-      if (files.length === 1) {
-        targetFileName = files[0];
-      } else {
-        console.warn("Multiple .mote-project.json files found, please specify one");
-        return null;
-      }
-    }
-
-    const configHandle = await getFileHandle(folderHandle, targetFileName, {
+    const configHandle = await getFileHandle(folderHandle, PROJECT_FILE, {
       create: false,
     });
 
@@ -202,15 +169,14 @@ export async function createProject(
 ): Promise<Project | null> {
   try {
     const config = createProjectConfig(name);
-    const fileName = generateProjectFileName(name);
 
-    // 创建 .mote-project.json
-    const configHandle = await getFileHandle(folderHandle, fileName, {
+    // 创建 project.mote-project.json
+    const configHandle = await getFileHandle(folderHandle, PROJECT_FILE, {
       create: true,
     });
 
     if (!configHandle) {
-      throw new Error(`Failed to create ${fileName}`);
+      throw new Error(`Failed to create ${PROJECT_FILE}`);
     }
 
     await writeJsonFile(configHandle, config);

@@ -6,9 +6,9 @@ import { useEffect } from "preact/hooks";
 import { SearchBar } from "./SearchBar";
 import { PrefabCategory } from "./PrefabCategory";
 import {
-  prefabsByCategory,
-  categories,
-  selectedCategory,
+  prefabsByTag,
+  allTags,
+  selectedTag,
   loadBuiltinPrefabs,
 } from "../../store/prefabs";
 
@@ -64,7 +64,7 @@ export function PrefabBrowser() {
       {/* 搜索栏 */}
       <SearchBar />
 
-      {/* 分类过滤器 */}
+      {/* tag 过滤器 */}
       <div
         style={{
           display: "flex",
@@ -74,25 +74,25 @@ export function PrefabBrowser() {
           overflowX: "auto",
         }}
       >
-        {categories.value.map((cat) => (
+        {allTags.value.map((tag) => (
           <button
-            key={cat}
+            key={tag}
             onClick={() => {
-              selectedCategory.value = cat;
+              selectedTag.value = tag;
             }}
             style={{
-              background: selectedCategory.value === cat ? "#4a90d9" : "#2a2a2a",
+              background: selectedTag.value === tag ? "#4a90d9" : "#2a2a2a",
               border: "none",
-              color: selectedCategory.value === cat ? "#fff" : "#999",
+              color: selectedTag.value === tag ? "#fff" : "#999",
               padding: "4px 10px",
               borderRadius: "3px",
               fontSize: "11px",
               cursor: "pointer",
               whiteSpace: "nowrap",
-              textTransform: cat === "all" ? "none" : "capitalize",
+              textTransform: tag === "all" ? "none" : "capitalize",
             }}
           >
-            {cat === "all" ? "全部" : cat}
+            {tag === "all" ? "全部" : tag}
           </button>
         ))}
       </div>
@@ -105,23 +105,23 @@ export function PrefabBrowser() {
           overflowX: "hidden",
         }}
       >
-        {selectedCategory.value === "all" ? (
-          // 显示所有分类
-          Array.from(prefabsByCategory.value.entries()).map(
-            ([category, prefabs]) => (
+        {selectedTag.value === "all" ? (
+          // 显示所有 tag 分组
+          Array.from(prefabsByTag.value.entries()).map(
+            ([tag, entries]) => (
               <PrefabCategory
-                key={category}
-                name={category}
-                prefabs={prefabs}
+                key={tag}
+                name={tag}
+                entries={entries}
               />
             )
           )
         ) : (
-          // 只显示选中分类
+          // 只显示选中 tag
           <PrefabCategory
-            name={selectedCategory.value}
-            prefabs={
-              prefabsByCategory.value.get(selectedCategory.value) || []
+            name={selectedTag.value}
+            entries={
+              prefabsByTag.value.get(selectedTag.value) || []
             }
             defaultExpanded={true}
           />
@@ -141,7 +141,7 @@ export function PrefabBrowser() {
       >
         <span>拖拽到场景使用</span>
         <span>
-          {Array.from(prefabsByCategory.value.values()).flat().length} 个
+          {Array.from(prefabsByTag.value.values()).flat().length} 个
           Prefab
         </span>
       </div>

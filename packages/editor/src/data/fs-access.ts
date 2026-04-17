@@ -325,9 +325,9 @@ export async function saveSpriteSheetToProject(
   const assetsDir = project.config.assetsDir || "assets";
   const assetsHandle = await (project.folderHandle as any).getDirectoryHandle(assetsDir);
 
-  // 默认保存到 assets/sprites/{sheet.name}.mote-sprite.json
+  // 默认保存到 assets/{sheet.name}.mote-sprite.json（不强制 sprites/ 子目录）
   const safeName = (sheet.name || "untitled").replace(/\s+/g, "_");
-  const defaultPath = `sprites/${safeName}.mote-sprite.json`;
+  const defaultPath = `${safeName}.mote-sprite.json`;
   const savePath = relativePath || defaultPath;
 
   // 推断 image 的相对路径（假设 json 和 png 在同一目录）
@@ -345,4 +345,9 @@ export async function saveSpriteSheetToProject(
   const { spriteSheetToJson } = await import("./io");
   const json = spriteSheetToJson(sheet, imageRelativePath);
   await writeJsonFile(fileHandle, json);
+
+  // 记录保存路径到 sheet
+  if (sheet) {
+    sheet.jsonPath = savePath;
+  }
 }

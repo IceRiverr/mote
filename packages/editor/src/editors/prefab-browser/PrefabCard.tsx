@@ -5,9 +5,10 @@
 import type { Prefab } from "../../data/Prefab";
 import { getPrefabThumbnail } from "../../data/Prefab";
 import { activeTool } from "../../store/selection";
-import { setSinglePrefabBrush, activePrefabId } from "../../store/brush";
+import { setSinglePrefabBrush, activePrefabPath } from "../../store/brush";
 
 interface PrefabCardProps {
+  path: string;
   prefab: Prefab;
   isActive?: boolean;
   onDoubleClick?: () => void;
@@ -15,6 +16,7 @@ interface PrefabCardProps {
 }
 
 export function PrefabCard({
+  path,
   prefab,
   isActive = false,
   onDoubleClick,
@@ -25,7 +27,7 @@ export function PrefabCard({
 
   const handleClick = () => {
     // 设为当前笔刷
-    setSinglePrefabBrush(prefab.id);
+    setSinglePrefabBrush(path);
     // 自动切换到笔刷工具
     if (activeTool.value !== "brush") {
       activeTool.value = "brush";
@@ -40,7 +42,7 @@ export function PrefabCard({
       draggable
       onDragStart={(e) => {
         // 设置拖拽数据
-        e.dataTransfer?.setData("application/mote-prefab", prefab.id);
+        e.dataTransfer?.setData("application/mote-prefab", path);
         e.dataTransfer!.effectAllowed = "copy";
       }}
       style={{

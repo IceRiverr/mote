@@ -4,12 +4,12 @@
 // Prefab 选择统一到 PrefabBrowser
 // ═══════════════════════════════════════════════════════════════
 
-import { brushPattern, brushSize, targetLayer, activePrefabId, BRUSH_SIZES, LAYERS } from "../../../store/brush";
+import { brushPattern, brushSize, targetLayer, activePrefabPath, BRUSH_SIZES, LAYERS } from "../../../store/brush";
 import { getPrefab } from "../../../store/prefabs";
 import { activeTool } from "../../../store/selection";
 
 export function BrushPalette() {
-  const currentPrefab = activePrefabId.value;
+  const currentPrefab = activePrefabPath.value;
   const prefab = currentPrefab ? getPrefab(currentPrefab) : null;
   const tool = activeTool.value;
 
@@ -81,7 +81,7 @@ export function BrushPalette() {
 // ═══════════════════════════════════════════════════════════════
 
 function CurrentBrushInfo() {
-  const currentPrefab = activePrefabId.value;
+  const currentPrefab = activePrefabPath.value;
   const prefab = currentPrefab ? getPrefab(currentPrefab) : null;
   const tool = activeTool.value;
   const pattern = brushPattern.value;
@@ -182,13 +182,13 @@ function CurrentBrushInfo() {
           padding: "4px",
           borderRadius: "4px",
         }}>
-          {pattern.slice(0, 16).map((cell: { prefabId: string }, i: number) => (
+          {pattern.slice(0, 16).map((cell: { prefabPath: string }, i: number) => (
             <div
               key={i}
               style={{
                 width: "10px",
                 height: "10px",
-                background: cell.prefabId ? "var(--accent)" : "transparent",
+                background: cell.prefabPath ? "var(--accent)" : "transparent",
                 borderRadius: "1px",
               }}
             />

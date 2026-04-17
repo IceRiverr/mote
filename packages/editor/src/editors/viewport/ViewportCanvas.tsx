@@ -25,7 +25,7 @@ import {
   brushPattern, 
   brushSize, 
   targetLayer, 
-  activePrefabId,
+  activePrefabPath,
   getBrushGridPositions,
   setSinglePrefabBrush,
   brushMode,
@@ -335,7 +335,7 @@ export function ViewportCanvas() {
   function drawBrushPreview(ctx: CanvasRenderingContext2D, gridX: number, gridY: number, gridSize: number) {
     const cam = camera.value;
     
-    if (activeTool.value === "brush" && activePrefabId.value) {
+    if (activeTool.value === "brush" && activePrefabPath.value) {
       // 绘制笔刷图案预览
       const positions = getBrushGridPositions(gridX, gridY);
       
@@ -486,9 +486,9 @@ export function ViewportCanvas() {
     if (!currentScene.value) return;
     
     const layer = targetLayer.value;
-    const prefabId = activePrefabId.value;
+    const prefabPath = activePrefabPath.value;
     
-    if (!prefabId) return;
+    if (!prefabPath) return;
     
     // 获取笔刷覆盖的所有格子
     const positions = getBrushGridPositions(gridX, gridY);
@@ -504,7 +504,7 @@ export function ViewportCanvas() {
       const existingEntity = findEntityAtGrid(pos.x, pos.y, layer, gridSize);
       
       // 创建新实体（和 Command 中保持一致）
-      const newEntity = createSceneEntity(pos.prefabId, pos.x * gridSize, pos.y * gridSize);
+      const newEntity = createSceneEntity(pos.prefabPath, pos.x * gridSize, pos.y * gridSize);
       
       // 记录到命令
       if (currentBrushCmd.value) {
@@ -566,10 +566,10 @@ export function ViewportCanvas() {
   }
 
   function fillAt(gridX: number, gridY: number, gridSize: number): void {
-    const prefabId = activePrefabId.value;
-    if (!prefabId) return;
+    const prefabPath = activePrefabPath.value;
+    if (!prefabPath) return;
     
-    const cmd = new FloodFillCommand(gridX, gridY, prefabId, targetLayer.value, gridSize);
+    const cmd = new FloodFillCommand(gridX, gridY, prefabPath, targetLayer.value, gridSize);
     
     if (cmd.hasChanges()) {
       executeCommand(cmd);
@@ -580,8 +580,8 @@ export function ViewportCanvas() {
     const layer = targetLayer.value;
     const result = pickPrefab(gridX, gridY, layer, gridSize);
     
-    if (result.prefabId) {
-      setSinglePrefabBrush(result.prefabId);
+    if (result.prefabPath) {
+      setSinglePrefabBrush(result.prefabPath);
       targetLayer.value = result.layer;
       // 切换回笔刷工具
       activeTool.value = "brush";
@@ -618,7 +618,7 @@ export function ViewportCanvas() {
       
       switch (tool) {
         case "brush":
-          if (!activePrefabId.value) return;
+          if (!activePrefabPath.value) return;
           isPainting.value = true;
           paintedCells.value = new Set();
           currentBrushCmd.value = new PaintBrushCommand("绘制");

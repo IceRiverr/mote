@@ -1,13 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // PrefabFS.ts - Prefab 文件系统操作
 // 
-// 标准目录结构：
-// project/
-// ├── prefabs/
-// │   ├── characters/
-// │   ├── environment/
-// │   └── items/
-// └── ...
+// 设计原则：
+// - 所有资源相对于 assetsDir，不预设任何子目录结构
+// - 以文件路径为唯一键，不依赖 id 唯一性
+// - 扫描整个 assets/ 目录递归查找 .mote-prefab.json
 // ═══════════════════════════════════════════════════════════════
 
 import type { Prefab } from '../data/Prefab';
@@ -25,7 +22,6 @@ export const PREFAB_EXTENSION = '.mote-prefab.json';
 export interface PrefabMeta {
   id: string;
   name: string;
-  category: string;
   path: string;           // 文件路径，如 "prefabs/environment/grass_01.mote-prefab.json"
   lastModified: number;
 }
@@ -35,12 +31,35 @@ export interface PrefabMeta {
  */
 export class PrefabFS {
   private fs: FileSystem;
-  private cache = new Map<string, Prefab>();      // id -> Prefab
-  private metaCache = new Map<string, PrefabMeta>(); // id -> Meta
+  private cache = new Map<string, Prefab>();      // path -> Prefab
+  private metaCache = new Map<string, PrefabMeta>(); // path -> Meta
+  private idToPath = new Map<string, string>();     // id -> first path
   private initialized = false;
+  private assetsDir = 'assets';
 
   constructor(fs?: FileSystem) {
     this.fs = fs || getFileSystem();
+  }
+
+  /**
+   * 设置资源根目录（默认 assets）
+   */
+  setAssetsDir(dir: string): void {
+    this.assetsDir = dir || 'assets';
+  }
+
+  /**
+   * 获取资源根目录
+   */
+  getAssetsDir(): string {
+    return this.assetsDir;
+  }
+
+  /**
+   * 将相对于 assetsDir 的路径解析为项目根目录下的完整相对路径
+   */
+  private resolveAssetPath(relativePath: string): string {
+    return `${this.assetsDir}/${relativePath}`;
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -49,18 +68,11 @@ export class PrefabFS {
 
   /**
    * 初始化 Prefab 系统
-   * - 创建 prefabs/ 目录（如果不存在）
-   * - 扫描并缓存所有 Prefab
+   * - 扫描并缓存所有 Prefab（递归整个 assetsDir）
    */
   async initialize(): Promise<boolean> {
     if (this.initialized) return true;
-
-    // 确保目录存在
-    await this.fs.createDirectory('prefabs');
-
-    // 扫描加载所有 Prefab
     await this.scanPrefabs();
-
     this.initialized = true;
     return true;
   }
@@ -71,6 +83,7 @@ export class PrefabFS {
   async rescan(): Promise<void> {
     this.cache.clear();
     this.metaCache.clear();
+    this.idToPath.clear();
     await this.scanPrefabs();
   }
 
@@ -81,66 +94,53 @@ export class PrefabFS {
   /**
    * 保存 Prefab
    * @param prefab - 要保存的 Prefab
-   * @param category - 分类（决定子目录），可选
+   * @param relativePath - 相对于 assetsDir 的文件路径（必须包含扩展名）
    */
-  async save(prefab: Prefab, category?: string): Promise<boolean> {
-    const cat = category || prefab.tags?.[0] || 'uncategorized';
-    const fileName = `${prefab.id}${PREFAB_EXTENSION}`;
-    const filePath = `prefabs/${cat}/${fileName}`;
+  async save(prefab: Prefab, relativePath: string): Promise<boolean> {
+    if (!relativePath.endsWith(PREFAB_EXTENSION)) {
+      throw new Error(`Prefab path must end with ${PREFAB_EXTENSION}: "${relativePath}"`);
+    }
 
-    // 确保分类目录存在
-    await this.fs.createDirectory(`prefabs/${cat}`);
+    // 确保父目录存在（基于项目根目录）
+    const assetPath = this.resolveAssetPath(relativePath);
+    const dir = assetPath.split('/').slice(0, -1).join('/');
+    if (dir) {
+      await this.fs.createDirectory(dir);
+    }
 
     // 序列化
     const content = JSON.stringify(prefab, null, 2);
 
     // 写入文件
-    const success = await this.fs.writeFile(filePath, content);
+    const success = await this.fs.writeFile(assetPath, content);
 
     if (success) {
-      // 更新缓存
-      this.cache.set(prefab.id, prefab);
-      this.metaCache.set(prefab.id, {
+      this.cache.set(relativePath, prefab);
+      this.metaCache.set(relativePath, {
         id: prefab.id,
         name: prefab.name,
-        category: cat,
-        path: filePath,
+        path: relativePath,
         lastModified: Date.now(),
       });
+      if (!this.idToPath.has(prefab.id)) {
+        this.idToPath.set(prefab.id, relativePath);
+      }
     }
 
     return success;
   }
 
   /**
-   * 加载单个 Prefab
-   */
-  async load(id: string): Promise<Prefab | null> {
-    // 先检查缓存
-    if (this.cache.has(id)) {
-      return this.cache.get(id)!;
-    }
-
-    // 从元数据获取路径
-    const meta = this.metaCache.get(id);
-    if (meta) {
-      return await this.loadFromPath(meta.path);
-    }
-
-    // 尝试在 prefabs/ 目录下查找
-    const found = await this.findPrefabFile(id);
-    if (found) {
-      return await this.loadFromPath(found);
-    }
-
-    return null;
-  }
-
-  /**
-   * 从指定路径加载 Prefab
+   * 加载单个 Prefab（通过路径）
    */
   async loadFromPath(filePath: string): Promise<Prefab | null> {
-    const content = await this.fs.readFile(filePath);
+    // 先检查缓存
+    if (this.cache.has(filePath)) {
+      return this.cache.get(filePath)!;
+    }
+
+    const assetPath = this.resolveAssetPath(filePath);
+    const content = await this.fs.readFile(assetPath);
     if (!content) return null;
 
     try {
@@ -153,18 +153,17 @@ export class PrefabFS {
 
       const prefab = data as Prefab;
       
-      // 提取分类（文件路径决定）
-      const fileCategory = this.extractCategoryFromPath(filePath);
-      
       // 更新缓存
-      this.cache.set(prefab.id, prefab);
-      this.metaCache.set(prefab.id, {
+      this.cache.set(filePath, prefab);
+      this.metaCache.set(filePath, {
         id: prefab.id,
         name: prefab.name,
-        category: fileCategory,
         path: filePath,
         lastModified: Date.now(),
       });
+      if (!this.idToPath.has(prefab.id)) {
+        this.idToPath.set(prefab.id, filePath);
+      }
 
       return prefab;
     } catch (err) {
@@ -174,20 +173,50 @@ export class PrefabFS {
   }
 
   /**
-   * 删除 Prefab
+   * 通过 ID 加载 Prefab（返回第一个匹配的）
+   * 注意：路径自由后 ID 可能不唯一，建议优先使用 loadFromPath
    */
-  async delete(id: string): Promise<boolean> {
-    const meta = this.metaCache.get(id);
+  async load(id: string): Promise<Prefab | null> {
+    const path = this.idToPath.get(id);
+    if (path) {
+      return await this.loadFromPath(path);
+    }
+    // 如果 idToPath 中没有，尝试扫描查找
+    await this.scanPrefabs();
+    const foundPath = this.idToPath.get(id);
+    if (foundPath) {
+      return await this.loadFromPath(foundPath);
+    }
+    return null;
+  }
+
+  /**
+   * 删除 Prefab（通过路径）
+   */
+  async delete(filePath: string): Promise<boolean> {
+    const meta = this.metaCache.get(filePath);
     if (!meta) {
-      console.warn(`Prefab not found: ${id}`);
+      console.warn(`Prefab not found at path: ${filePath}`);
       return false;
     }
 
-    const success = await this.fs.remove(meta.path);
+    const assetPath = this.resolveAssetPath(filePath);
+    const success = await this.fs.remove(assetPath);
     
     if (success) {
-      this.cache.delete(id);
-      this.metaCache.delete(id);
+      this.cache.delete(filePath);
+      this.metaCache.delete(filePath);
+      // 清理 idToPath（如果指向被删的路径）
+      if (this.idToPath.get(meta.id) === filePath) {
+        this.idToPath.delete(meta.id);
+        // 如果有其他同名 id 的文件，重新找一个
+        for (const [p, m] of this.metaCache) {
+          if (m.id === meta.id) {
+            this.idToPath.set(meta.id, p);
+            break;
+          }
+        }
+      }
     }
 
     return success;
@@ -196,42 +225,20 @@ export class PrefabFS {
   /**
    * 重命名/移动 Prefab
    */
-  async move(id: string, newId?: string, newCategory?: string): Promise<boolean> {
-    const prefab = await this.load(id);
+  async move(oldPath: string, newPath: string, newId?: string): Promise<boolean> {
+    const prefab = await this.loadFromPath(oldPath);
     if (!prefab) return false;
 
-    const meta = this.metaCache.get(id)!;
+    const updatedPrefab: Prefab = newId ? { ...prefab, id: newId } : prefab;
+    const success = await this.save(updatedPrefab, newPath);
 
-    // 确定新路径
-    const targetId = newId || prefab.id;
-    const targetCategory = newCategory || meta.category;
-    const newPath = `prefabs/${targetCategory}/${targetId}${PREFAB_EXTENSION}`;
-
-    // 如果路径没变，直接返回成功
-    if (newPath === meta.path && targetId === prefab.id) {
-      return true;
-    }
-
-    // 确保目标目录存在
-    await this.fs.createDirectory(`prefabs/${targetCategory}`);
-
-    // 更新 Prefab（保持 tags 不变，仅修改 id）
-    const updatedPrefab: Prefab = {
-      ...prefab,
-      id: targetId,
-    };
-
-    // 保存到新位置
-    const success = await this.save(updatedPrefab, targetCategory);
-
-    if (success && newPath !== meta.path) {
-      // 删除旧文件
-      await this.fs.remove(meta.path);
-      
-      // 如果 ID 变了，删除旧的缓存
-      if (targetId !== id) {
-        this.cache.delete(id);
-        this.metaCache.delete(id);
+    if (success && oldPath !== newPath) {
+      await this.fs.remove(this.resolveAssetPath(oldPath));
+      this.cache.delete(oldPath);
+      this.metaCache.delete(oldPath);
+      const oldMetaId = prefab.id;
+      if (this.idToPath.get(oldMetaId) === oldPath) {
+        this.idToPath.delete(oldMetaId);
       }
     }
 
@@ -251,31 +258,19 @@ export class PrefabFS {
   }
 
   /**
-   * 获取所有分类
+   * 获取所有 Prefab 的 path 列表
    */
-  getCategories(): string[] {
-    const categories = new Set<string>();
-    for (const meta of this.metaCache.values()) {
-      categories.add(meta.category);
-    }
-    return Array.from(categories).sort();
+  getAllPaths(): string[] {
+    return Array.from(this.metaCache.keys()).sort();
   }
 
   /**
-   * 按分类获取 Prefab
+   * 获取所有 Meta
    */
-  async getByCategory(category: string): Promise<Prefab[]> {
-    await this.ensureInitialized();
-    
-    const results: Prefab[] = [];
-    for (const [id, meta] of this.metaCache) {
-      if (meta.category === category) {
-        const prefab = this.cache.get(id);
-        if (prefab) results.push(prefab);
-      }
-    }
-    
-    return results.sort((a, b) => a.name.localeCompare(b.name));
+  getAllMeta(): PrefabMeta[] {
+    return Array.from(this.metaCache.values()).sort(
+      (a, b) => a.path.localeCompare(b.path)
+    );
   }
 
   /**
@@ -287,8 +282,8 @@ export class PrefabFS {
     const lowerQuery = query.toLowerCase();
     const results: Prefab[] = [];
     
-    for (const prefab of this.cache.values()) {
-      const searchText = `${prefab.id} ${prefab.name} ${prefab.description || ''}`.toLowerCase();
+    for (const [path, prefab] of this.cache) {
+      const searchText = `${prefab.id} ${prefab.name} ${prefab.description || ''} ${path}`.toLowerCase();
       if (searchText.includes(lowerQuery)) {
         results.push(prefab);
       }
@@ -300,15 +295,29 @@ export class PrefabFS {
   /**
    * 获取 Prefab 元数据
    */
-  getMeta(id: string): PrefabMeta | undefined {
-    return this.metaCache.get(id);
+  getMeta(path: string): PrefabMeta | undefined {
+    return this.metaCache.get(path);
   }
 
   /**
-   * 检查 Prefab 是否存在
+   * 通过路径检查 Prefab 是否存在
+   */
+  hasPath(path: string): boolean {
+    return this.cache.has(path);
+  }
+
+  /**
+   * 通过 ID 检查是否存在（至少一个）
    */
   has(id: string): boolean {
-    return this.cache.has(id);
+    return this.idToPath.has(id);
+  }
+
+  /**
+   * 获取 Prefab 的路径（通过 ID，返回第一个匹配的）
+   */
+  getPathById(id: string): string | undefined {
+    return this.idToPath.get(id);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -318,85 +327,16 @@ export class PrefabFS {
   /**
    * 批量保存 Prefab
    */
-  async saveAll(prefabs: Prefab[]): Promise<{ success: number; failed: number }> {
+  async saveAll(prefabs: Array<{ prefab: Prefab; path: string }>): Promise<{ success: number; failed: number }> {
     let success = 0;
     let failed = 0;
 
-    for (const prefab of prefabs) {
-      const ok = await this.save(prefab);
+    for (const { prefab, path } of prefabs) {
+      const ok = await this.save(prefab, path);
       if (ok) success++; else failed++;
     }
 
     return { success, failed };
-  }
-
-  /**
-   * 从 Sprite Atlas 批量生成并保存
-   */
-  async generateFromSprites(
-    sprites: Array<{ atlas: string; frame: string; collider?: any }>,
-    options: {
-      prefix?: string;
-      category?: string;
-      autoCollider?: boolean;
-    }
-  ): Promise<Prefab[]> {
-    const { prefix, category = 'from-sprite', autoCollider = true } = options;
-
-    const created: Prefab[] = [];
-
-    for (let i = 0; i < sprites.length; i++) {
-      const { atlas, frame, collider } = sprites[i];
-      
-      // 生成 ID
-      const num = (i + 1).toString().padStart(2, '0');
-      const id = prefix ? `${prefix}_${num}` : `${atlas}_${frame}`;
-
-      // 检查是否已存在
-      if (this.has(id)) {
-        console.warn(`Prefab ${id} already exists, skipping`);
-        continue;
-      }
-
-      // 创建 Prefab
-      const prefab: Prefab = {
-        id,
-        name: id,
-        tags: [category],
-        components: {
-          Transform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
-          Sprite: {
-            atlas,
-            frame,
-            layer: 0,
-            tint: '#ffffff',
-            flipX: false,
-            flipY: false,
-            alpha: 1,
-            visible: true,
-          },
-        },
-      };
-
-      // 添加碰撞体
-      if (autoCollider && collider) {
-        prefab.components.Collider = {
-          shapes: collider,
-          isTrigger: false,
-          material: 'default',
-          layer: 1,
-          mask: 0xFFFFFFFF,
-        };
-      }
-
-      // 保存
-      const success = await this.save(prefab, category);
-      if (success) {
-        created.push(prefab);
-      }
-    }
-
-    return created;
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -409,48 +349,40 @@ export class PrefabFS {
     }
   }
 
-  private async scanPrefabs(dirPath: string = 'prefabs'): Promise<void> {
+  private async scanPrefabs(): Promise<void> {
+    try {
+      for await (const entry of this.scanDirectory(this.assetsDir)) {
+        if (entry.kind === 'file' && entry.name.endsWith(PREFAB_EXTENSION)) {
+          // entry.path 是 assetsDir/xxx，去掉前缀得到相对于 assetsDir 的路径
+          const relativePath = entry.path.slice(this.assetsDir.length + 1);
+          await this.loadFromPath(relativePath);
+        }
+      }
+    } catch (err) {
+      console.log(`Scan directory ${this.assetsDir} not found or empty`);
+    }
+  }
+
+  private async *scanDirectory(dirPath: string): AsyncGenerator<{
+    name: string;
+    kind: 'file' | 'directory';
+    path: string;
+  }> {
     try {
       for await (const entry of this.fs.listDirectory(dirPath)) {
         const fullPath = `${dirPath}/${entry.name}`;
-
+        yield {
+          name: entry.name,
+          kind: entry.kind,
+          path: fullPath,
+        };
         if (entry.kind === 'directory') {
-          // 递归扫描子目录
-          await this.scanPrefabs(fullPath);
-        } else if (entry.kind === 'file' && entry.name.endsWith(PREFAB_EXTENSION)) {
-          // 加载 Prefab
-          await this.loadFromPath(fullPath);
+          yield* this.scanDirectory(fullPath);
         }
       }
     } catch (err) {
       // 目录可能不存在，忽略错误
-      console.log(`Scan directory ${dirPath} not found or empty`);
     }
-  }
-
-  private async findPrefabFile(id: string): Promise<string | null> {
-    const fileName = `${id}${PREFAB_EXTENSION}`;
-    
-    // 扫描所有子目录
-    for await (const entry of this.fs.listDirectory('prefabs')) {
-      if (entry.kind === 'directory') {
-        const candidate = `prefabs/${entry.name}/${fileName}`;
-        if (await this.fs.exists(candidate)) {
-          return candidate;
-        }
-      }
-    }
-    
-    return null;
-  }
-
-  private extractCategoryFromPath(filePath: string): string {
-    const parts = filePath.split('/');
-    // prefabs/category/name.mote-prefab.json
-    if (parts.length >= 2) {
-      return parts[parts.length - 2];
-    }
-    return 'uncategorized';
   }
 }
 

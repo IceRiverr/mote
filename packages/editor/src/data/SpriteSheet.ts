@@ -70,6 +70,8 @@ export interface SpriteSheet {
   image: string;
   /** Original source image path (relative to project) for export */
   sourcePath?: string;
+  /** JSON definition file path (relative to assets/) */
+  jsonPath?: string;
   imageWidth: number;
   imageHeight: number;
   /** How the image is sliced into frames */

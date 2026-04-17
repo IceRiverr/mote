@@ -16,9 +16,9 @@ import {
 } from './state';
 import { COLLIDER_PRESETS } from '../../data/Collider';
 import type { ColliderShape } from '../../data/Collider';
-import { getPrefabFS } from '../../fs/PrefabFS';
 import { getFileSystem } from '../../fs/FileSystem';
 import { OpenProjectDialog } from '../../components/OpenProjectDialog';
+import { GeneratePrefabDialog } from './GeneratePrefabDialog';
 
 // ── Collider Preset Button ────────────────────────────────────
 
@@ -73,117 +73,18 @@ function GeneratePrefabButton() {
   const selected = selectedFrameIds.value;
   const [showDialog, setShowDialog] = useState(false);
   const [showOpenProjectDialog, setShowOpenProjectDialog] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [prefix, setPrefix] = useState(sheet?.name || '');
-  const [category, setCategory] = useState('environment');
-  const [autoCollider, setAutoCollider] = useState(true);
 
   if (!sheet || selected.length === 0) return null;
 
-  const handleGenerate = async () => {
-    // 严格模式：检查是否已打开文件夹（检查 FileSystem 的 rootHandle）
-    const fs = getFileSystem();
-    if (!fs.hasRoot()) {
-      console.log('[GeneratePrefab] No project folder opened, showing dialog');
-      setShowOpenProjectDialog(true);
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      const prefabFS = getPrefabFS();
-      await prefabFS.initialize();
-
-      let successCount = 0;
-      let skipCount = 0;
-      
-      for (let i = 0; i < selected.length; i++) {
-        const frameId = selected[i];
-        const frame = sheet.frames[frameId];
-        
-        if (!frame) {
-          console.warn(`Frame ${frameId} not found in sheet`);
-          continue;
-        }
-
-        // 使用帧的原始 ID 作为 Prefab ID 的一部分，避免重复
-        // 例如：wall_frame_110, grass_frame_120
-        const prefabId = `${prefix}_${frameId}`;
-        
-        if (prefabFS.has(prefabId)) {
-          console.warn(`Prefab ${prefabId} already exists, skipping`);
-          skipCount++;
-          continue;
-        }
-
-        const components: Record<string, any> = {
-          Transform: {
-            x: 0,
-            y: 0,
-            rotation: 0,
-            scaleX: 1,
-            scaleY: 1,
-          },
-          Sprite: {
-            atlas: sheet.id,
-            frame: frameId,
-            layer: 0,
-            tint: '#ffffff',
-            flipX: false,
-            flipY: false,
-            alpha: 1,
-            visible: true,
-          },
-        };
-
-        if (autoCollider && frame.collider && frame.collider.length > 0) {
-          components.Collider = {
-            shapes: frame.collider,
-            isTrigger: false,
-            material: 'default',
-            layer: 1,
-            mask: 0xFFFFFFFF,
-          };
-        }
-
-        const prefab = {
-          id: prefabId,
-          name: prefabId,
-          category,
-          components,
-        };
-
-        const success = await prefabFS.save(prefab, category);
-        if (success) {
-          successCount++;
-        } else {
-          console.warn(`Failed to save prefab: ${prefabId}`);
-        }
-      }
-
-      alert(`成功生成 ${successCount} 个 Prefab${skipCount > 0 ? `，跳过 ${skipCount} 个 (已存在)` : ''}`);
-      setShowDialog(false);
-    } catch (err) {
-      console.error('Failed to generate prefabs:', err);
-      alert('生成失败：' + (err as Error).message);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const categories = [
-    { id: 'environment', name: '环境' },
-    { id: 'characters', name: '角色' },
-    { id: 'items', name: '物品' },
-    { id: 'effects', name: '特效' },
-    { id: 'ui', name: 'UI' },
-  ];
+  const selectedFrames = selected.map((frameId) => ({
+    name: frameId,
+    ...sheet.frames[frameId],
+  }));
 
   return (
     <>
       <button
         onClick={async () => {
-          // 先检查是否已打开文件夹
           const fs = getFileSystem();
           if (!fs.hasRoot()) {
             setShowOpenProjectDialog(true);
@@ -208,194 +109,28 @@ function GeneratePrefabButton() {
       </button>
 
       {showDialog && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
+        <GeneratePrefabDialog
+          frames={selectedFrames}
+          atlas={{
+            id: sheet.id,
+            name: sheet.name,
+            image: sheet.image,
+            jsonPath: sheet.jsonPath || `${sheet.name}.mote-sprite.json`,
+            frames: selectedFrames,
           }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowDialog(false);
+          onClose={() => setShowDialog(false)}
+          onGenerated={(count) => {
+            alert(`成功生成 ${count} 个 Prefab`);
           }}
-        >
-          <div
-            style={{
-              width: 420,
-              background: '#2a2a2a',
-              borderRadius: 8,
-              border: '1px solid #444',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            {/* Header */}
-            <div
-              style={{
-                padding: '16px 20px',
-                borderBottom: '1px solid #444',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#fff' }}>
-                生成 Prefab
-              </h2>
-              <button
-                onClick={() => setShowDialog(false)}
-                style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 18, padding: 0 }}
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Content */}
-            <div style={{ padding: 20 }}>
-              {/* Prefix */}
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#aaa', marginBottom: 6, textTransform: 'uppercase' }}>
-                  ID 前缀
-                </label>
-                <input
-                  type="text"
-                  value={prefix}
-                  onInput={(e) => setPrefix((e.target as HTMLInputElement).value)}
-                  placeholder="例如：wall, grass"
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    fontSize: 13,
-                    background: '#1a1a1a',
-                    border: '1px solid #444',
-                    borderRadius: 4,
-                    color: '#fff',
-                    outline: 'none',
-                  }}
-                />
-                <p style={{ margin: '6px 0 0 0', fontSize: 10, color: '#666' }}>
-                  格式：{prefix}_frame_001, {prefix}_frame_010...
-                </p>
-              </div>
-
-              {/* Category */}
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#aaa', marginBottom: 6, textTransform: 'uppercase' }}>
-                  分类
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory((e.target as HTMLSelectElement).value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    fontSize: 13,
-                    background: '#1a1a1a',
-                    border: '1px solid #444',
-                    borderRadius: 4,
-                    color: '#fff',
-                    outline: 'none',
-                  }}
-                >
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Auto Collider */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <input
-                  type="checkbox"
-                  id="auto-collider"
-                  checked={autoCollider}
-                  onChange={(e) => setAutoCollider((e.target as HTMLInputElement).checked)}
-                  style={{ width: 16, height: 16 }}
-                />
-                <label htmlFor="auto-collider" style={{ fontSize: 12, color: '#e0e0e0', cursor: 'pointer' }}>
-                  自动添加碰撞体（如果帧有定义）
-                </label>
-              </div>
-
-              {/* Preview */}
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#aaa', marginBottom: 6, textTransform: 'uppercase' }}>
-                  预览
-                </div>
-                <div style={{ maxHeight: 100, overflowY: 'auto', background: '#1a1a1a', borderRadius: 4, padding: 8 }}>
-                  {selected.slice(0, 5).map((frameId, i) => {
-                    return (
-                      <div key={frameId} style={{ padding: '2px 0', fontSize: 11, color: '#888', fontFamily: 'monospace' }}>
-                        {prefix}_{frameId}
-                      </div>
-                    );
-                  })}
-                  {selected.length > 5 && (
-                    <div style={{ padding: '2px 0', fontSize: 11, color: '#666' }}>
-                      ...等 {selected.length - 5} 个
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div
-              style={{
-                padding: '16px 20px',
-                borderTop: '1px solid #444',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: 10,
-              }}
-            >
-              <button
-                onClick={() => setShowDialog(false)}
-                disabled={isGenerating}
-                style={{
-                  padding: '8px 16px',
-                  fontSize: 13,
-                  background: 'transparent',
-                  border: '1px solid #444',
-                  borderRadius: 4,
-                  color: '#aaa',
-                  cursor: 'pointer',
-                }}
-              >
-                取消
-              </button>
-              <button
-                onClick={handleGenerate}
-                disabled={isGenerating || !prefix.trim()}
-                style={{
-                  padding: '8px 20px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  background: '#4a90d9',
-                  border: 'none',
-                  borderRadius: 4,
-                  color: '#fff',
-                  cursor: isGenerating || !prefix.trim() ? 'not-allowed' : 'pointer',
-                  opacity: isGenerating || !prefix.trim() ? 0.6 : 1,
-                }}
-              >
-                {isGenerating ? '生成中...' : `生成 Prefab`}
-              </button>
-            </div>
-          </div>
-        </div>
+        />
       )}
 
-      {/* Open Project Dialog */}
       {showOpenProjectDialog && (
         <OpenProjectDialog
           onClose={() => setShowOpenProjectDialog(false)}
           onOpened={() => {
             setShowOpenProjectDialog(false);
-            setShowDialog(true); // 项目打开后自动显示生成对话框
+            setShowDialog(true);
           }}
         />
       )}

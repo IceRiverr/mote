@@ -23,23 +23,22 @@ export async function testFileSystem(): Promise<void> {
 
   // 2. 测试目录操作
   console.log('Creating directories...');
-  await fs.createDirectory('test/prefabs');
-  await fs.createDirectory('test/scenes');
+  await fs.createDirectory('test/nested/dir');
 
   // 3. 测试文件写入
   console.log('Writing file...');
   const testContent = JSON.stringify({ test: true, timestamp: Date.now() }, null, 2);
-  const writeSuccess = await fs.writeFile('test/sample.json', testContent);
+  const writeSuccess = await fs.writeFile('test/nested/dir/sample.json', testContent);
   console.log('Write success:', writeSuccess);
 
   // 4. 测试文件读取
   console.log('Reading file...');
-  const readContent = await fs.readFile('test/sample.json');
+  const readContent = await fs.readFile('test/nested/dir/sample.json');
   console.log('Read content:', readContent);
 
   // 5. 测试文件存在性
   console.log('Checking existence...');
-  const exists = await fs.exists('test/sample.json');
+  const exists = await fs.exists('test/nested/dir/sample.json');
   console.log('File exists:', exists);
 
   // 6. 列出目录
@@ -62,6 +61,7 @@ export async function testPrefabFS(): Promise<void> {
   console.log('🧪 Testing PrefabFS...');
 
   const prefabFS = getPrefabFS();
+  prefabFS.setAssetsDir('test-assets');
   
   // 初始化
   await prefabFS.initialize();
@@ -74,26 +74,33 @@ export async function testPrefabFS(): Promise<void> {
     ['environment'],
     {
       Transform: { x: 0, y: 0 },
-      Sprite: { atlas: 'terrain', frame: 'grass_01' },
+      Sprite: { atlas: 'sprites/terrain.mote-sprite.json', frame: 'grass_01' },
     }
   );
 
+  const path = 'environment/test_grass.mote-prefab.json';
+
   // 保存
-  console.log('Saving prefab...');
-  const saveSuccess = await prefabFS.save(prefab, 'environment');
+  console.log('Saving prefab to', path);
+  const saveSuccess = await prefabFS.save(prefab, path);
   console.log('Save success:', saveSuccess);
 
-  // 读取
-  console.log('Loading prefab...');
-  const loaded = await prefabFS.load('test_grass');
-  console.log('Loaded prefab:', loaded);
+  // 读取（通过路径）
+  console.log('Loading prefab from path...');
+  const loadedByPath = await prefabFS.loadFromPath(path);
+  console.log('Loaded by path:', loadedByPath);
 
-  // 获取分类
-  console.log('Categories:', prefabFS.getCategories());
+  // 读取（通过 ID，降级）
+  console.log('Loading prefab by id...');
+  const loadedById = await prefabFS.load('test_grass');
+  console.log('Loaded by id:', loadedById);
+
+  // 获取所有路径
+  console.log('All paths:', prefabFS.getAllPaths());
 
   // 清理
   console.log('Cleaning up...');
-  await prefabFS.delete('test_grass');
+  await prefabFS.delete(path);
 
   console.log('✅ PrefabFS test completed');
 }
@@ -105,6 +112,7 @@ export async function testSceneFS(): Promise<void> {
   console.log('🧪 Testing SceneFS...');
 
   const sceneFS = getSceneFS();
+  sceneFS.setAssetsDir('test-assets');
   
   // 初始化
   await sceneFS.initialize();
@@ -112,25 +120,29 @@ export async function testSceneFS(): Promise<void> {
 
   // 创建场景
   console.log('Creating scene...');
-  const scene = await sceneFS.create('test_level', '测试关卡', 800, 600);
+  const scene = await sceneFS.create('test_level', '测试关卡', 800, 600, 'scenes/test_level.mote-scene.json');
   console.log('Created scene:', scene);
 
   // 设置当前场景
-  if (scene) {
-    sceneFS.setCurrent(scene.id);
+  if (scene?.path) {
+    sceneFS.setCurrent(scene.path);
   }
 
   // 获取所有场景
   console.log('All scenes:', sceneFS.getAllMeta());
 
   // 导出 ECS 格式
-  console.log('Exporting for ECS...');
-  const ecsData = await sceneFS.exportForECS('test_level');
-  console.log('ECS data:', ecsData);
+  if (scene?.path) {
+    console.log('Exporting for ECS...');
+    const ecsData = await sceneFS.exportForECS(scene.path);
+    console.log('ECS data:', ecsData);
+  }
 
   // 清理
-  console.log('Cleaning up...');
-  await sceneFS.delete('test_level');
+  if (scene?.path) {
+    console.log('Cleaning up...');
+    await sceneFS.delete(scene.path);
+  }
 
   console.log('✅ SceneFS test completed');
 }

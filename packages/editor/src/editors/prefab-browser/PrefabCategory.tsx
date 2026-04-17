@@ -6,22 +6,22 @@ import { useState } from "preact/hooks";
 import type { Prefab } from "../../data/Prefab";
 import { PrefabCard } from "./PrefabCard";
 import { spawnPrefab } from "../../store/scene";
-import { activePrefabId } from "../../store/brush";
+import { activePrefabPath } from "../../store/brush";
 
 interface PrefabCategoryProps {
   name: string;
-  prefabs: Prefab[];
+  entries: Array<{ path: string; prefab: Prefab }>;
   defaultExpanded?: boolean;
 }
 
 export function PrefabCategory({
   name,
-  prefabs,
+  entries,
   defaultExpanded = true,
 }: PrefabCategoryProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
-  if (prefabs.length === 0) return null;
+  if (entries.length === 0) return null;
 
   return (
     <div style={{ borderBottom: "1px solid #333" }}>
@@ -65,7 +65,7 @@ export function PrefabCategory({
             fontWeight: "normal",
           }}
         >
-          {prefabs.length}
+          {entries.length}
         </span>
       </div>
 
@@ -79,19 +79,20 @@ export function PrefabCategory({
             padding: "8px",
           }}
         >
-          {prefabs.map((prefab) => (
+          {entries.map(({ path, prefab }) => (
             <PrefabCard
-              key={prefab.id}
+              key={path}
+              path={path}
               prefab={prefab}
-              isActive={activePrefabId.value === prefab.id}
+              isActive={activePrefabPath.value === path}
               onDoubleClick={() => {
                 // 双击在场景中心创建
-                spawnPrefab(prefab.id, 320, 240);
+                spawnPrefab(path, 320, 240);
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
                 // TODO: 显示右键菜单
-                console.log("Context menu for", prefab.id);
+                console.log("Context menu for", path);
               }}
             />
           ))}

@@ -4,15 +4,16 @@
 // 标准项目结构：
 // my-project/
 // ├── snake.mote-project.json   # 项目元数据
-// ├── prefabs/                  # Prefab 定义
-// │   ├── characters/
-// │   ├── environment/
-// │   └── items/
-// ├── scenes/                   # 场景文件
-// │   ├── level_01.mote-scene.json
-// │   └── level_02.mote-scene.json
-// └── sprites/                  # 图集资源
-//     └── *.mote-sprite.json
+// ├── assets/                   # 资源根目录（引擎只预设这一个目录）
+// │   └── *                     # 内部结构完全自由，由用户决定
+// │       ├── *.mote-prefab.json
+// │       ├── *.mote-scene.json
+// │       ├── *.mote-sprite.json
+// │       └── *.png / *.mp3 / ...
+// └── src/                      # 源码目录
+// 
+// 设计原则：引擎不强制 assets/ 内部的任何子目录结构。
+// 所有资源引用统一使用相对于 assets/ 的文件路径。
 // ═══════════════════════════════════════════════════════════════
 
 /**

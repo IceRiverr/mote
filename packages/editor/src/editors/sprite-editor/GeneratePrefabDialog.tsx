@@ -10,6 +10,7 @@ interface SpriteAtlasInfo {
   id: string;
   name: string;
   image: string;
+  jsonPath: string;
   frames: FrameData[];
 }
 
@@ -27,7 +28,11 @@ export function GeneratePrefabDialog({
   onGenerated,
 }: GeneratePrefabDialogProps) {
   const [prefix, setPrefix] = useState(atlas.name);
-  const [category, setCategory] = useState('environment');
+  const [saveDir, setSaveDir] = useState('');
+  const [atlasPath, setAtlasPath] = useState(() => {
+    if (atlas.jsonPath?.endsWith('.mote-sprite.json')) return atlas.jsonPath;
+    return `${atlas.name}.mote-sprite.json`;
+  });
   const [autoCollider, setAutoCollider] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [preview, setPreview] = useState<string[]>([]);
@@ -35,11 +40,21 @@ export function GeneratePrefabDialog({
   // 生成预览
   const generatePreview = () => {
     const names: string[] = [];
-    frames.forEach((_, index) => {
-      const num = (index + 1).toString().padStart(2, '0');
-      names.push(`${prefix}_${num}`);
+    frames.forEach((frame) => {
+      names.push(`${getSaveDir()}/${prefix}_${frame.name}.mote-prefab.json`);
     });
     setPreview(names);
+  };
+
+  const getSaveDir = () => {
+    let raw = saveDir.trim().replace(/\/$/, '');
+    // 防御性处理：如果用户输入了 assetsDir 前缀，自动去掉
+    const prefabFS = getPrefabFS();
+    const assetsDir = prefabFS.getAssetsDir();
+    if (raw === assetsDir || raw.startsWith(`${assetsDir}/`)) {
+      raw = raw.slice(assetsDir.length).replace(/^\//, '');
+    }
+    return raw;
   };
 
   // 执行生成
@@ -50,17 +65,18 @@ export function GeneratePrefabDialog({
       const prefabFS = getPrefabFS();
       await prefabFS.initialize();
 
-      // 手动生成 Prefab
       let successCount = 0;
-      
+      const dir = getSaveDir();
+
       for (let i = 0; i < frames.length; i++) {
         const frame = frames[i];
-        const num = (i + 1).toString().padStart(2, '0');
-        const prefabId = `${prefix}_${num}`;
-        
+        const prefabId = `${prefix}_${frame.name}`;
+        const fileName = `${prefabId}.mote-prefab.json`;
+        const filePath = dir ? `${dir}/${fileName}` : fileName;
+
         // 检查是否已存在
-        if (prefabFS.has(prefabId)) {
-          console.warn(`Prefab ${prefabId} already exists, skipping`);
+        if (prefabFS.hasPath(filePath)) {
+          console.warn(`Prefab ${filePath} already exists, skipping`);
           continue;
         }
 
@@ -74,7 +90,7 @@ export function GeneratePrefabDialog({
             scaleY: 1,
           },
           Sprite: {
-            atlas: atlas.id,
+            atlas: atlasPath,
             frame: frame.name ?? '',
             layer: 0,
             tint: '#ffffff',
@@ -100,12 +116,12 @@ export function GeneratePrefabDialog({
         const prefab = {
           id: prefabId,
           name: prefabId,
-          category,
+          tags: dir ? dir.split('/').filter(Boolean) : [],
           components,
         };
 
         // 保存
-        const success = await prefabFS.save(prefab, category);
+        const success = await prefabFS.save(prefab, filePath);
         if (success) successCount++;
       }
 
@@ -118,14 +134,6 @@ export function GeneratePrefabDialog({
       setIsGenerating(false);
     }
   };
-
-  const categories = [
-    { id: 'environment', name: '环境' },
-    { id: 'characters', name: '角色' },
-    { id: 'items', name: '物品' },
-    { id: 'effects', name: '特效' },
-    { id: 'ui', name: 'UI' },
-  ];
 
   return (
     <div
@@ -228,11 +236,11 @@ export function GeneratePrefabDialog({
                 color: '#666',
               }}
             >
-              生成的 Prefab ID 格式: {prefix}_01, {prefix}_02...
+              生成的 Prefab ID 格式: {prefix}_frame_xxx
             </p>
           </div>
 
-          {/* 分类 */}
+          {/* Atlas 路径 */}
           <div style={{ marginBottom: 16 }}>
             <label
               style={{
@@ -244,11 +252,13 @@ export function GeneratePrefabDialog({
                 textTransform: 'uppercase',
               }}
             >
-              分类
+              Sprite Sheet 路径（相对于 assets/）
             </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory((e.target as HTMLSelectElement).value)}
+            <input
+              type="text"
+              value={atlasPath}
+              onInput={(e) => setAtlasPath((e.target as HTMLInputElement).value)}
+              placeholder="例如: sprites/tiny-dungeon.mote-sprite.json"
               style={{
                 width: '100%',
                 padding: '10px 12px',
@@ -259,13 +269,57 @@ export function GeneratePrefabDialog({
                 color: '#fff',
                 outline: 'none',
               }}
+            />
+            <p
+              style={{
+                margin: '6px 0 0 0',
+                fontSize: 12,
+                color: '#666',
+              }}
             >
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+              Prefab 中引用的 Sprite Atlas 文件路径
+            </p>
+          </div>
+
+          {/* 保存目录 */}
+          <div style={{ marginBottom: 16 }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: 12,
+                fontWeight: 600,
+                color: '#aaa',
+                marginBottom: 8,
+                textTransform: 'uppercase',
+              }}
+            >
+              保存目录（相对于 assets/）
+            </label>
+            <input
+              type="text"
+              value={saveDir}
+              onInput={(e) => setSaveDir((e.target as HTMLInputElement).value)}
+              placeholder="例如: prefabs/environment 或 environment/tiles"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: 14,
+                background: '#1a1a1a',
+                border: '1px solid #444',
+                borderRadius: 4,
+                color: '#fff',
+                outline: 'none',
+              }}
+            />
+            <p
+              style={{
+                margin: '6px 0 0 0',
+                fontSize: 12,
+                color: '#666',
+              }}
+            >
+              留空则使用上次保存的目录
+            </p>
           </div>
 
           {/* 自动碰撞体 */}
@@ -374,7 +428,7 @@ export function GeneratePrefabDialog({
                   borderRadius: 4,
                 }}
               >
-                点击"刷新预览"查看生成的 Prefab 名称
+                点击"刷新预览"查看生成的 Prefab 路径
               </div>
             )}
           </div>

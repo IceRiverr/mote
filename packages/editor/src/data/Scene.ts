@@ -55,6 +55,9 @@ export interface Scene {
   /** 场景名称 */
   name: string;
   
+  /** 场景文件路径（相对于 assets/） */
+  path?: string;
+  
   /** 场景宽度（像素） */
   width: number;
   

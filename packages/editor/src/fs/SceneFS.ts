@@ -1,13 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // SceneFS.ts - Scene 文件系统操作
 // 
-// 标准目录结构：
-// project/
-// ├── scenes/
-// │   ├── level_01.mote-scene.json
-// │   ├── level_02.mote-scene.json
-// │   └── ...
-// └── ...
+// 设计原则：
+// - 所有资源相对于 assetsDir，不预设任何子目录结构
+// - 以文件路径为唯一键
+// - 扫描整个 assets/ 目录递归查找 .mote-scene.json
 // ═══════════════════════════════════════════════════════════════
 
 import type { Scene } from '../data/Scene';
@@ -35,13 +32,36 @@ export interface SceneMeta {
  */
 export class SceneFS {
   private fs: FileSystem;
-  private cache = new Map<string, Scene>();        // id -> Scene
-  private metaCache = new Map<string, SceneMeta>(); // id -> Meta
-  private currentSceneId: string | null = null;
+  private cache = new Map<string, Scene>();        // path -> Scene
+  private metaCache = new Map<string, SceneMeta>(); // path -> Meta
+  private idToPath = new Map<string, string>();     // id -> first path
+  private currentScenePath: string | null = null;
   private initialized = false;
+  private assetsDir = 'assets';
 
   constructor(fs?: FileSystem) {
     this.fs = fs || getFileSystem();
+  }
+
+  /**
+   * 设置资源根目录（默认 assets）
+   */
+  setAssetsDir(dir: string): void {
+    this.assetsDir = dir || 'assets';
+  }
+
+  /**
+   * 获取资源根目录
+   */
+  getAssetsDir(): string {
+    return this.assetsDir;
+  }
+
+  /**
+   * 将相对于 assetsDir 的路径解析为项目根目录下的完整相对路径
+   */
+  private resolveAssetPath(relativePath: string): string {
+    return `${this.assetsDir}/${relativePath}`;
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -53,13 +73,7 @@ export class SceneFS {
    */
   async initialize(): Promise<boolean> {
     if (this.initialized) return true;
-
-    // 确保目录存在
-    await this.fs.createDirectory('scenes');
-
-    // 扫描加载所有 Scene
     await this.scanScenes();
-
     this.initialized = true;
     return true;
   }
@@ -70,6 +84,7 @@ export class SceneFS {
   async rescan(): Promise<void> {
     this.cache.clear();
     this.metaCache.clear();
+    this.idToPath.clear();
     await this.scanScenes();
   }
 
@@ -79,43 +94,62 @@ export class SceneFS {
 
   /**
    * 保存 Scene
+   * @param scene - 要保存的场景
+   * @param relativePath - 相对于 assetsDir 的文件路径（可选，默认使用 scene.path）
    */
-  async save(scene: Scene): Promise<boolean> {
-    const fileName = `${scene.id}${SCENE_EXTENSION}`;
-    const filePath = `scenes/${fileName}`;
+  async save(scene: Scene, relativePath?: string): Promise<boolean> {
+    const targetPath = relativePath || scene.path;
+    if (!targetPath) {
+      throw new Error('Scene save failed: no path provided and scene.path is not set');
+    }
+    if (!targetPath.endsWith(SCENE_EXTENSION)) {
+      throw new Error(`Scene path must end with ${SCENE_EXTENSION}: "${targetPath}"`);
+    }
+
+    // 更新 scene 的 path
+    scene = { ...scene, path: targetPath };
+
+    // 确保父目录存在（基于项目根目录）
+    const assetPath = this.resolveAssetPath(targetPath);
+    const dir = assetPath.split('/').slice(0, -1).join('/');
+    if (dir) {
+      await this.fs.createDirectory(dir);
+    }
 
     // 序列化（移除运行时状态）
     const toSave = this.serializeScene(scene);
     const content = JSON.stringify(toSave, null, 2);
 
     // 写入文件
-    const success = await this.fs.writeFile(filePath, content);
+    const success = await this.fs.writeFile(assetPath, content);
 
     if (success) {
-      // 更新缓存
-      this.cache.set(scene.id, scene);
-      this.metaCache.set(scene.id, {
+      this.cache.set(targetPath, scene);
+      this.metaCache.set(targetPath, {
         id: scene.id,
         name: scene.name,
-        path: filePath,
+        path: targetPath,
         lastModified: Date.now(),
         entityCount: scene.entities.length,
       });
+      if (!this.idToPath.has(scene.id)) {
+        this.idToPath.set(scene.id, targetPath);
+      }
     }
 
     return success;
   }
 
   /**
-   * 快速保存（使用已知的 scene id）
+   * 快速保存（使用当前场景的 path）
    */
   async quickSave(): Promise<boolean> {
-    if (!this.currentSceneId) {
+    if (!this.currentScenePath) {
       console.error('No current scene to save');
       return false;
     }
 
-    const scene = this.cache.get(this.currentSceneId);
+    const scene = this.cache.get(this.currentScenePath);
     if (!scene) {
       console.error('Current scene not found in cache');
       return false;
@@ -125,34 +159,16 @@ export class SceneFS {
   }
 
   /**
-   * 加载 Scene
-   */
-  async load(id: string): Promise<Scene | null> {
-    // 先检查缓存
-    if (this.cache.has(id)) {
-      return this.cache.get(id)!;
-    }
-
-    // 从元数据获取路径
-    const meta = this.metaCache.get(id);
-    if (meta) {
-      return await this.loadFromPath(meta.path);
-    }
-
-    // 尝试默认路径
-    const defaultPath = `scenes/${id}${SCENE_EXTENSION}`;
-    if (await this.fs.exists(defaultPath)) {
-      return await this.loadFromPath(defaultPath);
-    }
-
-    return null;
-  }
-
-  /**
    * 从指定路径加载 Scene
    */
   async loadFromPath(filePath: string): Promise<Scene | null> {
-    const content = await this.fs.readFile(filePath);
+    // 先检查缓存
+    if (this.cache.has(filePath)) {
+      return this.cache.get(filePath)!;
+    }
+
+    const assetPath = this.resolveAssetPath(filePath);
+    const content = await this.fs.readFile(assetPath);
     if (!content) return null;
 
     try {
@@ -164,6 +180,7 @@ export class SceneFS {
       }
 
       const scene = data as Scene;
+      scene.path = filePath;
       
       // 确保所有实体都有 ID
       scene.entities = scene.entities.map((e, i) => ({
@@ -172,17 +189,20 @@ export class SceneFS {
       }));
 
       // 更新缓存
-      this.cache.set(scene.id, scene);
-      this.metaCache.set(scene.id, {
+      this.cache.set(filePath, scene);
+      this.metaCache.set(filePath, {
         id: scene.id,
         name: scene.name,
         path: filePath,
         lastModified: Date.now(),
         entityCount: scene.entities.length,
       });
+      if (!this.idToPath.has(scene.id)) {
+        this.idToPath.set(scene.id, filePath);
+      }
 
       // 设置为当前场景
-      this.currentSceneId = scene.id;
+      this.currentScenePath = filePath;
 
       return scene;
     } catch (err) {
@@ -192,12 +212,30 @@ export class SceneFS {
   }
 
   /**
+   * 通过 ID 加载 Scene（返回第一个匹配的）
+   */
+  async load(id: string): Promise<Scene | null> {
+    const path = this.idToPath.get(id);
+    if (path) {
+      return await this.loadFromPath(path);
+    }
+    await this.scanScenes();
+    const foundPath = this.idToPath.get(id);
+    if (foundPath) {
+      return await this.loadFromPath(foundPath);
+    }
+    return null;
+  }
+
+  /**
    * 创建新 Scene
    */
-  async create(id: string, name: string, width = 640, height = 480): Promise<Scene | null> {
+  async create(id: string, name: string, width = 640, height = 480, relativePath?: string): Promise<Scene | null> {
+    const filePath = relativePath || `${id}${SCENE_EXTENSION}`;
     const scene: Scene = {
       id,
       name,
+      path: filePath,
       width,
       height,
       grid: {
@@ -209,29 +247,37 @@ export class SceneFS {
       entities: [],
     };
 
-    const success = await this.save(scene);
+    const success = await this.save(scene, filePath);
     return success ? scene : null;
   }
 
   /**
-   * 删除 Scene
+   * 删除 Scene（通过路径）
    */
-  async delete(id: string): Promise<boolean> {
-    const meta = this.metaCache.get(id);
+  async delete(filePath: string): Promise<boolean> {
+    const meta = this.metaCache.get(filePath);
     if (!meta) {
-      console.warn(`Scene not found: ${id}`);
+      console.warn(`Scene not found at path: ${filePath}`);
       return false;
     }
 
-    const success = await this.fs.remove(meta.path);
+    const assetPath = this.resolveAssetPath(filePath);
+    const success = await this.fs.remove(assetPath);
 
     if (success) {
-      this.cache.delete(id);
-      this.metaCache.delete(id);
-
-      // 如果删除的是当前场景，清除当前场景
-      if (this.currentSceneId === id) {
-        this.currentSceneId = null;
+      this.cache.delete(filePath);
+      this.metaCache.delete(filePath);
+      if (this.idToPath.get(meta.id) === filePath) {
+        this.idToPath.delete(meta.id);
+        for (const [p, m] of this.metaCache) {
+          if (m.id === meta.id) {
+            this.idToPath.set(meta.id, p);
+            break;
+          }
+        }
+      }
+      if (this.currentScenePath === filePath) {
+        this.currentScenePath = null;
       }
     }
 
@@ -239,10 +285,10 @@ export class SceneFS {
   }
 
   /**
-   * 重命名 Scene
+   * 重命名 Scene（只改 name，不改 id 和 path）
    */
-  async rename(id: string, newName: string): Promise<boolean> {
-    const scene = await this.load(id);
+  async rename(filePath: string, newName: string): Promise<boolean> {
+    const scene = await this.loadFromPath(filePath);
     if (!scene) return false;
 
     const updatedScene: Scene = {
@@ -250,19 +296,19 @@ export class SceneFS {
       name: newName,
     };
 
-    return await this.save(updatedScene);
+    return await this.save(updatedScene, filePath);
   }
 
   /**
    * 复制 Scene
    */
-  async duplicate(id: string, newId: string): Promise<Scene | null> {
-    const scene = await this.load(id);
+  async duplicate(sourcePath: string, newId: string, newPath: string): Promise<Scene | null> {
+    const scene = await this.loadFromPath(sourcePath);
     if (!scene) return null;
 
-    // 检查新 ID 是否已存在
-    if (await this.exists(newId)) {
-      console.error(`Scene ${newId} already exists`);
+    // 检查新路径是否已存在
+    if (await this.fs.exists(this.resolveAssetPath(newPath))) {
+      console.error(`Scene file already exists: ${newPath}`);
       return null;
     }
 
@@ -270,13 +316,14 @@ export class SceneFS {
       ...scene,
       id: newId,
       name: `${scene.name} (Copy)`,
+      path: newPath,
       entities: scene.entities.map((e, i) => ({
         ...e,
         id: `e_${Date.now()}_${i}`,
       })),
     };
 
-    const success = await this.save(duplicated);
+    const success = await this.save(duplicated, newPath);
     return success ? duplicated : null;
   }
 
@@ -285,14 +332,14 @@ export class SceneFS {
   // ═══════════════════════════════════════════════════════════════
 
   /**
-   * 设置当前场景
+   * 设置当前场景（通过路径）
    */
-  setCurrent(id: string): boolean {
-    if (!this.cache.has(id) && !this.metaCache.has(id)) {
-      console.warn(`Scene ${id} not found`);
+  setCurrent(filePath: string): boolean {
+    if (!this.cache.has(filePath) && !this.metaCache.has(filePath)) {
+      console.warn(`Scene ${filePath} not found`);
       return false;
     }
-    this.currentSceneId = id;
+    this.currentScenePath = filePath;
     return true;
   }
 
@@ -300,15 +347,15 @@ export class SceneFS {
    * 获取当前场景
    */
   getCurrent(): Scene | null {
-    if (!this.currentSceneId) return null;
-    return this.cache.get(this.currentSceneId) || null;
+    if (!this.currentScenePath) return null;
+    return this.cache.get(this.currentScenePath) || null;
   }
 
   /**
-   * 获取当前场景 ID
+   * 获取当前场景路径
    */
-  getCurrentId(): string | null {
-    return this.currentSceneId;
+  getCurrentPath(): string | null {
+    return this.currentScenePath;
   }
 
   /**
@@ -316,19 +363,20 @@ export class SceneFS {
    * 注意：需要调用 save() 才能持久化
    */
   updateCurrent(updates: Partial<Scene>): boolean {
-    if (!this.currentSceneId) return false;
+    if (!this.currentScenePath) return false;
 
-    const scene = this.cache.get(this.currentSceneId);
+    const scene = this.cache.get(this.currentScenePath);
     if (!scene) return false;
 
     const updated: Scene = { ...scene, ...updates };
-    this.cache.set(this.currentSceneId, updated);
+    this.cache.set(this.currentScenePath, updated);
 
     // 更新元数据
-    const meta = this.metaCache.get(this.currentSceneId);
+    const meta = this.metaCache.get(this.currentScenePath);
     if (meta) {
       meta.entityCount = updated.entities.length;
-      if (updates.name) meta.name = updates.name;
+      if (updates.name) meta.name = updated.name;
+      if (updates.id) meta.id = updated.id;
     }
 
     return true;
@@ -351,25 +399,23 @@ export class SceneFS {
    */
   getAllMeta(): SceneMeta[] {
     return Array.from(this.metaCache.values()).sort(
-      (a, b) => a.name.localeCompare(b.name)
+      (a, b) => a.path.localeCompare(b.path)
     );
   }
 
   /**
    * 获取单个 Scene 元数据
    */
-  getMeta(id: string): SceneMeta | undefined {
-    return this.metaCache.get(id);
+  getMeta(path: string): SceneMeta | undefined {
+    return this.metaCache.get(path);
   }
 
   /**
-   * 检查 Scene 是否存在
+   * 检查 Scene 文件是否存在
    */
-  async exists(id: string): Promise<boolean> {
-    if (this.cache.has(id) || this.metaCache.has(id)) return true;
-    
-    const filePath = `scenes/${id}${SCENE_EXTENSION}`;
-    return await this.fs.exists(filePath);
+  async exists(filePath: string): Promise<boolean> {
+    if (this.cache.has(filePath) || this.metaCache.has(filePath)) return true;
+    return await this.fs.exists(this.resolveAssetPath(filePath));
   }
 
   /**
@@ -381,8 +427,8 @@ export class SceneFS {
     const lowerQuery = query.toLowerCase();
     const results: Scene[] = [];
 
-    for (const scene of this.cache.values()) {
-      const searchText = `${scene.id} ${scene.name}`.toLowerCase();
+    for (const [path, scene] of this.cache) {
+      const searchText = `${scene.id} ${scene.name} ${path}`.toLowerCase();
       if (searchText.includes(lowerQuery)) {
         results.push(scene);
       }
@@ -398,8 +444,8 @@ export class SceneFS {
   /**
    * 导出为 ECS 格式（移除 Editor 专用数据）
    */
-  async exportForECS(id: string): Promise<object | null> {
-    const scene = await this.load(id);
+  async exportForECS(filePath: string): Promise<object | null> {
+    const scene = await this.loadFromPath(filePath);
     if (!scene) return null;
 
     return {
@@ -471,14 +517,37 @@ export class SceneFS {
 
   private async scanScenes(): Promise<void> {
     try {
-      for await (const entry of this.fs.listDirectory('scenes')) {
+      for await (const entry of this.scanDirectory(this.assetsDir)) {
         if (entry.kind === 'file' && entry.name.endsWith(SCENE_EXTENSION)) {
-          const filePath = `scenes/${entry.name}`;
-          await this.loadFromPath(filePath);
+          // entry.path 是 assetsDir/xxx，去掉前缀得到相对于 assetsDir 的路径
+          const relativePath = entry.path.slice(this.assetsDir.length + 1);
+          await this.loadFromPath(relativePath);
         }
       }
     } catch (err) {
-      console.log('Scenes directory not found or empty');
+      console.log(`Scan directory ${this.assetsDir} not found or empty`);
+    }
+  }
+
+  private async *scanDirectory(dirPath: string): AsyncGenerator<{
+    name: string;
+    kind: 'file' | 'directory';
+    path: string;
+  }> {
+    try {
+      for await (const entry of this.fs.listDirectory(dirPath)) {
+        const fullPath = `${dirPath}/${entry.name}`;
+        yield {
+          name: entry.name,
+          kind: entry.kind,
+          path: fullPath,
+        };
+        if (entry.kind === 'directory') {
+          yield* this.scanDirectory(fullPath);
+        }
+      }
+    } catch (err) {
+      // ignore
     }
   }
 

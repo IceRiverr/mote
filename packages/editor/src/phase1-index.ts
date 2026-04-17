@@ -37,12 +37,12 @@ export {
   // State
   prefabs,
   searchQuery,
-  selectedCategory,
+  selectedTag,
   prefabVersion,
   // Computed
-  categories,
+  allTags,
   filteredPrefabs,
-  prefabsByCategory,
+  prefabsByTag,
   // Actions
   setPrefab,
   setPrefabs,

@@ -1,5 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // brush.ts - 笔刷状态管理
+// 
+// 设计原则：prefabPath 是相对于 assetsDir 的 .mote-prefab.json 文件路径
 // ═══════════════════════════════════════════════════════════════
 
 import { signal, computed } from "@preact/signals";
@@ -11,8 +13,8 @@ import type { Prefab } from "../data/Prefab";
 
 /** 笔刷单元格定义 */
 export interface BrushCell {
-  /** Prefab ID */
-  prefabId: string;
+  /** Prefab 文件路径（相对于 assets/） */
+  prefabPath: string;
   /** X 偏移（以网格为单位） */
   offsetX: number;
   /** Y 偏移（以网格为单位） */
@@ -27,14 +29,14 @@ export const brushMode = signal<BrushMode>("paint");
 
 /** 笔刷图案（多 tile 支持） */
 export const brushPattern = signal<BrushCell[]>([
-  { prefabId: "", offsetX: 0, offsetY: 0 },
+  { prefabPath: "", offsetX: 0, offsetY: 0 },
 ]);
 
 /** 笔刷尺寸（1 = 1x1, 2 = 2x2, 3 = 3x3） */
 export const brushSize = signal(1);
 
-/** 当前选中的 Prefab ID（单格笔刷用） */
-export const activePrefabId = signal<string | null>(null);
+/** 当前选中的 Prefab 路径（单格笔刷用） */
+export const activePrefabPath = signal<string | null>(null);
 
 /** 当前目标层 */
 export const targetLayer = signal<number>(0);
@@ -70,7 +72,7 @@ export const brushHeight = computed(() => {
 /** 笔刷是否有效 */
 export const isBrushValid = computed(() => {
   return brushPattern.value.length > 0 && 
-         brushPattern.value.some(c => c.prefabId !== "");
+         brushPattern.value.some(c => c.prefabPath !== "");
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -80,10 +82,10 @@ export const isBrushValid = computed(() => {
 /**
  * 设置单格笔刷（最简单的笔刷）
  */
-export function setSinglePrefabBrush(prefabId: string): void {
-  activePrefabId.value = prefabId;
+export function setSinglePrefabBrush(prefabPath: string): void {
+  activePrefabPath.value = prefabPath;
   brushPattern.value = [
-    { prefabId, offsetX: 0, offsetY: 0 },
+    { prefabPath, offsetX: 0, offsetY: 0 },
   ];
   brushSize.value = 1;
 }
@@ -91,13 +93,13 @@ export function setSinglePrefabBrush(prefabId: string): void {
 /**
  * 创建矩形笔刷
  */
-export function setRectBrush(prefabId: string, width: number, height: number): void {
-  activePrefabId.value = prefabId;
+export function setRectBrush(prefabPath: string, width: number, height: number): void {
+  activePrefabPath.value = prefabPath;
   const pattern: BrushCell[] = [];
   
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      pattern.push({ prefabId, offsetX: x, offsetY: y });
+      pattern.push({ prefabPath, offsetX: x, offsetY: y });
     }
   }
   
@@ -108,15 +110,15 @@ export function setRectBrush(prefabId: string, width: number, height: number): v
 /**
  * 创建圆形笔刷
  */
-export function setCircleBrush(prefabId: string, radius: number): void {
-  activePrefabId.value = prefabId;
+export function setCircleBrush(prefabPath: string, radius: number): void {
+  activePrefabPath.value = prefabPath;
   const pattern: BrushCell[] = [];
   const r2 = radius * radius;
   
   for (let y = -radius; y <= radius; y++) {
     for (let x = -radius; x <= radius; x++) {
       if (x * x + y * y <= r2) {
-        pattern.push({ prefabId, offsetX: x, offsetY: y });
+        pattern.push({ prefabPath, offsetX: x, offsetY: y });
       }
     }
   }
@@ -177,7 +179,7 @@ export function flipBrushVertical(): void {
  */
 export function clearBrush(): void {
   brushPattern.value = [];
-  activePrefabId.value = null;
+  activePrefabPath.value = null;
 }
 
 /**
@@ -205,14 +207,14 @@ export function getBrushPreviewPositions(
   worldX: number, 
   worldY: number, 
   gridSize: number
-): Array<{ x: number; y: number; prefabId: string }> {
+): Array<{ x: number; y: number; prefabPath: string }> {
   const baseX = Math.floor(worldX / gridSize) * gridSize;
   const baseY = Math.floor(worldY / gridSize) * gridSize;
   
   return brushPattern.value.map(cell => ({
     x: baseX + cell.offsetX * gridSize,
     y: baseY + cell.offsetY * gridSize,
-    prefabId: cell.prefabId,
+    prefabPath: cell.prefabPath,
   }));
 }
 
@@ -222,11 +224,11 @@ export function getBrushPreviewPositions(
 export function getBrushGridPositions(
   gridX: number, 
   gridY: number
-): Array<{ x: number; y: number; prefabId: string }> {
+): Array<{ x: number; y: number; prefabPath: string }> {
   return brushPattern.value.map(cell => ({
     x: gridX + cell.offsetX,
     y: gridY + cell.offsetY,
-    prefabId: cell.prefabId,
+    prefabPath: cell.prefabPath,
   }));
 }
 

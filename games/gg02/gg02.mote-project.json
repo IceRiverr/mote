@@ -1,0 +1,24 @@
+{
+  "type": "mote-project",
+  "id": "gg02_mo25mnsq",
+  "name": "gg02",
+  "version": "1.0.0",
+  "assetsDir": "assets",
+  "srcDir": "src",
+  "entryScript": "main.ts",
+  "createdAt": "2026-04-17T00:12:53.882Z",
+  "modifiedAt": "2026-04-17T00:12:53.882Z",
+  "projectFileName": "gg02.mote-project.json",
+  "settings": {
+    "defaultSceneWidth": 640,
+    "defaultSceneHeight": 480,
+    "defaultGridSize": 32,
+    "autoSaveInterval": 30000,
+    "theme": "dark",
+    "editor": {
+      "showGrid": true,
+      "snapToGrid": true,
+      "showColliders": false
+    }
+  }
+}

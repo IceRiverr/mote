@@ -218,14 +218,14 @@ export class FloodFillCommand implements Command {
   constructor(
     startGridX: number,
     startGridY: number,
-    newPrefabId: string,
+    newPrefabPath: string,
     private targetLayer: number,
     private gridSize: number
   ) {
-    this.calculateFill(startGridX, startGridY, newPrefabId);
+    this.calculateFill(startGridX, startGridY, newPrefabPath);
   }
 
-  private calculateFill(startX: number, startY: number, newPrefabId: string): void {
+  private calculateFill(startX: number, startY: number, newPrefabPath: string): void {
     const scene = currentScene.value;
     if (!scene) return;
 
@@ -253,7 +253,7 @@ export class FloodFillCommand implements Command {
 
       if (prefabId !== startPrefabId) continue;
 
-      const newEntity = createSceneEntity(newPrefabId, worldX, worldY);
+      const newEntity = createSceneEntity(newPrefabPath, worldX, worldY);
       this.filledGrids.push({
         gridX: x,
         gridY: y,
@@ -309,7 +309,7 @@ export class FloodFillCommand implements Command {
 // ═══════════════════════════════════════════════════════════════
 
 export class PickPrefabResult {
-  prefabId: string | null = null;
+  prefabPath: string | null = null;
   layer: number = 0;
 }
 
@@ -318,7 +318,7 @@ export function pickPrefab(gridX: number, gridY: number, layer: number, gridSize
 
   const entity = findEntityAtGrid(gridX, gridY, layer, gridSize);
   if (entity) {
-    result.prefabId = entity.prefab;
+    result.prefabPath = entity.prefab;
     result.layer = layer;
   }
 

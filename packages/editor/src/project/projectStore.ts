@@ -156,10 +156,10 @@ export async function openExistingProject(): Promise<Project | null> {
     // 设置当前项目
     setProject(project);
 
-    // 加载最后打开的场景
+    // 加载最后打开的场景（lastOpenedScene 存储的是完整路径）
     if (project.lastOpenedScene) {
       const sceneFS = getSceneFS();
-      await sceneFS.load(project.lastOpenedScene);
+      await sceneFS.loadFromPath(project.lastOpenedScene);
     }
 
     // 添加到最近项目
@@ -278,28 +278,28 @@ export function renameProject(newName: string): void {
 }
 
 /**
- * 设置最后打开的场景
+ * 设置最后打开的场景（存储完整路径）
  */
-export function setLastOpenedScene(sceneId: string): void {
+export function setLastOpenedScene(scenePath: string): void {
   if (!currentProject.value) return;
 
   currentProject.value = {
     ...currentProject.value,
-    lastOpenedScene: sceneId,
+    lastOpenedScene: scenePath,
   };
 
   markAsUnsaved();
 }
 
 /**
- * 添加最近使用的 Prefab
+ * 添加最近使用的 Prefab（存储完整路径）
  */
-export function addRecentPrefab(prefabId: string): void {
+export function addRecentPrefab(prefabPath: string): void {
   if (!currentProject.value) return;
 
   const recent = currentProject.value.recentPrefabs || [];
-  const filtered = recent.filter(id => id !== prefabId);
-  filtered.unshift(prefabId);
+  const filtered = recent.filter(p => p !== prefabPath);
+  filtered.unshift(prefabPath);
   
   // 只保留最近 10 个
   currentProject.value = {
@@ -399,12 +399,16 @@ function setProject(project: Project): void {
 }
 
 export async function initializeSubsystems(): Promise<void> {
+  const assetsDir = currentProject.value?.assetsDir || 'assets';
+
   // 初始化 PrefabFS
   const prefabFS = getPrefabFS();
+  prefabFS.setAssetsDir(assetsDir);
   await prefabFS.initialize();
 
   // 初始化 SceneFS
   const sceneFS = getSceneFS();
+  sceneFS.setAssetsDir(assetsDir);
   await sceneFS.initialize();
 }
 

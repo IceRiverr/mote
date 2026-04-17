@@ -1,0 +1,24 @@
+{
+  "id": "tiny-dungeon_frame_122",
+  "name": "tiny-dungeon_frame_122",
+  "tags": [],
+  "components": {
+    "Transform": {
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "scaleX": 1,
+      "scaleY": 1
+    },
+    "Sprite": {
+      "atlas": "tiny-dungeon.mote-sprite.json",
+      "frame": "frame_122",
+      "layer": 0,
+      "tint": "#ffffff",
+      "flipX": false,
+      "flipY": false,
+      "alpha": 1,
+      "visible": true
+    }
+  }
+}

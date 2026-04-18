@@ -17,6 +17,7 @@ import {
   findEntityAt,
   getEntity,
   bumpVersion,
+  spawnPrefab,
 } from "../../store/scene";
 import { prefabs, getPrefab } from "../../store/prefabs";
 import { layerVisibility, isLayerVisible } from "../../editors/inspector/panels/LayerPanel";
@@ -941,6 +942,30 @@ export function ViewportCanvas() {
   }, [sceneVersion.value]);
 
   // ═══════════════════════════════════════════════════════════════
+  // 拖放：从 Content Browser 拖入 Prefab
+  // ═══════════════════════════════════════════════════════════════
+
+  const onDragOver = (e: DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer!.dropEffect = 'copy';
+  };
+
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault();
+    const prefabPath = e.dataTransfer?.getData('application/mote-asset');
+    if (!prefabPath || !prefabPath.endsWith('.mote-prefab.json')) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const worldPos = screenToWorld(e.clientX, e.clientY, rect);
+
+    spawnPrefab(prefabPath, worldPos.x, worldPos.y);
+    draw();
+  };
+
+  // ═══════════════════════════════════════════════════════════════
   // 渲染
   // ═══════════════════════════════════════════════════════════════
 
@@ -958,6 +983,8 @@ export function ViewportCanvas() {
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerLeave}
       onWheel={onWheel}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
     >
       <canvas
         ref={canvasRef}

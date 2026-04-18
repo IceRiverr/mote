@@ -35,14 +35,14 @@ const defaultLayout: LayoutNode = {
         { type: 'area', id: 'area_sprite_editor', editorType: 'sprite-editor' },
       ],
     },
-    // Right side: Prefab Browser (top) + Inspector (bottom)
+    // Right side: Content Browser (top) + Inspector (bottom)
     {
       type: 'split',
       id: 'right',
       direction: 'horizontal',
-      ratio: 0.5,
+      ratio: 0.55,
       children: [
-        { type: 'area', id: 'area_prefab_browser', editorType: 'prefab-browser' },
+        { type: 'area', id: 'area_content_browser', editorType: 'content-browser' },
         { type: 'area', id: 'area_inspector', editorType: 'inspector' },
       ],
     },

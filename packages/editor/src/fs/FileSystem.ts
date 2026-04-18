@@ -561,6 +561,51 @@ export class FileSystem {
     return results;
   }
 
+  /**
+   * 读取文件为 Data URL（用于图片等二进制文件）
+   */
+  async readFileAsDataUrl(path: string): Promise<string | null> {
+    if (this.mode === 'native' && this.projectRoot) {
+      try {
+        const parts = path.split('/').filter(p => p);
+        let currentDir = this.projectRoot;
+        for (let i = 0; i < parts.length - 1; i++) {
+          currentDir = await currentDir.getDirectoryHandle(parts[i]);
+        }
+        const fileHandle = await currentDir.getFileHandle(parts[parts.length - 1]);
+        const file = await fileHandle.getFile();
+
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => {
+            console.error(`[FileSystem] FileReader failed for ${path}`);
+            resolve(null);
+          };
+          reader.readAsDataURL(file);
+        });
+      } catch (err) {
+        console.error(`Failed to read file as data URL ${path}:`, err);
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * 读取并解析 JSON 文件
+   */
+  async readJson(path: string): Promise<unknown | null> {
+    const content = await this.readFile(path);
+    if (!content) return null;
+    try {
+      return JSON.parse(content);
+    } catch (err) {
+      console.error(`Failed to parse JSON ${path}:`, err);
+      return null;
+    }
+  }
+
 
 }
 

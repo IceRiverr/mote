@@ -246,6 +246,45 @@ export function mergeArea(
   return replaceSibling(root);
 }
 
+/**
+ * 为资源打开对应的编辑器面板
+ *
+ * 规则（Reuse-or-Split）：
+ * 1. 优先复用布局中已存在的同类型编辑器面板
+ * 2. 如果没有，则在当前面板旁边 split 出一个新面板
+ * 3. 返回目标面板的 areaId，供调用方在该面板中加载资源
+ */
+export function openEditorForResource(
+  root: LayoutNode,
+  sourceAreaId: string,
+  editorType: string,
+  direction: 'horizontal' | 'vertical' = 'horizontal',
+  ratio = 0.5
+): { layout: LayoutNode; targetAreaId: string } {
+  // ── 1. 复用已有 ──
+  const areas = collectAreas(root);
+  const existing = areas.find((a) => a.editorType === editorType);
+  if (existing) {
+    return { layout: root, targetAreaId: existing.id };
+  }
+
+  // ── 2. Split 出新面板 ──
+  const splitLayout = splitArea(root, sourceAreaId, direction, ratio);
+  const newAreas = collectAreas(splitLayout);
+  const newArea = newAreas.find((a) => !areas.some((b) => b.id === a.id));
+
+  if (!newArea) {
+    // Fallback: 实在找不到就在当前面板打开
+    return {
+      layout: setEditorType(root, sourceAreaId, editorType),
+      targetAreaId: sourceAreaId,
+    };
+  }
+
+  const finalLayout = setEditorType(splitLayout, newArea.id, editorType);
+  return { layout: finalLayout, targetAreaId: newArea.id };
+}
+
 /** Split an area from a specific corner with a direction */
 export function splitAreaFromCorner(
   root: LayoutNode,

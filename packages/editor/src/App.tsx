@@ -6,10 +6,9 @@
 import "./editors/viewport/register";
 import "./editors/inspector/register";
 import "./editors/sprite-editor/register";
-import "./editors/assets/register";
 import "./editors/scene-tree/register";
 import "./editors/console/register";
-import "./editors/prefab-browser/register";
+import "./editors/content-browser/register";
 
 import { useEffect } from "preact/hooks";
 import { LayoutRoot } from "./components/LayoutRoot";

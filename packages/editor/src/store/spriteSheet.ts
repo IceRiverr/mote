@@ -19,6 +19,9 @@ export const activeSpriteSheetId = signal<string | null>(null);
 /** Currently selected frame ID(s) */
 export const selectedFrameIds = signal<string[]>([]);
 
+/** Whether the active sprite sheet is a temporary import (from image file, not .mote-sprite.json) */
+export const isTemporarySpriteSheet = signal(false);
+
 /** Get the active sprite sheet */
 export const activeSpriteSheet = computed((): SpriteSheet | null => {
   const id = activeSpriteSheetId.value;

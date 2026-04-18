@@ -1,0 +1,45 @@
+{
+  "id": "level1",
+  "name": "Level 1",
+  "path": "assets/level1.mote-scene.json",
+  "width": 640,
+  "height": 480,
+  "grid": {
+    "enabled": true,
+    "size": 32,
+    "snap": true,
+    "color": "rgba(255,255,255,0.2)"
+  },
+  "entities": [
+    {
+      "id": "e_1",
+      "prefab": "assets/player.mote-prefab.json",
+      "overrides": {
+        "Transform": {
+          "x": 320,
+          "y": 240
+        }
+      }
+    },
+    {
+      "id": "e_2",
+      "prefab": "assets/wall.mote-prefab.json",
+      "overrides": {
+        "Transform": {
+          "x": 100,
+          "y": 100
+        }
+      }
+    },
+    {
+      "id": "e_3",
+      "prefab": "assets/enemy.mote-prefab.json",
+      "overrides": {
+        "Transform": {
+          "x": 500,
+          "y": 200
+        }
+      }
+    }
+  ]
+}

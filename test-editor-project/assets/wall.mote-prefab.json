@@ -1,0 +1,40 @@
+{
+  "type": "mote-prefab",
+  "version": "1.0.0",
+  "id": "wall",
+  "name": "Wall",
+  "tags": [
+    "walls"
+  ],
+  "components": {
+    "Transform": {
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "scaleX": 1,
+      "scaleY": 1
+    },
+    "Sprite": {
+      "atlas": "assets/wall.png",
+      "frame": "default",
+      "layer": 20,
+      "tint": "#8b7355",
+      "visible": true
+    },
+    "Collider": {
+      "shapes": [
+        {
+          "type": "rect",
+          "x": 0,
+          "y": 0,
+          "w": 32,
+          "h": 32
+        }
+      ],
+      "isTrigger": false,
+      "material": "default",
+      "layer": 1,
+      "mask": 4294967295
+    }
+  }
+}

@@ -22,6 +22,7 @@ import {
   statusBarMessage,
   MODE_NAMES,
 } from './state';
+import { isTemporarySpriteSheet } from '../../store/spriteSheet';
 
 // ═══════════════════════════════════════════════════════════════
 // Status Bar — Blender style bottom bar with context help
@@ -196,6 +197,45 @@ function SpriteEditor({ areaId }: { areaId: string }) {
     >
       {/* Top Header */}
       <SpriteEditorHeader />
+
+      {/* Temporary Import Banner */}
+      {hasContent && isTemporarySpriteSheet.value && (
+        <div
+          style={{
+            flexShrink: 0,
+            padding: '6px 12px',
+            background: 'rgba(244, 167, 66, 0.15)',
+            borderBottom: '1px solid rgba(244, 167, 66, 0.3)',
+            color: '#f4a742',
+            fontSize: 11,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <span>
+            📝 临时导入模式（16×16 grid）— 调整参数后可保存为 .mote-sprite.json
+          </span>
+          <button
+            onClick={() => {
+              // TODO: 导出为 .mote-sprite.json
+              alert('TODO: 导出为 .mote-sprite.json');
+            }}
+            style={{
+              background: 'rgba(244, 167, 66, 0.2)',
+              color: '#f4a742',
+              border: '1px solid rgba(244, 167, 66, 0.4)',
+              borderRadius: 3,
+              padding: '2px 8px',
+              fontSize: 10,
+              cursor: 'pointer',
+            }}
+          >
+            导出 JSON
+          </button>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div

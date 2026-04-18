@@ -1,0 +1,25 @@
+{
+  "type": "mote-prefab",
+  "version": "1.0.0",
+  "id": "tree",
+  "name": "Tree",
+  "tags": [
+    "environment"
+  ],
+  "components": {
+    "Transform": {
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "scaleX": 1,
+      "scaleY": 1
+    },
+    "Sprite": {
+      "atlas": "assets/tree.png",
+      "frame": "default",
+      "layer": 10,
+      "tint": "#4a7c59",
+      "visible": true
+    }
+  }
+}

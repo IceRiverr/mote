@@ -1,0 +1,30 @@
+{
+  "type": "mote-sprite",
+  "version": "1.0.0",
+  "id": "player_sprite",
+  "name": "Player Sprite",
+  "image": "assets/player.png",
+  "imageWidth": 16,
+  "imageHeight": 16,
+  "frames": {
+    "idle_0": {
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "tags": [
+        "idle"
+      ]
+    },
+    "walk_0": {
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16,
+      "tags": [
+        "walk"
+      ]
+    }
+  },
+  "animations": {}
+}

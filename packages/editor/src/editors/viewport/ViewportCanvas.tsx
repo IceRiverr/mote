@@ -20,6 +20,8 @@ import {
   spawnPrefab,
 } from "../../store/scene";
 import { prefabs, getPrefab } from "../../store/prefabs";
+import { openSpawnMenu, closeSpawnMenu, spawnMenuOpen, spawnMenuPos, spawnWorldPos } from "../../store/spawnMenu";
+import { SpawnMenu } from "../../components/SpawnMenu";
 import { layerVisibility, isLayerVisible } from "../../editors/inspector/panels/LayerPanel";
 import { activeTool, setToolByShortcut } from "../../store/selection";
 import { 
@@ -195,6 +197,9 @@ export function ViewportCanvas() {
   // ═══════════════════════════════════════════════════════════════
   
   const moveCommandRef = useRef<MoveEntitiesCommand | null>(null);
+  
+  /** 记录最后一次鼠标位置（屏幕坐标），用于 Shift+A 菜单位置 */
+  const lastMousePosRef = useRef<{ x: number; y: number } | null>(null);
 
   // ═══════════════════════════════════════════════════════════════
   // 初始化
@@ -594,6 +599,12 @@ export function ViewportCanvas() {
   // ═══════════════════════════════════════════════════════════════
 
   const onPointerDown = (e: PointerEvent) => {
+    // Spawn Menu 打开时点击空白处关闭
+    if (spawnMenuOpen.value) {
+      closeSpawnMenu();
+      return;
+    }
+
     const container = containerRef.current;
     if (!container) return;
 
@@ -693,6 +704,7 @@ export function ViewportCanvas() {
     if (!container) return;
 
     const rect = container.getBoundingClientRect();
+    lastMousePosRef.current = { x: e.clientX, y: e.clientY };
     const worldPos = screenToWorld(e.clientX, e.clientY, rect);
     const scene = currentScene.value;
     
@@ -862,6 +874,45 @@ export function ViewportCanvas() {
         return;
       }
 
+      // Spawn Menu 打开时，ViewportCanvas 不处理其他快捷键
+      if (spawnMenuOpen.value) return;
+
+      // Shift+A: Spawn Menu（Blender 风格快速添加）
+      if (e.shiftKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        const container = containerRef.current;
+        if (!container) return;
+
+        const rect = container.getBoundingClientRect();
+        let screenX: number;
+        let screenY: number;
+
+        if (lastMousePosRef.current) {
+          screenX = lastMousePosRef.current.x - rect.left;
+          screenY = lastMousePosRef.current.y - rect.top;
+        } else {
+          screenX = rect.width / 2;
+          screenY = rect.height / 2;
+        }
+
+        const worldPos = screenToWorld(
+          lastMousePosRef.current ? lastMousePosRef.current.x : rect.left + rect.width / 2,
+          lastMousePosRef.current ? lastMousePosRef.current.y : rect.top + rect.height / 2,
+          rect
+        );
+
+        // 边界调整，避免菜单溢出 viewport
+        const MENU_W = 280;
+        const MENU_H = 360;
+        if (screenX + MENU_W > rect.width) screenX = rect.width - MENU_W - 8;
+        if (screenY + MENU_H > rect.height) screenY = rect.height - MENU_H - 8;
+        if (screenX < 0) screenX = 8;
+        if (screenY < 0) screenY = 8;
+
+        openSpawnMenu(screenX, screenY, worldPos.x, worldPos.y);
+        return;
+      }
+
       // 工具快捷键 (V, B, E, G, I, N)
       if (setToolByShortcut(e.key)) {
         e.preventDefault();
@@ -992,6 +1043,40 @@ export function ViewportCanvas() {
           display: "block",
         }}
       />
+
+      {spawnMenuOpen.value && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+            pointerEvents: 'none',
+            zIndex: 50,
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              left: spawnMenuPos.value.x,
+              top: spawnMenuPos.value.y,
+              pointerEvents: 'auto',
+            }}
+          >
+            <SpawnMenu
+              onSelect={(path) => {
+                spawnPrefab(path, spawnWorldPos.value.x, spawnWorldPos.value.y);
+                closeSpawnMenu();
+                draw();
+              }}
+              onClose={() => {
+                closeSpawnMenu();
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

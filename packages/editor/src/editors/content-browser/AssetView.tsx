@@ -17,14 +17,14 @@ import {
   renameAsset,
   deleteAsset,
   sortAssets,
-  pendingSpriteEditorOpen,
+  previewedPrefabPath,
   openAssetInSpriteEditor,
   openImageInSpriteEditor,
+  loadSceneFromPath,
 } from '../../store/contentBrowser';
 import type { AssetNode } from '../../store/contentBrowser';
 import { setSinglePrefabBrush } from '../../store/brush';
 import { activeTool } from '../../store/selection';
-import { spawnPrefab } from '../../store/scene';
 import { layoutTree } from '../../store/layout';
 import { openEditorForResource } from '../../layout/tree';
 
@@ -114,7 +114,7 @@ function GridView({
           asset={asset}
           isSelected={selectedAssetPaths.value.includes(asset.path)}
           onClick={() => handleAssetClick(asset)}
-          onDoubleClick={() => handleAssetDoubleClick(asset)}
+          onDoubleClick={() => handleAssetDoubleClick(asset, areaId)}
           onContextMenu={(e) => {
             e.preventDefault();
             onContextMenu({ x: e.clientX, y: e.clientY, asset });
@@ -199,7 +199,7 @@ function ListView({
           <div
             key={asset.id}
             onClick={() => handleAssetClick(asset)}
-            onDblClick={() => handleAssetDoubleClick(asset)}
+            onDblClick={() => handleAssetDoubleClick(asset, areaId)}
             onContextMenu={(e) => {
               e.preventDefault();
               onContextMenu({ x: e.clientX, y: e.clientY, asset });
@@ -260,20 +260,75 @@ function ListView({
 // ── Handlers ───────────────────────────────────────────────────────────────
 
 function handleAssetClick(asset: AssetNode) {
+  // ① 所有资源：选中
   selectedAssetPaths.value = [asset.path];
 
-  if (asset.type === 'prefab') {
+  // ② Prefab 特殊逻辑：仅在 Brush 模式下才更新笔刷
+  if (asset.type === 'prefab' && activeTool.value === 'brush') {
     setSinglePrefabBrush(asset.path);
-    activeTool.value = 'brush';
   }
+
+  // ③ TODO: Properties 面板刷新（阶段 2 实现）
 }
 
-function handleAssetDoubleClick(asset: AssetNode) {
-  if (asset.type === 'folder') {
-    selectedFolderPath.value = asset.path;
-    searchQuery.value = '';
-  } else if (asset.type === 'prefab') {
-    spawnPrefab(asset.path, 320, 240);
+async function handleAssetDoubleClick(asset: AssetNode, areaId: string) {
+  switch (asset.type) {
+    case 'folder': {
+      // 进入文件夹
+      selectedFolderPath.value = asset.path;
+      searchQuery.value = '';
+      break;
+    }
+
+    case 'prefab': {
+      // 打开 Prefab Preview 面板（Reuse-or-Split）
+      previewedPrefabPath.value = asset.path;
+      const result = openEditorForResource(layoutTree.value, areaId, 'prefab-preview');
+      layoutTree.value = result.layout;
+      break;
+    }
+
+    case 'sprite': {
+      // 打开 Sprite Editor
+      const ok = await openAssetInSpriteEditor(asset.path);
+      if (!ok) {
+        alert('打开 Sprite Editor 失败，请检查文件格式');
+        return;
+      }
+      const result = openEditorForResource(layoutTree.value, areaId, 'sprite-editor');
+      layoutTree.value = result.layout;
+      break;
+    }
+
+    case 'image': {
+      // 用默认 grid 参数打开 Sprite Editor（导入模式）
+      const ok = await openImageInSpriteEditor(asset.path);
+      if (!ok) {
+        alert('打开 Sprite Editor 失败，请检查图片文件');
+        return;
+      }
+      const result = openEditorForResource(layoutTree.value, areaId, 'sprite-editor');
+      layoutTree.value = result.layout;
+      break;
+    }
+
+    case 'scene': {
+      // 加载场景到 Viewport
+      const ok = await loadSceneFromPath(asset.path);
+      if (!ok) {
+        alert('加载场景失败，请检查文件格式');
+      }
+      break;
+    }
+
+    case 'script':
+    case 'audio':
+    case 'tilemap':
+    case 'unknown':
+    default: {
+      // 暂不处理
+      break;
+    }
   }
 }
 
@@ -281,9 +336,10 @@ function handleAssetDoubleClick(asset: AssetNode) {
 
 function buildMenuItems(
   asset: AssetNode,
-  areaId: string,
+  _areaId: string,
   onClose: () => void
 ): Array<{ label: string; action: () => void; danger?: boolean; separator?: boolean }> {
+  // 右键菜单只保留文件管理操作，不包含任何"打开"相关的菜单项（P2 原则）
   const items: Array<{ label: string; action: () => void; danger?: boolean; separator?: boolean }> = [
     {
       label: '✏️ 重命名',
@@ -307,36 +363,6 @@ function buildMenuItems(
       danger: true,
     },
   ];
-
-  if (asset.type === 'sprite') {
-    // .mote-sprite.json 文件：直接打开
-    items.splice(1, 0, {
-      label: '🎨 在 Sprite Editor 中打开',
-      action: async () => {
-        const ok = await openAssetInSpriteEditor(asset.path);
-        if (!ok) {
-          alert('打开 Sprite Editor 失败，请检查文件格式');
-          return;
-        }
-        const result = openEditorForResource(layoutTree.value, areaId, 'sprite-editor');
-        layoutTree.value = result.layout;
-      },
-    });
-  } else if (asset.type === 'image') {
-    // .png 等图片文件：用默认 grid 参数直接打开
-    items.splice(1, 0, {
-      label: '🎨 在 Sprite Editor 中打开',
-      action: async () => {
-        const ok = await openImageInSpriteEditor(asset.path);
-        if (!ok) {
-          alert('打开 Sprite Editor 失败，请检查图片文件');
-          return;
-        }
-        const result = openEditorForResource(layoutTree.value, areaId, 'sprite-editor');
-        layoutTree.value = result.layout;
-      },
-    });
-  }
 
   return items;
 }

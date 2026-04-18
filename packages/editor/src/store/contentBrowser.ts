@@ -5,6 +5,7 @@
 import { signal, computed } from '@preact/signals';
 import { getFileSystem, getPrefabFS } from '../fs';
 import { setPrefab } from './prefabs';
+import type { Scene } from '../data/Scene';
 
 // ═══════════════════════════════════════════════════════════════
 // 类型定义
@@ -58,6 +59,9 @@ export const selectedAssetPaths = signal<string[]>([]);
 
 /** 等待在 Sprite Editor 中打开的文件路径 */
 export const pendingSpriteEditorOpen = signal<string | null>(null);
+
+/** 当前在 Prefab Preview 面板中预览的 Prefab 路径 */
+export const previewedPrefabPath = signal<string | null>(null);
 
 // ═══════════════════════════════════════════════════════════════
 // 计算属性
@@ -163,7 +167,7 @@ async function scanDirectoryRecursive(dirPath: string): Promise<AssetNode[]> {
           type: detectAssetType(entry.name),
         });
 
-        // 自动加载 Prefab 到 store
+        // 自动加载 Prefab 到 store（使用完整路径作为 key，保持全系统一致）
         if (
           entry.name.endsWith('.mote-prefab.json') &&
           dirPath.startsWith('assets')
@@ -173,7 +177,7 @@ async function scanDirectoryRecursive(dirPath: string): Promise<AssetNode[]> {
             : path;
           const prefab = await prefabFS.loadFromPath(relativePath);
           if (prefab) {
-            setPrefab(relativePath, prefab);
+            setPrefab(path, prefab);
           }
         }
       }
@@ -279,6 +283,40 @@ export async function createFolder(parentPath: string, name: string): Promise<bo
 }
 
 /**
+ * 从路径加载场景文件到当前场景
+ */
+export async function loadSceneFromPath(assetPath: string): Promise<boolean> {
+  const fs = getFileSystem();
+  console.log('[ContentBrowser] Loading scene:', assetPath);
+
+  try {
+    const json = await fs.readJson(assetPath);
+    if (!json) {
+      console.error('[ContentBrowser] Cannot read scene JSON:', assetPath);
+      return false;
+    }
+
+    // 基础验证
+    const raw = json as any;
+    if (!raw.id || !raw.name || typeof raw.width !== 'number' || typeof raw.height !== 'number') {
+      console.error('[ContentBrowser] Invalid scene format:', assetPath);
+      return false;
+    }
+
+    const scene = json as Scene;
+    scene.path = assetPath;
+
+    const { loadScene } = await import('./scene');
+    loadScene(scene);
+    console.log('[ContentBrowser] Scene loaded:', scene.name);
+    return true;
+  } catch (err) {
+    console.error('[ContentBrowser] Failed to load scene:', err);
+    return false;
+  }
+}
+
+/**
  * 在 Sprite Editor 中打开资产文件
  *
  * 支持两种路径格式：
@@ -367,8 +405,9 @@ export async function openAssetInSpriteEditor(assetPath: string): Promise<boolea
     console.log('[ContentBrowser] Step 6 OK: SpriteSheet created,', Object.keys(sheet.frames).length, 'frames');
 
     // ── Step 7: 添加到 store ──
-    const { addSpriteSheet } = await import('./spriteSheet');
+    const { addSpriteSheet, isTemporarySpriteSheet } = await import('./spriteSheet');
     addSpriteSheet(sheet, img);
+    isTemporarySpriteSheet.value = false;
     console.log('[ContentBrowser] Step 7 OK: added to store');
 
     return true;
@@ -424,8 +463,9 @@ export async function openImageInSpriteEditor(imagePath: string): Promise<boolea
     console.log('[ContentBrowser] SpriteSheet created,', Object.keys(sheet.frames).length, 'frames (16x16 grid)');
 
     // ── Step 4: 添加到 store ──
-    const { addSpriteSheet } = await import('./spriteSheet');
+    const { addSpriteSheet, isTemporarySpriteSheet } = await import('./spriteSheet');
     addSpriteSheet(sheet, img);
+    isTemporarySpriteSheet.value = true;
     console.log('[ContentBrowser] Added to store');
 
     return true;

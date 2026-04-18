@@ -1,0 +1,16 @@
+{
+  "type": "mote-prefab",
+  "version": "1.0.0",
+  "id": "pp01",
+  "name": "pp01",
+  "tags": [],
+  "components": {
+    "Transform": {
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "scaleX": 1,
+      "scaleY": 1
+    }
+  }
+}

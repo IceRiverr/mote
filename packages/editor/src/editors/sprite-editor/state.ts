@@ -166,17 +166,18 @@ export const TOOL_NAMES: Record<ColliderTool, { name: string; icon: string; desc
 /** Status bar message - Blender style hint system */
 export const statusBarMessage = signal<string>('就绪');
 
-/** Toggle editor mode (Tab key behavior) */
-export function toggleEditorMode(): void {
-  const modes: EditorMode[] = ['select', 'collider', 'tag'];
-  const idx = modes.indexOf(editorMode.value);
-  editorMode.value = modes[(idx + 1) % modes.length];
-  statusBarMessage.value = `已切换到: ${MODE_NAMES[editorMode.value]}`;
+/** Toggle collider edit mode on/off (Tab key behavior) */
+export function toggleColliderMode(): void {
+  const isCollider = editorMode.value === 'collider';
+  editorMode.value = isCollider ? 'select' : 'collider';
+  showColliderOverlay.value = !isCollider;
+  statusBarMessage.value = isCollider ? '已切换到: 选择模式' : '已切换到: 碰撞编辑';
 }
 
-/** Set editor mode directly */
+/** Set editor mode directly (internal use) */
 export function setEditorMode(mode: EditorMode): void {
   editorMode.value = mode;
+  showColliderOverlay.value = mode === 'collider';
   statusBarMessage.value = `已切换到: ${MODE_NAMES[mode]}`;
 }
 

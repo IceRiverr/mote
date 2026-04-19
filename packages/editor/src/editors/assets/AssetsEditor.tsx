@@ -400,7 +400,7 @@ function AssetsEditor({ areaId }: { areaId: string }) {
       }}
       onClick={closeContextMenu}
     >
-      {/* Header */}
+      {/* Header: 标题 + 搜索 + 导入 */}
       <div
         style={{
           height: 32,
@@ -413,17 +413,67 @@ function AssetsEditor({ areaId }: { areaId: string }) {
           borderBottom: "1px solid var(--border)",
         }}
       >
-        <span style={{ fontSize: 12 }}>📦</span>
-        <span
+        {/* 搜索框 */}
+        <div
           style={{
-            fontWeight: 600,
-            fontSize: 11,
-            color: "var(--text-bright)",
+            display: "flex",
+            alignItems: "center",
+            flex: 1,
+            background: "var(--bg-input)",
+            border: "1px solid var(--border)",
+            borderRadius: 3,
+            padding: "0 6px",
+            height: 22,
           }}
         >
-          资源
-        </span>
-        <div style={{ flex: 1 }} />
+          <span
+            style={{
+              fontSize: 10,
+              color: "var(--text-secondary)",
+              marginRight: 4,
+            }}
+          >
+            🔍
+          </span>
+          <input
+            type="text"
+            placeholder="搜索资源..."
+            value={searchQuery.value}
+            onInput={(e) => {
+              searchQuery.value = (e.target as HTMLInputElement).value;
+            }}
+            style={{
+              flex: 1,
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              color: "var(--text-primary)",
+              fontSize: 11,
+              height: 20,
+              padding: 0,
+            }}
+          />
+          {query && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                searchQuery.value = "";
+              }}
+              style={{
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--text-secondary)",
+                fontSize: 10,
+                padding: "0 2px",
+                lineHeight: 1,
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
         <button
           title="导入文件"
           style={{
@@ -448,74 +498,6 @@ function AssetsEditor({ areaId }: { areaId: string }) {
         </button>
       </div>
 
-      {/* Search */}
-      <div
-        style={{
-          padding: "6px 8px",
-          flexShrink: 0,
-          borderBottom: "1px solid var(--border)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            background: "var(--bg-input)",
-            border: "1px solid var(--border)",
-            borderRadius: 3,
-            padding: "0 6px",
-            height: 24,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 11,
-              color: "var(--text-secondary)",
-              marginRight: 4,
-            }}
-          >
-            🔍
-          </span>
-          <input
-            type="text"
-            placeholder="搜索资源..."
-            value={searchQuery.value}
-            onInput={(e) => {
-              searchQuery.value = (e.target as HTMLInputElement).value;
-            }}
-            style={{
-              flex: 1,
-              background: "transparent",
-              border: "none",
-              outline: "none",
-              color: "var(--text-primary)",
-              fontSize: 11,
-              height: 22,
-              padding: 0,
-            }}
-          />
-          {query && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                searchQuery.value = "";
-              }}
-              style={{
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                color: "var(--text-secondary)",
-                fontSize: 10,
-                padding: "0 2px",
-                lineHeight: 1,
-              }}
-            >
-              ✕
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* File Tree */}
       <div style={{ flex: 1, overflow: "auto" }}>
         {tree.length === 0 ? (
@@ -538,33 +520,6 @@ function AssetsEditor({ areaId }: { areaId: string }) {
               onContextMenu={handleContextMenu}
             />
           ))
-        )}
-      </div>
-
-      {/* Footer */}
-      <div
-        style={{
-          height: 22,
-          borderTop: "1px solid var(--border)",
-          background: "var(--bg-header)",
-          display: "flex",
-          alignItems: "center",
-          padding: "0 8px",
-          fontSize: 10,
-          color: "var(--text-secondary)",
-          flexShrink: 0,
-          gap: 8,
-        }}
-      >
-        {selectedAssetId.value ? (
-          <span>
-            已选:{" "}
-            <span style={{ color: "var(--text-primary)" }}>
-              {selectedAssetId.value}
-            </span>
-          </span>
-        ) : (
-          <span>未选择资源</span>
         )}
       </div>
 

@@ -12,94 +12,12 @@ import { SpriteEditorToolbar } from './SpriteEditorToolbar';
 import { SpriteEditorProperties, PropertiesToggleButton } from './SpriteEditorProperties';
 import {
   activeSpriteSheet,
-  selectedFrameIds,
-  activeFrame,
   editorMode,
-  toggleEditorMode,
+  showColliderOverlay,
   toolbarVisible,
   propertiesPanelVisible,
-  currentModeHelp,
-  statusBarMessage,
-  MODE_NAMES,
 } from './state';
 import { isTemporarySpriteSheet } from '../../store/spriteSheet';
-
-// ═══════════════════════════════════════════════════════════════
-// Status Bar — Blender style bottom bar with context help
-// ═══════════════════════════════════════════════════════════════
-
-function SpriteEditorFooter() {
-  const sheet = activeSpriteSheet.value;
-  const selected = selectedFrameIds.value;
-  const frame = activeFrame.value;
-  const mode = editorMode.value;
-  const help = currentModeHelp.value;
-  const status = statusBarMessage.value;
-
-  return (
-    <div
-      style={{
-        height: 24,
-        borderTop: '1px solid var(--border)',
-        background: 'var(--bg-header)',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 12px',
-        fontSize: 11,
-        color: 'var(--text-secondary)',
-        flexShrink: 0,
-        gap: 16,
-      }}
-    >
-      {/* Mode indicator */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          padding: '2px 8px',
-          background: mode === 'select' ? 'rgba(74, 144, 217, 0.15)' :
-                     mode === 'collider' ? 'rgba(220, 60, 60, 0.15)' :
-                     'rgba(100, 200, 100, 0.15)',
-          borderRadius: 3,
-          color: mode === 'select' ? 'var(--accent)' :
-                 mode === 'collider' ? '#e06060' :
-                 '#60c060',
-          fontWeight: 'bold',
-        }}
-      >
-        {MODE_NAMES[mode]}
-      </div>
-
-      {/* Selection info */}
-      {selected.length > 1 ? (
-        <span>
-          已选: <span style={{ color: 'var(--text-bright)' }}>{selected.length} 帧</span>
-        </span>
-      ) : frame ? (
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: 'var(--text-bright)' }}>{frame.id}</span>
-          <span style={{ fontFamily: 'monospace', opacity: 0.7 }}>
-            {frame.frame.w}×{frame.frame.h}
-          </span>
-        </span>
-      ) : sheet ? (
-        <span>{Object.keys(sheet.frames).length} 帧</span>
-      ) : (
-        <span>—</span>
-      )}
-
-      {/* Status message */}
-      {status && status !== '就绪' && (
-        <span style={{ color: 'var(--text-bright)' }}>{status}</span>
-      )}
-
-      {/* Help text - right aligned */}
-      <div style={{ flex: 1 }} />
-      <span style={{ opacity: 0.6, fontSize: 10 }}>{help}</span>
-    </div>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════
 // Empty State — When no sprite sheet is loaded
@@ -142,31 +60,21 @@ function useKeyboardShortcuts() {
       }
 
       switch (e.key) {
-        case 'Tab':
-          e.preventDefault();
-          toggleEditorMode();
-          break;
         case '1':
           editorMode.value = 'select';
-          statusBarMessage.value = '已切换到: 选择模式';
+          showColliderOverlay.value = false;
           break;
         case '2':
           editorMode.value = 'collider';
-          statusBarMessage.value = '已切换到: 碰撞编辑';
-          break;
-        case '3':
-          editorMode.value = 'tag';
-          statusBarMessage.value = '已切换到: 标签编辑';
+          showColliderOverlay.value = true;
           break;
         case 't':
         case 'T':
           toolbarVisible.value = !toolbarVisible.value;
-          statusBarMessage.value = toolbarVisible.value ? '显示工具栏 (T)' : '隐藏工具栏 (T)';
           break;
         case 'n':
         case 'N':
           propertiesPanelVisible.value = !propertiesPanelVisible.value;
-          statusBarMessage.value = propertiesPanelVisible.value ? '显示属性面板 (N)' : '隐藏属性面板 (N)';
           break;
       }
     };
@@ -195,9 +103,6 @@ function SpriteEditor({ areaId }: { areaId: string }) {
         position: 'relative',
       }}
     >
-      {/* Top Header */}
-      <SpriteEditorHeader />
-
       {/* Temporary Import Banner */}
       {hasContent && isTemporarySpriteSheet.value && (
         <div
@@ -247,16 +152,11 @@ function SpriteEditor({ areaId }: { areaId: string }) {
         }}
       >
         {hasContent ? (
-          // Blender-style 3-column layout with content
           <>
-            {/* Left: Toolbar (T-Panel) — visible based on toolbarVisible signal */}
-            {toolbarVisible.value && <SpriteEditorToolbar />}
-
-            {/* Center: Canvas (Viewport) */}
+            {/* Center: Canvas (Viewport) + Floating T-Panel */}
             <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
               <SpriteEditorCanvas />
-              
-              {/* Toggle buttons when panels are hidden */}
+              {toolbarVisible.value && <SpriteEditorToolbar />}
               {!toolbarVisible.value && <ToolbarToggleButton />}
               {!propertiesPanelVisible.value && <PropertiesToggleButton />}
             </div>
@@ -270,8 +170,6 @@ function SpriteEditor({ areaId }: { areaId: string }) {
         )}
       </div>
 
-      {/* Bottom: Status Bar */}
-      <SpriteEditorFooter />
     </div>
   );
 }
@@ -322,6 +220,7 @@ registerEditor({
   name: '精灵编辑器',
   icon: '🎨',
   component: SpriteEditor,
+  header: SpriteEditorHeader,
 });
 
 export { SpriteEditor };

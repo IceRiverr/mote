@@ -11,8 +11,6 @@ import {
   setFrameCollider,
   setFrameTags,
   propertiesPanelVisible,
-  editorMode,
-  setEditorMode,
 } from './state';
 import { COLLIDER_PRESETS } from '../../data/Collider';
 import type { ColliderShape } from '../../data/Collider';
@@ -248,10 +246,6 @@ function ColliderSection() {
     selected.forEach(frameId => {
       setFrameCollider(sheet.id, frameId, shapes);
     });
-    // Switch to collider mode when user interacts with collider section
-    if (editorMode.value !== 'collider') {
-      setEditorMode('collider');
-    }
   };
 
   const presets = [

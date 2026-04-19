@@ -7,6 +7,7 @@ import { currentScene, selectedEntities, sceneVersion } from '../store/scene';
 import { prefabs, prefabVersion } from '../store/prefabs';
 import { hoverWorldPos } from '../store/viewport';
 import { undo, redo, canUndo, canRedo, undoLabel, redoLabel } from '../store/history';
+import { selectedAssetPaths, selectedFolderPath } from '../store/contentBrowser';
 
 export function StatusBar() {
   // 格式化最后保存时间
@@ -45,7 +46,7 @@ export function StatusBar() {
         )}
       </div>
 
-      {/* 中间：场景信息 + 鼠标坐标 */}
+      {/* 中间：场景信息 + 鼠标坐标 + 资源状态 */}
       <div style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: 20 }}>
         {currentScene.value && (
           <>
@@ -75,6 +76,12 @@ export function StatusBar() {
               </span>
             )}
           </>
+        )}
+        {/* 资源选中状态 */}
+        {selectedAssetPaths.value.length > 0 && (
+          <span style={{ color: '#aaa', fontSize: 11 }}>
+            📦 {selectedAssetPaths.value[0].split('/').pop()}
+          </span>
         )}
       </div>
 

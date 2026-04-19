@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import type { SceneEntity } from "../data/Scene";
+import { derivePrefabId } from "../data/Prefab";
 import { getPrefab } from "../store/prefabs";
 import { getSpriteSheet, spriteSheetImages, spriteSheets } from "../store/spriteSheet";
 import type { FrameData } from "../data/SpriteSheet";
@@ -33,62 +34,27 @@ export interface ResolvedSprite {
 }
 
 /**
- * 解析实体对应的精灵图片和帧矩形
- * 
- * 流程：entity.prefab → Prefab.components.Sprite → atlas + frame
- * → spriteSheetImages[atlas] + spriteSheets[atlas].frames[frame]
+ * 内部：从 rawAtlas + frameId 解析精灵图片和帧矩形
  */
-export function resolveEntitySprite(entity: SceneEntity): ResolvedSprite {
-  const prefab = getPrefab(entity.prefab);
-  if (!prefab) {
-    console.warn('[resolveEntitySprite] prefab not found:', entity.prefab);
-    return { image: null, frame: null, rotated: false };
-  }
-
-  const sprite = prefab.components.Sprite as
-    | {
-        atlas?: string;
-        frame?: string;
-        visible?: boolean;
-      }
-    | undefined;
-
-  if (!sprite || sprite.visible === false) {
-    console.warn('[resolveEntitySprite] no Sprite component or invisible:', entity.prefab);
-    return { image: null, frame: null, rotated: false };
-  }
-
-  const rawAtlas = sprite.atlas;
-  const frameId = sprite.frame;
-  if (!rawAtlas || !frameId) {
-    console.warn('[resolveEntitySprite] missing atlas/frame:', { rawAtlas, frameId, prefab: entity.prefab });
-    return { image: null, frame: null, rotated: false };
-  }
-
-  // 尝试多种 atlas 键格式：
-  // 1. 原始值（可能是 sheet.id）
-  // 2. 去掉路径和 .mote-sprite.json 后缀的文件名
-  // 3. 遍历所有 sheets，按 name / id / jsonPath 匹配
+function resolveSpriteByAtlas(rawAtlas: string, frameId: string): ResolvedSprite {
   const possibleAtlasIds = [rawAtlas, extractSheetId(rawAtlas)];
 
   let image: HTMLImageElement | null = null;
-  let sheet: ReturnType<typeof getSpriteSheet> = undefined;
   let frameData: FrameData | undefined;
 
   for (const atlasId of possibleAtlasIds) {
     if (!atlasId) continue;
     image = spriteSheetImages.value.get(atlasId) ?? null;
-    sheet = getSpriteSheet(atlasId) ?? undefined;
+    const sheet = getSpriteSheet(atlasId);
     frameData = sheet?.frames[frameId];
     if (image && frameData) break;
   }
 
-  // 回退 3：按 sheet.name / sheet.id 遍历匹配
+  // 回退：按 sheet.name / sheet.id 遍历匹配
   if (!frameData) {
     const extractedName = extractSheetId(rawAtlas);
     for (const s of spriteSheets.value) {
       if (s.id === rawAtlas || s.name === extractedName || s.name === rawAtlas) {
-        sheet = s;
         frameData = s.frames[frameId];
         if (frameData) {
           image = spriteSheetImages.value.get(s.id) ?? null;
@@ -99,13 +65,6 @@ export function resolveEntitySprite(entity: SceneEntity): ResolvedSprite {
   }
 
   if (!frameData) {
-    console.warn('[resolveEntitySprite] frame not found:', {
-      prefab: entity.prefab,
-      rawAtlas,
-      frameId,
-      availableSheets: spriteSheets.value.map(s => ({ id: s.id, name: s.name })),
-      availableImages: Array.from(spriteSheetImages.value.keys()),
-    });
     return { image, frame: null, rotated: false };
   }
 
@@ -119,6 +78,58 @@ export function resolveEntitySprite(entity: SceneEntity): ResolvedSprite {
     },
     rotated: frameData.rotated ?? false,
   };
+}
+
+/**
+ * 从 Prefab 路径解析精灵图片和帧矩形
+ * （用于笔刷预览等非实体上下文）
+ * prefabPath 可以是文件路径或 PrefabId
+ */
+export function resolvePrefabSprite(prefabPath: string): ResolvedSprite {
+  // 文件路径 → PrefabId 转换
+  const prefabId = derivePrefabId(prefabPath);
+  const prefab = getPrefab(prefabId);
+  if (!prefab) return { image: null, frame: null, rotated: false };
+
+  const sprite = prefab.components.Sprite as
+    | { atlas?: string; frame?: string; visible?: boolean }
+    | undefined;
+
+  if (!sprite || sprite.visible === false || !sprite.atlas || !sprite.frame) {
+    return { image: null, frame: null, rotated: false };
+  }
+
+  return resolveSpriteByAtlas(sprite.atlas, sprite.frame);
+}
+
+/**
+ * 解析实体对应的精灵图片和帧矩形
+ * 
+ * 流程：entity.prefab → Prefab.components.Sprite → atlas + frame
+ * → spriteSheetImages[atlas] + spriteSheets[atlas].frames[frame]
+ */
+export function resolveEntitySprite(entity: SceneEntity): ResolvedSprite {
+  const prefab = getPrefab(entity.prefab);
+  if (!prefab) {
+    console.warn('[resolveEntitySprite] prefab not found:', entity.prefab);
+    return { image: null, frame: null, rotated: false };
+  }
+
+  const sprite = prefab.components.Sprite as
+    | { atlas?: string; frame?: string; visible?: boolean }
+    | undefined;
+
+  if (!sprite || sprite.visible === false) {
+    return { image: null, frame: null, rotated: false };
+  }
+
+  const rawAtlas = sprite.atlas;
+  const frameId = sprite.frame;
+  if (!rawAtlas || !frameId) {
+    return { image: null, frame: null, rotated: false };
+  }
+
+  return resolveSpriteByAtlas(rawAtlas, frameId);
 }
 
 /**

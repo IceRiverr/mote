@@ -49,7 +49,7 @@ import {
 import type { SceneEntity } from "../../data/Scene";
 import { createSceneEntity, getNextEntityName, snapToSize } from "../../data/Scene";
 import { derivePrefabId } from "../../data/Prefab";
-import { resolveEntitySprite, getEntityDisplaySize } from "../../utils/entitySprite";
+import { resolveEntitySprite, getEntityDisplaySize, resolvePrefabSprite } from "../../utils/entitySprite";
 
 // ═══════════════════════════════════════════════════════════════
 // 辅助函数：查找指定网格位置的实体
@@ -64,8 +64,8 @@ function findEntityAtGrid(
   const scene = currentScene.value;
   if (!scene) return undefined;
 
-  const targetX = gridX * gridSize;
-  const targetY = gridY * gridSize;
+  const targetX = (gridX + 0.5) * gridSize;
+  const targetY = (gridY + 0.5) * gridSize;
 
   for (let i = scene.entities.length - 1; i >= 0; i--) {
     const entity = scene.entities[i];
@@ -110,6 +110,11 @@ const panStartCamera = signal<ViewportCamera | null>(null);
 const isBoxSelecting = signal(false);
 const boxSelectStart = signal<{ x: number; y: number } | null>(null);
 const boxSelectCurrent = signal<{ x: number; y: number } | null>(null);
+
+/** rect-select 网格矩形选择（笔刷模式） */
+const isRectSelecting = signal(false);
+const rectSelectStartGrid = signal<{ x: number; y: number } | null>(null);
+const rectSelectEndGrid = signal<{ x: number; y: number } | null>(null);
 
 /** 是否正在移动 Entity */
 const isMovingEntity = signal(false);
@@ -186,6 +191,9 @@ export function ViewportCanvas() {
       isBoxSelecting.value = false;
       boxSelectStart.value = null;
       boxSelectCurrent.value = null;
+      isRectSelecting.value = false;
+      rectSelectStartGrid.value = null;
+      rectSelectEndGrid.value = null;
       isMovingEntity.value = false;
       moveStart.value = null;
       moveEntitiesStart.value = new Map();
@@ -310,7 +318,7 @@ export function ViewportCanvas() {
     }
 
     // 6. 笔刷预览
-    if (hoverGridPos.value && editMode.value === "brush" && (brushTool.value === "brush" || brushTool.value === "eraser")) {
+    if (hoverGridPos.value && editMode.value === "brush" && (brushTool.value === "brush" || brushTool.value === "eraser" || brushTool.value === "rect-select")) {
       drawBrushPreview(ctx, hoverGridPos.value.x, hoverGridPos.value.y, gridSize);
     }
 
@@ -331,7 +339,24 @@ export function ViewportCanvas() {
       ctx.setLineDash([]);
     }
 
-    // 8. 原点标记（世界空间）
+    // 8. rect-select 网格矩形高亮
+    if (isRectSelecting.value && rectSelectStartGrid.value && rectSelectEndGrid.value) {
+      const x1 = Math.min(rectSelectStartGrid.value.x, rectSelectEndGrid.value.x) * gridSize;
+      const y1 = Math.min(rectSelectStartGrid.value.y, rectSelectEndGrid.value.y) * gridSize;
+      const x2 = (Math.max(rectSelectStartGrid.value.x, rectSelectEndGrid.value.x) + 1) * gridSize;
+      const y2 = (Math.max(rectSelectStartGrid.value.y, rectSelectEndGrid.value.y) + 1) * gridSize;
+      ctx.save();
+      ctx.fillStyle = "rgba(244, 167, 66, 0.15)";
+      ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+      ctx.strokeStyle = "#f4a742";
+      ctx.lineWidth = 1 / cam.zoom;
+      ctx.setLineDash([4 / cam.zoom, 4 / cam.zoom]);
+      ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // 9. 原点标记（世界空间）
     drawOriginMarker(ctx, cam);
 
     ctx.restore();
@@ -346,40 +371,58 @@ export function ViewportCanvas() {
 
   function drawBrushPreview(ctx: CanvasRenderingContext2D, gridX: number, gridY: number, gridSize: number) {
     const cam = viewportCamera.value;
-    
-    if (brushTool.value === "brush" && activePrefabPath.value) {
-      // 绘制笔刷图案预览
+
+    if (brushTool.value === "brush") {
       const positions = getBrushGridPositions(gridX, gridY);
-      
-      ctx.save();
-      ctx.globalAlpha = 0.5;
-      
+
       for (const pos of positions) {
         const worldX = pos.x * gridSize;
         const worldY = pos.y * gridSize;
-        
-        // 绘制半透明白色边框
-        ctx.strokeStyle = "#4a90d9";
-        ctx.lineWidth = 2 / cam.zoom;
-        ctx.strokeRect(worldX, worldY, gridSize, gridSize);
-        
-        // 填充浅色
-        ctx.fillStyle = "rgba(74, 144, 217, 0.2)";
-        ctx.fillRect(worldX, worldY, gridSize, gridSize);
+
+        // 优先绘制真实精灵幽灵（以网格中心为原点，与实体放置对齐）
+        const resolved = resolvePrefabSprite(pos.prefabPath);
+        if (resolved.image && resolved.frame) {
+          ctx.save();
+          ctx.globalAlpha = 0.5;
+          ctx.imageSmoothingEnabled = false;
+          const { x: sx, y: sy, w: sw, h: sh } = resolved.frame;
+          const dw = sw;
+          const dh = sh;
+          const cx = worldX + gridSize / 2;
+          const cy = worldY + gridSize / 2;
+          if (resolved.rotated) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(-Math.PI / 2);
+            ctx.drawImage(resolved.image, sx, sy, sw, sh, -dh / 2, -dw / 2, dh, dw);
+            ctx.restore();
+          } else {
+            ctx.drawImage(resolved.image, sx, sy, sw, sh, cx - dw / 2, cy - dh / 2, dw, dh);
+          }
+          ctx.restore();
+        } else {
+          // 精灵未加载时回退到半透明网格框
+          ctx.save();
+          ctx.globalAlpha = 0.5;
+          ctx.strokeStyle = "#4a90d9";
+          ctx.lineWidth = 2 / cam.zoom;
+          ctx.fillStyle = "rgba(74, 144, 217, 0.2)";
+          ctx.strokeRect(worldX, worldY, gridSize, gridSize);
+          ctx.fillRect(worldX, worldY, gridSize, gridSize);
+          ctx.restore();
+        }
       }
-      
-      ctx.restore();
     } else if (brushTool.value === "eraser") {
       // 绘制橡皮擦预览（红色框）
       const size = brushSize.value;
       const halfSize = Math.floor(size / 2);
-      
+
       ctx.save();
       ctx.globalAlpha = 0.5;
       ctx.strokeStyle = "#d4574a";
       ctx.lineWidth = 2 / cam.zoom;
       ctx.fillStyle = "rgba(212, 87, 74, 0.2)";
-      
+
       for (let dy = -halfSize; dy <= halfSize; dy++) {
         for (let dx = -halfSize; dx <= halfSize; dx++) {
           const worldX = (gridX + dx) * gridSize;
@@ -388,7 +431,17 @@ export function ViewportCanvas() {
           ctx.fillRect(worldX, worldY, gridSize, gridSize);
         }
       }
-      
+
+      ctx.restore();
+    } else if (brushTool.value === "rect-select") {
+      // rect-select 悬停高亮当前网格单元格
+      ctx.save();
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = "rgba(244, 167, 66, 0.3)";
+      ctx.fillRect(gridX * gridSize, gridY * gridSize, gridSize, gridSize);
+      ctx.strokeStyle = "#f4a742";
+      ctx.lineWidth = 1 / cam.zoom;
+      ctx.strokeRect(gridX * gridSize + 0.5, gridY * gridSize + 0.5, gridSize - 1, gridSize - 1);
       ctx.restore();
     }
   }
@@ -696,10 +749,10 @@ export function ViewportCanvas() {
         : pos.prefabPath;
       const name = getNextEntityName(pid, currentScene.value.entities);
 
-      // 创建新实体（和 Command 中保持一致）
+      // 创建新实体（放置到网格中心，与 drawEntity 的中心绘制对齐）
       const newEntity = createSceneEntity(
         pos.prefabPath,
-        { x: pos.x * gridSize, y: pos.y * gridSize },
+        { x: (pos.x + 0.5) * gridSize, y: (pos.y + 0.5) * gridSize },
         { name }
       );
       
@@ -843,11 +896,10 @@ export function ViewportCanvas() {
             break;
 
           case "rect-select":
-            // TODO: rect-select 暂用框选行为
             if (!e.ctrlKey) clearSelection();
-            isBoxSelecting.value = true;
-            boxSelectStart.value = worldPos;
-            boxSelectCurrent.value = worldPos;
+            isRectSelecting.value = true;
+            rectSelectStartGrid.value = { x: gridPos.x, y: gridPos.y };
+            rectSelectEndGrid.value = { x: gridPos.x, y: gridPos.y };
             draw();
             break;
         }
@@ -943,6 +995,13 @@ export function ViewportCanvas() {
       return;
     }
 
+    // rect-select 网格矩形选择
+    if (isRectSelecting.value && rectSelectStartGrid.value) {
+      rectSelectEndGrid.value = gridPos;
+      draw();
+      return;
+    }
+
     // 移动 Entity（直接设置 transform，实时吸附）
     if (isMovingEntity.value && moveStart.value) {
       const dx = worldPos.x - moveStart.value.x;
@@ -1010,6 +1069,28 @@ export function ViewportCanvas() {
       isBoxSelecting.value = false;
       boxSelectStart.value = null;
       boxSelectCurrent.value = null;
+      draw();
+      return;
+    }
+
+    // 结束 rect-select 网格矩形选择
+    if (isRectSelecting.value && rectSelectStartGrid.value && rectSelectEndGrid.value) {
+      const gx1 = Math.min(rectSelectStartGrid.value.x, rectSelectEndGrid.value.x);
+      const gy1 = Math.min(rectSelectStartGrid.value.y, rectSelectEndGrid.value.y);
+      const gx2 = Math.max(rectSelectStartGrid.value.x, rectSelectEndGrid.value.x);
+      const gy2 = Math.max(rectSelectStartGrid.value.y, rectSelectEndGrid.value.y);
+
+      const gridSz = currentScene.value?.grid.size ?? 32;
+      const wx1 = gx1 * gridSz;
+      const wy1 = gy1 * gridSz;
+      const wx2 = (gx2 + 1) * gridSz;
+      const wy2 = (gy2 + 1) * gridSz;
+
+      selectEntitiesInRect(wx1, wy1, wx2, wy2);
+
+      isRectSelecting.value = false;
+      rectSelectStartGrid.value = null;
+      rectSelectEndGrid.value = null;
       draw();
       return;
     }
@@ -1292,6 +1373,12 @@ export function ViewportCanvas() {
   useEffect(() => {
     draw();
   }, [sceneVersion.value]);
+
+  // 监听场景变化（grid.size 等编辑器设置）自动重绘
+  useSignalEffect(() => {
+    const _ = currentScene.value;
+    draw();
+  });
 
   // 监听相机变化自动重绘（支持外部 zoom 修改后即时刷新）
   useSignalEffect(() => {

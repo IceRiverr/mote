@@ -50,3 +50,21 @@ Karpathy called it: the #1 AI coding failure mode is the agent confidently picki
 gstack now has an ambiguity gate built into every workflow. Hit a fork in architecture, data modeling, or a destructive operation with unclear scope? The agent stops and asks. No more “I assumed you wanted…”
 
 Not a blunt “confirm everything” prompt. Scoped to decisions where guessing wrong actually costs you time.
+
+## 2026年4月19日
+2026-4-19 20:43:24，一些等待做的。
+- 场景的保存功能
+- 刚打开场景时应该处于居中状态
+- 精灵图产生的 prefab，资源编辑器没有刷新
+- 资源面板的的 prefab 预览还是一个框，我希望是实际显示精灵。
+- 点击精灵和属性编辑器，更新精灵位置，属性编辑没有实时修改。
+- 笔刷和实体模式，应该是一个下拉框，而不是现在的平铺状态
+- 视口和工具栏尽量在同一行。这样可以减少界面的占用。
+- 精灵的导入导出界面感觉不需要。1）只应该有 png，双击png图片，打开一个临时的精灵编辑器，然后可以调整精灵的切分行为，如果切分行为OK，那么就可以报错，然后形成为一个图集资源。2）双击图集资源，然后打开一个已经编辑好的图集，可以修改，然后基于选中的一个精灵，可以快速生成 prefab。
+- prefab 的编辑工作流还不完整。
+- 场景图的属性编辑器要不限制component的删除和新增，只能放置 prefab。
+- 移除场景中默认地图的限制，默认应该是一个无限大小的画布
+
+
+2026-4-19 21:19:55，开发中，很快就会偏离所有的文档，代码和文档的偏离，最后还是代码是最终依据。
+

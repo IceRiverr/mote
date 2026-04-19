@@ -156,28 +156,69 @@ export function ViewportFooter() {
         </select>
       )}
 
-      {/* Grid toggle */}
-      <button
-        onClick={() => { showGrid.value = !showGrid.value; }}
-        title={gridOn ? "Hide grid" : "Show grid"}
-        style={{
-          fontSize: 10,
-          padding: "0 5px",
-          height: 16,
-          border: "1px solid var(--border)",
-          borderRadius: 2,
-          background: gridOn ? "rgba(74, 144, 217, 0.25)" : "transparent",
-          color: gridOn ? "var(--text)" : "var(--text-secondary)",
-          cursor: "pointer",
-          opacity: gridOn ? 1 : 0.5,
-          display: "flex",
-          alignItems: "center",
-          gap: 3,
-        }}
-      >
-        <span style={{ fontFamily: "monospace", fontWeight: "bold" }}>#</span>
-        <span>{gridOn ? "Grid" : "No Grid"}</span>
-      </button>
+      {/* Grid toggle + size */}
+      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <button
+          onClick={() => { showGrid.value = !showGrid.value; }}
+          title={gridOn ? "Hide grid" : "Show grid"}
+          style={{
+            fontSize: 10,
+            padding: "0 5px",
+            height: 16,
+            border: "1px solid var(--border)",
+            borderRadius: 2,
+            background: gridOn ? "rgba(74, 144, 217, 0.25)" : "transparent",
+            color: gridOn ? "var(--text)" : "var(--text-secondary)",
+            cursor: "pointer",
+            opacity: gridOn ? 1 : 0.5,
+            display: "flex",
+            alignItems: "center",
+            gap: 3,
+          }}
+        >
+          <span style={{ fontFamily: "monospace", fontWeight: "bold" }}>#</span>
+          <span>{gridOn ? "Grid" : "No Grid"}</span>
+        </button>
+
+        {gridOn && scene && (
+          <select
+            value={scene.grid.size}
+            onChange={(e) => {
+              const size = parseInt((e.target as HTMLSelectElement).value, 10);
+              if (scene) {
+                currentScene.value = {
+                  ...scene,
+                  grid: { ...scene.grid, size },
+                };
+                // 如果 snapSize 等于旧 grid.size，同步更新 snapSize
+                const oldSnap = scene.grid.snapSize;
+                if (oldSnap === undefined || oldSnap === scene.grid.size) {
+                  currentScene.value = {
+                    ...currentScene.value,
+                    grid: { ...currentScene.value.grid, snapSize: size },
+                  };
+                }
+              }
+            }}
+            title="网格大小"
+            style={{
+              fontSize: 10,
+              height: 16,
+              padding: "0 2px",
+              border: "1px solid var(--border)",
+              borderRadius: 2,
+              background: "transparent",
+              color: "var(--text-secondary)",
+              cursor: "pointer",
+              outline: "none",
+            }}
+          >
+            {[8, 16, 32, 64, 128].map((size) => (
+              <option key={size} value={size}>{size}px</option>
+            ))}
+          </select>
+        )}
+      </div>
 
       <div style={{ flex: 1 }} />
       <span style={{ opacity: 0.6 }}>

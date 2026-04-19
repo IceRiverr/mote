@@ -22,8 +22,8 @@ function findEntityAtGrid(
   const scene = currentScene.value;
   if (!scene) return undefined;
 
-  const targetX = gridX * gridSize;
-  const targetY = gridY * gridSize;
+  const targetX = (gridX + 0.5) * gridSize;
+  const targetY = (gridY + 0.5) * gridSize;
 
   for (let i = scene.entities.length - 1; i >= 0; i--) {
     const entity = scene.entities[i];
@@ -241,8 +241,8 @@ export class FloodFillCommand implements Command {
       if (visited.has(key)) continue;
       visited.add(key);
 
-      const worldX = x * this.gridSize;
-      const worldY = y * this.gridSize;
+      const worldX = (x + 0.5) * this.gridSize;
+      const worldY = (y + 0.5) * this.gridSize;
       if (worldX < 0 || worldX >= scene.width || worldY < 0 || worldY >= scene.height) {
         continue;
       }

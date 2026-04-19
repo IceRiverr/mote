@@ -1,438 +1,192 @@
-# Phase 5: EntityDef 编辑器开发计划
+# Phase 5: Entity/Prefab 编辑器开发计划（已重构）
 
-> **日期**: 2026-04-08
-> **目标**: 实现 EntityDef 可视化编辑 + EntityPalette 笔刷面板
-> **预计工期**: 4-5 天
-
----
-
-## 1. 背景与目标
-
-### 当前状态
-- ✅ `EntityDef` 数据模型完整 (`data/EntityDef.ts`)
-- ✅ `entityDefs.ts` Store 层完成
-- ✅ 7 个内置 EntityDef 硬编码在 `loadBuiltinEntityDefs()`
-- ❌ **无 EntityPalette 面板** —— 无法像选 Sprite 一样选 EntityDef 作为笔刷
-- ❌ **无专用编辑器** —— 用户无法创建/修改 EntityDef
-- ❌ **无可视化 Sprite 选择** —— 无法选择 `sheetId:frameId`
-
-### 目标
-用户可以在 **EntityPalette** 面板中：
-1. **浏览**所有 EntityDef（像 SpriteEditor 一样网格/列表视图）
-2. **选择** EntityDef 作为当前笔刷 → 在 Viewport 放置实例
-3. **创建/编辑** EntityDef（双击或右键编辑）
-4. **管理**自定义字段和 Sprite 引用
+> **日期**: 2026-04-19（更新）
+> **状态**: EntityDef 架构已废弃，替换为 Prefab + SceneEntity 架构
+> **当前进度**: Prefab Workflow v2 已完成并提交
 
 ---
 
-## 2. 核心概念：笔刷工作流
+## 1. 架构变更说明
 
-### 类比 SpriteEditor 的成功模式
-
-| 步骤 | Sprite (Tile) | EntityDef |
-|------|---------------|-----------|
-| **1. 打开面板** | SpriteEditor | **EntityPalette** |
-| **2. 浏览资源** | Grid/List 视图 | **Grid/List 视图** |
-| **3. 选择笔刷** | 点击 Frame → `activeFrame` | **点击 EntityDef → `activeEntityDefId`** |
-| **4. 切换工具** | Brush 工具 | **Entity 工具** |
-| **5. 放置** | 在 TileLayer 涂刷 | **在 EntityLayer 点击放置** |
-| **6. 编辑实例** | — | Inspector 编辑覆盖字段 |
-
-### 面板布局关系
-
+### 旧架构（已废弃）
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Global Header                                              │
-├────────────────┬────────────────────────┬───────────────────┤
-│                │                        │                   │
-│  Scene Tree    │      Viewport          │  Inspector        │
-│  (图层树)       │                        │  (属性编辑)        │
-│                │   2D场景视图            │                   │
-│                │   Tile + Entity         │                   │
-│                │                        │                   │
-├────────────────┴────────────────────────┴───────────────────┤
-│                                                             │
-│  Sprite Editor          │          Entity Palette          │
-│  (精灵笔刷)              │          (实体笔刷)               │
-│                         │                                   │
-│  Grid/List 选 Frame     │          Grid/List 选 EntityDef   │
-│  → 用于 Tile 绘制        │          → 用于 Entity 放置       │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+EntityDef ──► EntityInstance (template + fields)
 ```
+- `EntityDef` 是运行时模板定义
+- `EntityInstance` 引用模板 + 字段覆盖
+- 独立的 `.entity.json` 文件格式
 
-**关键洞察**：
-- SpriteEditor 和 EntityPalette 是**并列关系**，不是包含关系
-- 都放在底部区域，用户可以根据当前工作切换
-- 或者放在左右两侧，同时可见
-
----
-
-## 3. 任务分解
-
-### Task 0: EntityPalette 面板（核心）⭐
-
-**文件**: `src/editors/entity-palette/EntityPalette.tsx`
-
-**定位**：独立面板，注册为 `entity-palette` 类型
-
-**功能**:
-- **网格视图**：显示 EntityDef 的图标+颜色+名称（类似 SpriteEditor Grid）
-- **列表视图**：紧凑列表，显示更多信息（字段数量、脚本等）
-- **搜索过滤**：按名称过滤
-- **单击选择**：设置 `activeEntityDefId`，成为当前笔刷
-- **双击编辑**：打开详细编辑弹窗或 Inspector
-- **右键菜单**：新建 / 复制 / 删除 / 导出
-- **新建按钮**：快速创建空白 EntityDef
-
-**界面草图**：
+### 新架构（当前）
 ```
-┌─────────────────────────────────────────┐
-│ 实体库                          [+ 新建] │
-├─────────────────────────────────────────┤
-│ [搜索...]           [🔲网格 ▤列表 ▼分类] │
-├─────────────────────────────────────────┤
-│                                         │
-│ ┌─────────┐ ┌─────────┐ ┌─────────┐    │
-│ │   ❤️    │ │   💀    │ │   📦    │    │
-│ │  红药水  │ │  骷髅   │ │  宝箱   │    │
-│ │(potion_ │ │(skeleto │ │ (chest) │    │
-│ │   red)  │ │   n)    │ │         │    │
-│ │   ✓     │ │         │ │         │    │ ← ✓ 表示当前笔刷
-│ └─────────┘ └─────────┘ └─────────┘    │
-│ ┌─────────┐ ┌─────────┐                 │
-│ │   ⚔️    │ │   🚪    │                 │
-│ │  玩家   │ │   门    │                 │
-│ │(player_ │ │  (door) │                 │
-│ │  spawn) │ │         │                 │
-│ └─────────┘ └─────────┘                 │
-│                                         │
-├─────────────────────────────────────────┤
-│ 笔刷: 红药水 (potion_red)               │
-│ 形状: 点  精灵: tiny-dungeon:potion_red │
-│ [编辑定义...]                           │
-└─────────────────────────────────────────┘
+Prefab ──► SceneEntity (prefab + transform + overrides)
 ```
+- `Prefab` 是独立的 `.mote-prefab.json` 资源文件
+- `SceneEntity` 引用 Prefab + Transform + Overrides
+- Prefab 本身就是完整定义，无需额外模板层
 
-**Store 新增**：
-```ts
-// store/selection.ts 新增
-export const activeEntityDefId = signal<string | null>(null);
-```
-
-**实现要点**：
-- 复用 `entityDefs` signal
-- 选中状态持久化（localStorage）
-- 支持拖拽排序（自定义顺序）
+**废弃原因**：
+- EntityDef 和 Prefab 职责重叠，维护两套系统成本高
+- Prefab 作为独立文件更直观（可复用、可版本控制）
+- SceneEntity 的 overrides 机制比 EntityInstance 的 fields 更灵活（组件级覆盖）
 
 ---
 
-### Task 1: Sprite 选择器组件（弹出式）
+## 2. 当前已完成工作（Prefab Workflow v2）
 
-**文件**: `src/components/SpritePicker.tsx`
+### 数据层 ✅
+- [x] `Prefab` 类型：`.mote-prefab.json` 文件格式
+- [x] `SceneEntity` 类型：运行时实例（无持久化 id，有 name）
+- [x] `Scene` 类型：v2 格式（entity id 不序列化，name 序列化）
+- [x] `ENGINE_VERSION = "0.0.2"` 统一版本
+- [x] `io.ts`：Scene/Prefab 导入导出（`sceneToJson` / `sceneFromJson` / `prefabToJson` / `prefabFromJson`）
+- [x] `SceneFS` / `PrefabFS`：文件系统操作
 
-**定位**：可复用的弹窗组件，不是独立面板
+### 核心逻辑 ✅
+- [x] `prefab-commands.ts`：Apply Overrides to Prefab、Revert to Prefab、Save as New Prefab
+- [x] `scene-commands.ts`：Add/Remove/Move/Update Entity
+- [x] `override-utils.ts`：属性级 override 追踪与重建
+- [x] `prefabEditor.ts`：Draft 编辑状态管理
 
-**使用场景**：
-- EntityPalette 底部点击"编辑定义"
-- EntityDef 编辑时选择 sprite 字段
+### UI 层 ✅
+- [x] **PrefabPreviewEditor**：可编辑的 Prefab 预览面板（双击打开 Draft 编辑）
+- [x] **EntityInspector**：选中 SceneEntity 显示属性 + override 指示器
+  - Transform 独立编辑（非 override）
+  - 组件属性级 override（蓝色边框 + badge）
+  - Apply All / Revert All 按钮
+  - "保存为 Prefab" 按钮
+- [x] **SceneTreeEditor**：实时 entity 列表（name + 坐标 + tag icon）
+- [x] **ViewportCanvas**：
+  - 拖放 Prefab 到场景
+  - SpawnMenu (Shift+A) 放置 Prefab
+  - 笔刷绘制（带自动编号 name）
+  - 框选 / 多选 / 移动
+- [x] **ExportPanel**：保存场景到 `assets/` + 下载 fallback
+- [x] **MenuBar**：File → Export Scene（弹路径输入框）
 
-**功能**：
-- 弹出式模态窗口
-- Grid/List 双视图（复用 SpriteEditor 样式）
-- 搜索过滤 Frame
-- 点击选择 → 返回 `"sheetId:frameId"`
-- 支持清除选择
+### 基础设施 ✅
+- [x] `engineSync.ts`：`prefabInstanceMap`（PrefabId → SceneEntityId 映射）
+- [x] `FileSystem.ts`：懒加载目录选择（内存项目首次保存时弹目录选择器）
+- [x] `contentBrowser.ts`：正确加载 Scene（走 `sceneFromJson` 生成运行时 id）
 
-**界面**：见原 plan
-
----
-
-### Task 2: EntityDef 详细编辑器（弹窗/抽屉）
-
-**文件**: `src/components/EntityDefEditor.tsx`
-
-**定位**：弹窗或右侧抽屉，编辑单个 EntityDef 的完整属性
-
-**触发方式**：
-- EntityPalette 双击项目
-- EntityPalette 右键菜单 → 编辑
-- Inspector 中点击"编辑定义"
-
-**功能分区**：
-1. **基本属性**：名称、图标、颜色、形状、尺寸
-2. **视觉**：Sprite 选择器 + 预览
-3. **碰撞**：继承/自定义/无 三级选择
-4. **脚本**：路径输入 + 浏览按钮
-5. **字段**：嵌入 FieldEditor（Task 3）
-
-**界面**：宽弹窗（600px+）或右侧抽屉
-
----
-
-### Task 3: 字段管理组件（FieldEditor）
-
-**文件**: `src/components/FieldEditor.tsx`
-
-**定位**：嵌入在 EntityDefEditor 中
-
-**功能**：
-- 显示所有字段定义
-- 添加新字段（选择类型）
-- 删除字段
-- 编辑字段属性（id, label, default）
-
-**与原 plan 相同**，不再赘述
+### Bug 修复 ✅
+- [x] 编辑器双击 Prefab 卡死（路径格式 mismatch）
+- [x] Prefab 拖放到场景（`derivePrefabId` 转换）
+- [x] 导出场景返回 undefined（MenuBar void return）
+- [x] SceneTree 笔刷绘制不更新（未订阅 `sceneVersion`）
+- [x] ContentBrowser 加载场景选中所有 entity（运行时 id 未生成）
+- [x] 场景保存路径不写入文件（`path` 从序列化中移除）
 
 ---
 
-### Task 4: Inspector 快速编辑
+## 3. 下一步计划
 
-**文件**: `src/editors/inspector/panels/EntityDefQuickPanel.tsx`
+### 3.1 Prefab 编辑器增强（高优先级）
 
-**定位**：Inspector 中的简化面板，快速修改常用属性
+**PrefabPreviewEditor 当前是 Draft 编辑模式**，但缺少一些功能：
 
-**显示时机**：
-- EntityPalette 选中 EntityDef 时
-- 或 Viewport 选中 EntityInstance 时点击"编辑模板"
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| 组件添加/删除 | ❌ | 目前只能编辑已有组件的属性 |
+| 组件重排序 | ❌ | 无顺序概念 |
+| Tag 编辑 | ❌ | 无法添加/删除 tags |
+| Thumbnail 生成 | ❌ | 需要截图或手动上传 |
+| Prefab 嵌套引用 | ❌ | Prefab 中包含其他 Prefab |
 
-**可编辑字段**：
-- 名称、图标、颜色
-- 快速跳转"详细编辑"按钮
+### 3.2 Scene 编辑器增强
 
-**目的**：不用打开弹窗就能改常用属性
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| Entity 复制 (Ctrl+D) | ❌ | 选中 entity 快速复制 |
+| Entity 对齐/分布 | ❌ | 多选时对齐工具 |
+| Entity 层级 (parent) | 🟡 | 类型有字段，但编辑器未使用 |
+| 场景摄像机系统 | ❌ | 多摄像机、跟随、边界 |
+| 运行时预览 (PIE) | ❌ | Play In Editor，接入 Engine World |
+
+### 3.3 资产管理工作流
+
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| Prefab 分类/标签过滤 | 🟡 | PrefabBrowser 有 Category，但无动态标签 |
+| 场景内搜索 entity | ❌ | SceneTree 搜索框 |
+| 批量操作（删除/移动） | ❌ | 多选 entity 批量处理 |
+| 撤销/重做栈可视化 | ❌ | 显示历史记录列表 |
+
+### 3.4 构建与导出
+
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| 项目构建包 | 🟡 | `exportBuildBundle` 存在但 UI 未集成 |
+| 游戏发布流程 | ❌ | 从场景生成可运行游戏 |
+| 资源打包优化 | ❌ | 图集合并、JSON 压缩 |
 
 ---
 
-### Task 5: 导出功能
+## 4. 近期推荐任务（接下来 1-2 周）
 
-**文件**: `src/data/export-entity.ts`
+### Task A: Entity 复制与对齐（1-2 天）
+- [ ] `Ctrl+D` 复制选中 entity（`cloneEntity` + 偏移）
+- [ ] 多选时 Inspector 显示对齐工具（左/中/右对齐、等间距分布）
+- [ ] `Delete` 键删除选中（已有命令，需绑定快捷键）
 
-**与原 plan 相同**，新增 EntityPalette 右键菜单导出
+### Task B: Prefab 组件管理（2-3 天）
+- [ ] PrefabPreviewEditor 中添加 "+ 添加组件" 按钮
+- [ ] 组件选择弹窗（从 ComponentRegistry 列出可用组件）
+- [ ] 组件删除按钮（确认对话框）
+- [ ] Tag 输入框（逗号分隔，实时更新）
+
+### Task C: SceneTree 搜索与过滤（1 天）
+- [ ] SceneTree 顶部搜索框（按 name / prefab 过滤）
+- [ ] 按 Prefab 类型分组显示（可选）
+- [ ] 显示/隐藏不可见 entity（`visible: false` 的淡化显示）
+
+### Task D: PIE 基础（Play In Editor）（3-5 天）
+- [ ] 接入 Engine World 运行时
+- [ ] `sceneToEngine`：SceneEntity → Engine Entity（spawn + component）
+- [ ] Viewport 切换到"播放模式"（隐藏编辑器 UI，显示游戏）
+- [ ] 基础游戏循环（update + render）
+- [ ] Stop 按钮回到编辑模式
 
 ---
 
-### Task 6: 替换内置 EntityDef
+## 5. 废弃文件的清理清单
 
-**文件**: `src/store/entityDefs.ts`
-
-**修改**：
-- 移除 `loadBuiltinEntityDefs()` 硬编码
-- 从 `assets/entities/*.entity.json` 加载
-- 提供默认初始化（如果目录为空，创建示例）
-
----
-
-## 4. 文件结构
+以下 EntityDef 相关文件可以删除（确认不再引用后）：
 
 ```
 packages/editor/src/
-├── editors/
-│   ├── entity-palette/           # 新增: 核心面板
-│   │   ├── EntityPalette.tsx     # 主组件
-│   │   ├── EntityPaletteGrid.tsx # 网格视图
-│   │   ├── EntityPaletteList.tsx # 列表视图
-│   │   ├── EntityPaletteItem.tsx # 单个项目渲染
-│   │   └── register.ts           # 注册面板
-│   │
-│   ├── inspector/panels/
-│   │   └── EntityDefQuickPanel.tsx  # 新增: Inspector 快速编辑
-│   │
-│   └── sprite-editor/            # 已有
-│
-├── components/
-│   ├── EntityDefEditor.tsx       # 新增: 详细编辑弹窗
-│   ├── SpritePicker.tsx          # 新增: Sprite 选择弹窗
-│   └── FieldEditor.tsx           # 新增: 字段管理
-│
-├── data/
-│   └── export-entity.ts          # 新增
-│
-└── store/
-    ├── entityDefs.ts             # 修改: 加载逻辑
-    └── selection.ts              # 修改: 新增 activeEntityDefId
+├── data/EntityDef.ts           # 已废弃，被 Prefab.ts 替代
+├── store/entityDefs.ts         # 已废弃，被 prefabs.ts 替代
+├── editors/inspector/panels/   # 检查是否有 EntityDefQuickPanel
+└── components/                 # 检查是否有 EntityDefEditor / SpritePicker
 ```
+
+> ⚠️ 删除前需全局搜索引用，确保没有遗留依赖。
 
 ---
 
-## 5. 实现顺序
+## 6. 关联文档
 
-```
-Day 1: EntityPalette 基础
-├── Task 0.1: 注册面板，基础布局
-├── Task 0.2: Grid 视图渲染
-├── Task 0.3: 选择逻辑（activeEntityDefId）
-└── Task 0.4: 与 Viewport Entity 工具集成
-
-Day 2: EntityPalette 功能
-├── Task 0.5: 搜索过滤
-├── Task 0.6: 新建/删除/右键菜单
-├── Task 0.7: List 视图
-└── Task 0.8: 双击打开编辑器
-
-Day 3: 编辑器组件
-├── Task 1: SpritePicker 组件
-├── Task 3: FieldEditor 组件
-└── Task 2: EntityDefEditor 弹窗框架
-
-Day 4: 集成与导出
-├── Task 2: EntityDefEditor 完成功能
-├── Task 4: Inspector Quick Panel
-├── Task 5: 导出功能
-└── Task 6: 替换内置加载
-
-Day 5: 测试与优化
-├── 撤销/重做支持
-├── 性能优化（虚拟列表）
-└── Bug 修复
-```
+| 文档 | 说明 |
+|------|------|
+| `docs/mote-editor-spec.md` | 编辑器架构规范 |
+| `docs/mote-engine-spec.md` | Engine ECS 规范 |
+| `designs/design-prefab-workflow-v2-20260418.md` | Prefab Workflow v2 设计文档 |
+| `packages/editor/src/data/Prefab.ts` | Prefab 数据模型 |
+| `packages/editor/src/data/Scene.ts` | Scene 数据模型 |
+| `packages/editor/src/store/prefabs.ts` | Prefab Store |
+| `packages/editor/src/store/scene.ts` | Scene Store |
 
 ---
 
-## 6. 关键工作流程
+## 7. 验收标准（Prefab Workflow v2 已达成）
 
-### 6.1 创建新 EntityDef
-
-```
-1. 点击 EntityPalette [+ 新建]
-   ↓
-2. 创建空白 EntityDef，ID 自动生成
-   ↓
-3. 自动打开 EntityDefEditor 弹窗
-   ↓
-4. 填写名称、选择 Sprite、添加字段
-   ↓
-5. 点击保存（实时更新，无需显式保存）
-   ↓
-6. EntityPalette 显示新项目，自动选中
-```
-
-### 6.2 放置 Entity 实例
-
-```
-1. 在 EntityPalette 点击选择"红药水"
-   ↓
-2. activeEntityDefId = "potion_red"
-   ↓
-3. Viewport 自动切换到 Entity 工具（或提示切换）
-   ↓
-4. 在地图上点击 → 创建 EntityInstance
-   {
-     template: "potion_red",
-     x, y,
-     fields: {} // 使用默认值
-   }
-   ↓
-5. 选中实例 → Inspector 编辑覆盖字段
-```
-
-### 6.3 编辑现有 EntityDef
-
-```
-方式 A: 快速编辑
-- EntityPalette 选中 → Inspector 显示 QuickPanel
-- 修改名称/颜色/图标
-
-方式 B: 详细编辑
-- EntityPalette 双击项目
-- 或右键 → 编辑
-- 打开 EntityDefEditor 弹窗
-- 修改所有属性、字段、Sprite 等
-```
-
----
-
-## 7. 布局建议
-
-### 推荐默认布局
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Header                                                      │
-├────────────────┬────────────────────────┬───────────────────┤
-│                │                        │                   │
-│  Scene Tree    │      Viewport          │  Inspector        │
-│  (图层树)       │                        │                   │
-│                │                        │                   │
-│                │                        │                   │
-│                │                        │                   │
-├────────────────┴────────────────────────┴───────────────────┤
-│                                                             │
-│  Sprite Editor (左下)          Entity Palette (右下)        │
-│  宽度: 50%                     宽度: 50%                    │
-│                                                             │
-│  用途: 选 Sprite 笔刷          用途: 选 Entity 笔刷         │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 备选布局（竖屏/小屏幕）
-
-```
-底部标签切换:
-┌─────────────────────────────────────────────────┐
-│  [Sprite Editor] [Entity Palette] [Console]    │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  内容区域（切换显示）                             │
-│                                                 │
-└─────────────────────────────────────────────────┘
-```
-
----
-
-## 8. 与现有系统的关系
-
-| 系统 | 关系 | 说明 |
-|------|------|------|
-| SpriteEditor | 并列 | 都是"笔刷选择"面板，分别对应 Tile 和 Entity |
-| Inspector | 协作 | EntityPalette 选择 → Inspector 显示快速编辑 |
-| Viewport | 消费 | EntityPalette 提供笔刷，Viewport 执行放置 |
-| Asset Browser | 底层 | Asset Browser 管文件，EntityPalette 管运行时资源 |
-| Scene Tree | 区分 | Scene Tree 是当前场景的实例列表，EntityPalette 是全局模板库 |
-
----
-
-## 9. 验收标准
-
-- [ ] **EntityPalette 面板**
-  - [ ] 网格/列表双视图
-  - [ ] 显示图标、颜色、名称
-  - [ ] 单击选择成为笔刷
-  - [ ] 搜索过滤
-  - [ ] 新建/删除/复制
-
-- [ ] **笔刷工作流**
-  - [ ] 选择 EntityDef → Viewport 可放置
-  - [ ] 放置后创建正确的 EntityInstance
-  - [ ] 选中实例可编辑覆盖字段
-
-- [ ] **编辑功能**
-  - [ ] 双击打开详细编辑器
-  - [ ] Sprite 选择器正常工作
-  - [ ] 字段管理（增删改）
-  - [ ] 导出为 `.entity.json`
-
-- [ ] **集成**
-  - [ ] Inspector 快速编辑面板
-  - [ ] 从 `assets/entities/` 加载
-  - [ ] 撤销/重做支持
-
----
-
-## 10. 风险与备选
-
-| 风险 | 备选方案 |
-|------|----------|
-| Entity 太多（100+）性能差 | 虚拟列表 + 分类筛选 |
-| 面板空间不够 | 做成浮动面板或可折叠 |
-| 与 SpriteEditor 代码重复太多 | 提取公共组件 `ResourceGrid` |
-
----
-
-## 11. 关联文档
-
-- `SPEC.md` 第 6 章: 编辑器架构
-- `data/EntityDef.ts`: 数据模型
-- `store/entityDefs.ts`: Store 层
-- `editors/sprite-editor/`: 参考实现
+- [x] Scene 文件格式正确（无 entity id，有 name，无 path）
+- [x] Prefab 文件格式正确（无 id，路径派生）
+- [x] 场景可保存到 `assets/` 目录
+- [x] 场景可从文件加载（运行时 id 重新生成）
+- [x] Prefab 可编辑（Draft 模式 + 保存）
+- [x] SceneEntity 可 override Prefab 属性
+- [x] Inspector 显示 override 指示器
+- [x] SceneTree 实时更新
+- [x] 笔刷绘制正常工作
+- [x] 拖放 / SpawnMenu 放置 Prefab 正常

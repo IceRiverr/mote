@@ -4,6 +4,7 @@
 
 import { useState } from 'preact/hooks';
 import { getPrefabFS } from '../../fs/PrefabFS';
+import { scanAssets } from '../../store/contentBrowser';
 import type { FrameData } from '../../data/SpriteSheet';
 
 interface SpriteAtlasInfo {
@@ -124,8 +125,13 @@ export function GeneratePrefabDialog({
 
         // 保存
         const success = await prefabFS.save(prefab, filePath);
-        if (success) successCount++;
+        if (success) {
+          successCount++;
+        }
       }
+
+      // 刷新 content-browser 资源树
+      await scanAssets();
 
       onGenerated?.(successCount);
       onClose();

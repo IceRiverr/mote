@@ -99,6 +99,7 @@ export function SpriteEditorCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoverIdx = useRef<number>(-1);
   const selDragStart = useRef<number | null>(null);
+  const isPanning = useRef(false);
   const [ctxMenu, setCtxMenu] = useState<CtxMenuState | null>(null);
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const [renderTick, setRenderTick] = useState(0);
@@ -479,19 +480,27 @@ export function SpriteEditorCanvas() {
       return;
     }
 
-    // Pan with middle mouse or Alt+Left
+    // Pan with middle mouse or Alt+Left (Blender-style)
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       e.preventDefault();
+      isPanning.current = true;
+      const container = containerRef.current;
+      if (container) container.style.cursor = 'grabbing';
+
       const startCam = { ...editorCam.value };
       const startX = e.clientX;
       const startY = e.clientY;
       const onMove = (ev: PointerEvent) => {
         editorCam.value = {
-          x: Math.max(0, startCam.x - (ev.clientX - startX)),
-          y: Math.max(0, startCam.y - (ev.clientY - startY)),
+          x: startCam.x - (ev.clientX - startX),
+          y: startCam.y - (ev.clientY - startY),
         };
       };
       const onUp = () => {
+        isPanning.current = false;
+        if (container) {
+          container.style.cursor = editorMode.value === 'collider' ? 'crosshair' : 'grab';
+        }
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
       };
@@ -593,6 +602,12 @@ export function SpriteEditorCanvas() {
 
   const onPointerUp = () => {
     selDragStart.current = null;
+    if (!isPanning.current) {
+      const container = containerRef.current;
+      if (container) {
+        container.style.cursor = editorMode.value === 'collider' ? 'crosshair' : 'grab';
+      }
+    }
   };
 
   const onPointerLeave = () => {
@@ -629,23 +644,30 @@ export function SpriteEditorCanvas() {
     } else {
       const cam = editorCam.value;
       if (e.shiftKey) {
-        editorCam.value = { ...cam, x: Math.max(0, cam.x + e.deltaY) };
+        editorCam.value = { ...cam, x: cam.x + e.deltaY };
       } else {
-        editorCam.value = { ...cam, y: Math.max(0, cam.y + e.deltaY) };
+        editorCam.value = { ...cam, y: cam.y + e.deltaY };
       }
+    }
+  };
+
+  const onMouseDown = (e: MouseEvent) => {
+    // Prevent browser default middle-click scroll behavior
+    if (e.button === 1) {
+      e.preventDefault();
     }
   };
 
   return (
     <div
       ref={containerRef}
-      style={{ 
-        width: '100%', 
-        height: '100%', 
-        overflow: 'hidden', 
-        cursor: editorMode.value === 'collider' ? 'crosshair' : 'pointer', 
-        imageRendering: 'pixelated', 
-        position: 'relative' 
+      style={{
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        cursor: editorMode.value === 'collider' ? 'crosshair' : 'grab',
+        imageRendering: 'pixelated',
+        position: 'relative',
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -653,6 +675,7 @@ export function SpriteEditorCanvas() {
       onPointerLeave={onPointerLeave}
       onContextMenu={onContextMenu}
       onWheel={onWheel}
+      onMouseDown={onMouseDown}
     >
       <canvas ref={canvasRef} style={{ display: 'block', imageRendering: 'pixelated' }} />
       {tooltip && (

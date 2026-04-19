@@ -2,7 +2,8 @@
 // ContentBrowser.tsx - Content Browser 主组件
 // ═══════════════════════════════════════════════════════════════
 
-import { useEffect } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
+import { effect } from '@preact/signals';
 import { FolderTree } from './FolderTree';
 import { AssetView } from './AssetView';
 import {
@@ -13,6 +14,18 @@ import {
 import { currentProject } from '../../project';
 
 export function ContentBrowser({ areaId }: { areaId: string }) {
+  const [renderTick, setRenderTick] = useState(0);
+
+  // 显式订阅 assetTree，确保 signal 变化一定触发重渲染
+  useEffect(() => {
+    const dispose = effect(() => {
+      assetTree.value;
+      selectedFolderPath.value;
+      setRenderTick((t) => t + 1);
+    });
+    return dispose;
+  }, []);
+
   // 项目变化时自动扫描
   useEffect(() => {
     if (currentProject.value) {

@@ -3,8 +3,6 @@
   "kind": "scene",
   "id": "scene_1776568205629",
   "name": "Untitled",
-  "width": 640,
-  "height": 480,
   "grid": {
     "enabled": true,
     "size": 32,

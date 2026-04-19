@@ -243,9 +243,6 @@ export class FloodFillCommand implements Command {
 
       const worldX = (x + 0.5) * this.gridSize;
       const worldY = (y + 0.5) * this.gridSize;
-      if (worldX < 0 || worldX >= scene.width || worldY < 0 || worldY >= scene.height) {
-        continue;
-      }
 
       const entity = findEntityAtGrid(x, y, this.targetLayer, this.gridSize);
       const prefabId = entity?.prefab ?? null;

@@ -47,6 +47,7 @@ export function ViewportTPanel() {
         boxShadow: "0 4px 12px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.05)",
       }}
     >
+      {/* 工具按钮 */}
       {tools.map((tool) => {
         const isActive = active === tool.id;
         return (
@@ -94,3 +95,5 @@ export function ViewportTPanel() {
     </div>
   );
 }
+
+

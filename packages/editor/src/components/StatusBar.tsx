@@ -5,6 +5,8 @@
 import { projectName, hasUnsavedChanges, lastSavedAt } from '../project';
 import { currentScene, selectedEntities, sceneVersion } from '../store/scene';
 import { prefabs, prefabVersion } from '../store/prefabs';
+import { hoverWorldPos } from '../store/viewport';
+import { undo, redo, canUndo, canRedo, undoLabel, redoLabel } from '../store/history';
 
 export function StatusBar() {
   // 格式化最后保存时间
@@ -43,8 +45,8 @@ export function StatusBar() {
         )}
       </div>
 
-      {/* 中间：场景信息 */}
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: 24 }}>
+      {/* 中间：场景信息 + 鼠标坐标 */}
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: 20 }}>
         {currentScene.value && (
           <>
             <span>
@@ -58,12 +60,65 @@ export function StatusBar() {
                 选中: {selectedEntities.value.length}
               </span>
             )}
+            {/* 鼠标坐标 */}
+            {hoverWorldPos.value && (
+              <span style={{ color: '#aaa', fontFamily: 'monospace' }}>
+                ({hoverWorldPos.value.x.toFixed(1)}, {hoverWorldPos.value.y.toFixed(1)})
+                {(() => {
+                  const scene = currentScene.value;
+                  const pos = hoverWorldPos.value;
+                  if (!scene || !pos) return null;
+                  const gx = Math.floor(pos.x / scene.grid.size);
+                  const gy = Math.floor(pos.y / scene.grid.size);
+                  return ` [${gx},${gy}]`;
+                })()}
+              </span>
+            )}
           </>
         )}
       </div>
 
-      {/* 右侧：统计 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+      {/* 右侧：Undo/Redo + 统计 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Undo */}
+        <button
+          onClick={() => undo()}
+          disabled={!canUndo.value}
+          title={canUndo.value ? `撤销: ${undoLabel.value}` : '无可撤销操作'}
+          style={{
+            background: 'transparent',
+            border: '1px solid #444',
+            borderRadius: 3,
+            padding: '1px 5px',
+            cursor: canUndo.value ? 'pointer' : 'default',
+            color: canUndo.value ? '#ccc' : '#555',
+            fontSize: 12,
+            lineHeight: 1,
+            opacity: canUndo.value ? 1 : 0.5,
+          }}
+        >
+          ↶
+        </button>
+        {/* Redo */}
+        <button
+          onClick={() => redo()}
+          disabled={!canRedo.value}
+          title={canRedo.value ? `重做: ${redoLabel.value}` : '无可重做操作'}
+          style={{
+            background: 'transparent',
+            border: '1px solid #444',
+            borderRadius: 3,
+            padding: '1px 5px',
+            cursor: canRedo.value ? 'pointer' : 'default',
+            color: canRedo.value ? '#ccc' : '#555',
+            fontSize: 12,
+            lineHeight: 1,
+            opacity: canRedo.value ? 1 : 0.5,
+          }}
+        >
+          ↷
+        </button>
+
         <span>Prefab: {prefabs.value.size}</span>
         <span style={{ color: '#666' }}>Mote Editor v0.2.0</span>
       </div>

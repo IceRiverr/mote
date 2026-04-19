@@ -1,7 +1,6 @@
 import { registerEditor } from "../registry";
 import { ViewportHeader } from "./ViewportHeader";
 import { ViewportCanvas } from "./ViewportCanvas";
-import { ViewportFooter } from "./ViewportFooter";
 import { ViewportTPanel } from "./ViewportTPanel";
 
 function ViewportEditor({ areaId }: { areaId: string }) {
@@ -13,12 +12,10 @@ function ViewportEditor({ areaId }: { areaId: string }) {
         height: "100%",
       }}
     >
-      <ViewportHeader />
       <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
         <ViewportTPanel />
         <ViewportCanvas />
       </div>
-      <ViewportFooter />
     </div>
   );
 }
@@ -28,6 +25,7 @@ registerEditor({
   name: "视口",
   icon: "🗺",
   component: ViewportEditor,
+  header: ViewportHeader,
 });
 
 export { ViewportEditor };

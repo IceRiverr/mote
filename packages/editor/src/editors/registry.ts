@@ -5,6 +5,8 @@ export interface EditorDef {
   name: string;
   icon: string;
   component: ComponentType<{ areaId: string }>;
+  /** 可选的区域 Header 右侧工具栏 */
+  header?: ComponentType<{ areaId: string }>;
 }
 
 const editors = new Map<string, EditorDef>();

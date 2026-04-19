@@ -13,7 +13,13 @@ import {
   canSave,
   isProjectLoaded,
 } from '../project';
-import { currentScene, newScene, saveScene, updateScene } from '../store/scene';
+import { currentScene, newScene, saveScene, updateScene, selectedEntityIds, selectedEntities, clearSelection, snapEnabled, toggleSnap } from '../store/scene';
+import { undo, redo, canUndo, canRedo, executeCommand } from '../store/history';
+import { currentProject } from '../project/projectStore';
+import { copyEntities, pasteEntities, hasClipboard } from '../store/clipboard';
+import { showGrid } from '../store/selection';
+import { getFileSystem } from '../fs/FileSystem';
+import { RemoveEntityCommand } from '../commands';
 import { exportScene } from '../data/export';
 import { NewProjectDialog } from './NewProjectDialog';
 
@@ -54,19 +60,19 @@ export function MenuBar() {
     edit: {
       label: '编辑',
       items: [
-        { label: '撤销', action: () => console.log('Undo'), shortcut: 'Ctrl+Z' },
-        { label: '重做', action: () => console.log('Redo'), shortcut: 'Ctrl+Shift+Z' },
+        { label: '撤销', action: handleUndo, shortcut: 'Ctrl+Z', disabled: !canUndo.value },
+        { label: '重做', action: handleRedo, shortcut: 'Ctrl+Shift+Z', disabled: !canRedo.value },
         { type: 'separator' },
-        { label: '复制', action: () => console.log('Copy'), shortcut: 'Ctrl+C' },
-        { label: '粘贴', action: () => console.log('Paste'), shortcut: 'Ctrl+V' },
-        { label: '删除', action: () => console.log('Delete'), shortcut: 'Delete' },
+        { label: '复制', action: handleCopy, shortcut: 'Ctrl+C', disabled: selectedEntityIds.value.size === 0 },
+        { label: '粘贴', action: handlePaste, shortcut: 'Ctrl+V', disabled: !hasClipboard() },
+        { label: '删除', action: handleDelete, shortcut: 'Delete', disabled: selectedEntityIds.value.size === 0 },
       ],
     },
     view: {
       label: '视图',
       items: [
-        { label: '网格', action: () => console.log('Toggle Grid'), shortcut: 'Ctrl+G', checkable: true },
-        { label: '网格吸附', action: () => console.log('Toggle Snap'), shortcut: 'Ctrl+Shift+G', checkable: true },
+        { label: '网格', action: handleToggleGrid, shortcut: 'Ctrl+G', checkable: true, checked: showGrid.value },
+        { label: '网格吸附', action: handleToggleSnap, shortcut: 'Ctrl+Shift+G', checkable: true, checked: snapEnabled.value },
         { type: 'separator' },
         { label: '全屏', action: toggleFullscreen, shortcut: 'F11' },
       ],
@@ -103,13 +109,69 @@ export function MenuBar() {
   }
 
   async function handleSaveAs() {
-    // TODO: 实现另存为
-    console.log('Save As...');
+    const project = currentProject.value ?? currentScene.value;
+    if (!project) { setActiveMenu(null); return; }
+
+    const defaultName = (currentProject.value?.name ?? currentScene.value?.name ?? 'untitled') + '_copy';
+    const input = prompt('输入新项目名称:', defaultName);
+    if (!input) { setActiveMenu(null); return; }
+
+    const newName = input.trim();
+    const fileName = `${newName}.mote-project.json`;
+    const content = JSON.stringify(
+      { ...currentProject.value, name: newName, projectFileName: fileName },
+      null,
+      2
+    );
+
+    const fs = getFileSystem();
+    const success = await fs.writeFile(fileName, content);
+    if (success) {
+      alert(`已另存为 ${fileName}`);
+    } else {
+      alert('另存为失败，请检查目录权限');
+    }
+    setActiveMenu(null);
+  }
+
+  function handleUndo() {
+    undo();
+    setActiveMenu(null);
+  }
+
+  function handleRedo() {
+    redo();
+    setActiveMenu(null);
+  }
+
+  function handleCopy() {
+    const entities = selectedEntities.value;
+    if (entities.length > 0) {
+      copyEntities(entities);
+    }
+    setActiveMenu(null);
+  }
+
+  function handlePaste() {
+    pasteEntities();
+    setActiveMenu(null);
+  }
+
+  function handleDelete() {
+    const ids = Array.from(selectedEntityIds.value);
+    if (ids.length === 0) { setActiveMenu(null); return; }
+
+    // 逐个构造并执行删除命令（构造时实体仍在场景中，能正确捕获快照）
+    for (const id of ids) {
+      const cmd = new RemoveEntityCommand(id);
+      executeCommand(cmd);
+    }
+    clearSelection();
     setActiveMenu(null);
   }
 
   function handleNewScene() {
-    newScene(640, 480);
+    newScene();
     setActiveMenu(null);
   }
 
@@ -152,6 +214,16 @@ export function MenuBar() {
     setActiveMenu(null);
   }
 
+  function handleToggleGrid() {
+    showGrid.value = !showGrid.value;
+    setActiveMenu(null);
+  }
+
+  function handleToggleSnap() {
+    toggleSnap();
+    setActiveMenu(null);
+  }
+
   function toggleFullscreen() {
     if (document.fullscreenElement) {
       document.exitFullscreen();
@@ -166,15 +238,16 @@ export function MenuBar() {
       <div
         ref={menuRef}
         style={{
-        height: 32,
-        background: '#2a2a2a',
-        borderBottom: '1px solid #111',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 12px',
-        fontSize: 13,
-        userSelect: 'none',
-      }}
+          height: 28,
+          background: '#2a2a2a',
+          borderBottom: '1px solid #1a1a1a',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 10px',
+          fontSize: 12,
+          userSelect: 'none',
+          flexShrink: 0,
+        }}
     >
       {/* Logo */}
       <div
@@ -202,13 +275,13 @@ export function MenuBar() {
           <button
             onClick={() => setActiveMenu(activeMenu === key ? null : key)}
             style={{
-              padding: '6px 12px',
+              padding: '4px 10px',
               background: activeMenu === key ? '#4a90d9' : 'transparent',
               color: '#e0e0e0',
               border: 'none',
-              borderRadius: 4,
+              borderRadius: 3,
               cursor: 'pointer',
-              fontSize: 13,
+              fontSize: 12,
             }}
           >
             {menu.label}
@@ -251,7 +324,7 @@ export function MenuBar() {
                     disabled={item.disabled}
                     style={{
                       width: '100%',
-                      padding: '8px 16px',
+                      padding: '6px 14px',
                       background: 'transparent',
                       color: item.disabled ? '#666' : '#e0e0e0',
                       border: 'none',
@@ -264,7 +337,15 @@ export function MenuBar() {
                       opacity: item.disabled ? 0.5 : 1,
                     }}
                   >
-                    <span>{item.label}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {item.checkable && (
+                        <span style={{ width: 14, display: 'inline-block', textAlign: 'center' }}>
+                          {item.checked ? '✓' : ''}
+                        </span>
+                      )}
+                      {!item.checkable && <span style={{ width: 14, display: 'inline-block' }} />}
+                      {item.label}
+                    </span>
                     {item.shortcut && (
                       <span style={{ color: '#666', fontSize: 11 }}>
                         {item.shortcut}

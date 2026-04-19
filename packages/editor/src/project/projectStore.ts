@@ -465,7 +465,7 @@ export function createInMemoryProject(): void {
   setProject(project);
 
   // 自动创建默认场景(640x480)
-  newScene(640, 480);
+  newScene();
 
   console.log('In-memory project created:', project.id);
 }

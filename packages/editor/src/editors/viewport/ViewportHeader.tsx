@@ -1,6 +1,7 @@
 import { useRef, useState } from "preact/hooks";
 import {
   viewportZoomLocked,
+  showGrid,
 } from "../../store/selection";
 import {
   viewportCamera,
@@ -10,6 +11,7 @@ import {
   editMode,
   setEditMode,
 } from "../../store/viewport-mode";
+import { snapEnabled, currentScene, toggleSnap } from "../../store/scene";
 
 export function ViewportHeader() {
   const zoom = viewportCamera.value.zoom;
@@ -43,41 +45,101 @@ export function ViewportHeader() {
   return (
     <div
       style={{
-        height: 32,
-        background: "var(--bg-header)",
-        borderBottom: "1px solid var(--border)",
         display: "flex",
         alignItems: "center",
-        padding: "0 8px",
         gap: 8,
-        flexShrink: 0,
+        flex: 1,
       }}
     >
-      {/* ── 模式标签 ─────────────────────────── */}
-      <div
+      {/* ── 左侧：模式选择 ─────────────────────────── */}
+      <select
+        value={mode}
+        onChange={(e) => setEditMode((e.target as HTMLSelectElement).value as "entity" | "brush")}
         style={{
-          display: "flex",
-          gap: 2,
-          background: "rgba(0,0,0,0.2)",
-          borderRadius: 4,
-          padding: 2,
+          fontSize: 12,
+          height: 22,
+          padding: "0 6px",
+          border: "1px solid var(--border)",
+          borderRadius: 3,
+          background: "var(--bg-header)",
+          color: "var(--text)",
+          cursor: "pointer",
+          outline: "none",
         }}
       >
-        <ModeTab
-          label="实体"
-          active={mode === "entity"}
-          onClick={() => setEditMode("entity")}
-        />
-        <ModeTab
-          label="笔刷"
-          active={mode === "brush"}
-          onClick={() => setEditMode("brush")}
-        />
+        <option value="entity">实体</option>
+        <option value="brush">笔刷</option>
+      </select>
+
+      {/* ── 中间：Grid / Snap 控制组 ─────────────────── */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        {/* Grid 组 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <MiniToggle
+            active={showGrid.value}
+            onClick={() => { showGrid.value = !showGrid.value; }}
+            title={showGrid.value ? "隐藏网格 (Ctrl+G)" : "显示网格 (Ctrl+G)"}
+          >
+            #
+          </MiniToggle>
+          {showGrid.value && currentScene.value && (
+            <SizeSelect
+              value={currentScene.value.grid.size}
+              options={[8, 16, 32, 64, 128]}
+              onChange={(size) => {
+                const scene = currentScene.value;
+                if (!scene) return;
+                currentScene.value = {
+                  ...scene,
+                  grid: { ...scene.grid, size },
+                };
+                const oldSnap = scene.grid.snapSize;
+                if (oldSnap === undefined || oldSnap === scene.grid.size) {
+                  currentScene.value = {
+                    ...currentScene.value,
+                    grid: { ...currentScene.value.grid, snapSize: size },
+                  };
+                }
+              }}
+            />
+          )}
+        </div>
+
+        {/* Snap 组 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <MiniToggle
+            active={snapEnabled.value}
+            onClick={toggleSnap}
+            title={snapEnabled.value ? "禁用吸附 (Ctrl+Shift+G)" : "启用吸附 (Ctrl+Shift+G)"}
+          >
+            🧲
+          </MiniToggle>
+          {snapEnabled.value && currentScene.value && (
+            <SizeSelect
+              value={currentScene.value.grid.snapSize ?? currentScene.value.grid.size}
+              options={[1, 2, 4, 8, 16, 32, 64]}
+              onChange={(size) => {
+                const scene = currentScene.value;
+                if (!scene) return;
+                currentScene.value = {
+                  ...scene,
+                  grid: { ...scene.grid, snapSize: size },
+                };
+              }}
+            />
+          )}
+        </div>
       </div>
 
-      <div style={{ flex: 1 }} />
-
-      {/* ── 缩放控件 ─────────────────────────── */}
+      {/* ── 右侧：缩放控件 ─────────────────────────── */}
       <span
         style={{
           fontSize: 11,
@@ -167,33 +229,99 @@ export function ViewportHeader() {
   );
 }
 
-// ── 模式标签按钮 ─────────────────────────────────────────────
+// ── 迷你切换按钮 ─────────────────────────────────────────────
 
-function ModeTab({
-  label,
+function MiniToggle({
   active,
   onClick,
+  title,
+  children,
 }: {
-  label: string;
   active: boolean;
   onClick: () => void;
+  title: string;
+  children: any;
 }) {
   return (
     <button
       onClick={onClick}
+      title={title}
       style={{
-        background: active ? "var(--accent)" : "transparent",
+        width: 26,
+        height: 22,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
         border: "none",
         borderRadius: 3,
-        padding: "2px 10px",
+        background: active ? "rgba(244, 167, 66, 0.35)" : "transparent",
+        color: active ? "#f4a742" : "#777",
+        fontSize: 11,
+        lineHeight: 1,
         cursor: "pointer",
-        fontSize: 12,
-        fontWeight: active ? 600 : 400,
-        color: active ? "#fff" : "var(--text-secondary)",
-        whiteSpace: "nowrap",
+        transition: "background 0.08s ease, color 0.08s ease",
+      }}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget;
+        if (!active) {
+          el.style.background = "rgba(255,255,255,0.08)";
+          el.style.color = "#bbb";
+        }
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget;
+        if (!active) {
+          el.style.background = "transparent";
+          el.style.color = "#777";
+        }
       }}
     >
-      {label}
+      {children}
     </button>
+  );
+}
+
+// ── 紧凑尺寸选择器 ───────────────────────────────────────────
+
+function SizeSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label?: string;
+  value: number;
+  options: number[];
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+      {label && (
+        <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+          {label}
+        </span>
+      )}
+      <select
+        value={value}
+        onChange={(e) => onChange(parseInt((e.target as HTMLSelectElement).value, 10))}
+        style={{
+          fontSize: 10,
+          height: 18,
+          padding: "0 2px",
+          border: "1px solid var(--border)",
+          borderRadius: 2,
+          background: "var(--bg-header)",
+          color: "var(--text-secondary)",
+          cursor: "pointer",
+          outline: "none",
+        }}
+      >
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}px
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }

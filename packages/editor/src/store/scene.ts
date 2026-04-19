@@ -76,12 +76,10 @@ export function loadScene(scene: Scene): void {
 /**
  * 创建新场景
  */
-export function newScene(width: number = 640, height: number = 480): void {
+export function newScene(): void {
   const scene = createScene(
     `scene_${Date.now()}`,
-    'Untitled',
-    width,
-    height
+    'Untitled'
   );
   loadScene(scene);
 }

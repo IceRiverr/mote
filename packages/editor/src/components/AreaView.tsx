@@ -59,35 +59,42 @@ export function AreaView({ areaId, editorType, rect }: Props) {
         overflow: 'hidden',
       }}
     >
-      {/* Area Header */}
+      {/* Area Header — Blender 风格：左侧 Editor Type，右侧编辑器工具 */}
       <div style={{
-        height: 26,
+        height: 28,
         background: '#2d2d2d',
         borderBottom: '1px solid #1a1a1a',
         display: 'flex',
         alignItems: 'center',
-        paddingLeft: 6,
+        padding: '0 6px',
         gap: 6,
         flexShrink: 0,
       }}>
-        <span style={{ fontSize: 12, opacity: 0.5 }}>{editor?.icon ?? '◻'}</span>
-        <select
-          value={editorType}
-          onChange={handleSwitch}
-          style={{
-            background: '#333',
-            color: '#ccc',
-            border: '1px solid #444',
-            borderRadius: 3,
-            fontSize: 11,
-            padding: '1px 4px',
-            outline: 'none',
-          }}
-        >
-          {allEditors.map((ed) => (
-            <option key={ed.id} value={ed.id}>{ed.name}</option>
-          ))}
-        </select>
+        {/* 左侧：Editor Type */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 12, opacity: 0.6 }}>{editor?.icon ?? '◻'}</span>
+          <select
+            value={editorType}
+            onChange={handleSwitch}
+            style={{
+              background: '#333',
+              color: '#ccc',
+              border: '1px solid #444',
+              borderRadius: 3,
+              fontSize: 11,
+              padding: '1px 4px',
+              outline: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {allEditors.map((ed) => (
+              <option key={ed.id} value={ed.id}>{ed.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* 右侧：编辑器专属 Header 工具 */}
+        {editor?.header && <editor.header areaId={areaId} />}
       </div>
 
       {/* Editor Content */}

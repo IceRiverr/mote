@@ -307,7 +307,7 @@ export async function loadSceneFromPath(assetPath: string): Promise<boolean> {
 
     // 基础验证
     const raw = json as any;
-    if (!raw.id || !raw.name || typeof raw.width !== 'number' || typeof raw.height !== 'number') {
+    if (!raw.id || !raw.name || raw.kind !== 'scene') {
       console.error('[ContentBrowser] Invalid scene format:', assetPath);
       return false;
     }

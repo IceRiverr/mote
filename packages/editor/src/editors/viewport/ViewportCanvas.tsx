@@ -35,6 +35,7 @@ import {
   setZoomAt,
   type ViewportCamera,
 } from "../../store/viewport";
+import { showGrid } from "../../store/selection";
 import { spriteSheets, spriteSheetImages } from "../../store/spriteSheet";
 import { 
   brushPattern, 
@@ -246,9 +247,24 @@ export function ViewportCanvas() {
     const vw = container.clientWidth;
     const vh = container.clientHeight;
 
+    let cx = 0;
+    let cy = 0;
+
+    if (scene.entities.length > 0) {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const e of scene.entities) {
+        minX = Math.min(minX, e.transform.x);
+        minY = Math.min(minY, e.transform.y);
+        maxX = Math.max(maxX, e.transform.x);
+        maxY = Math.max(maxY, e.transform.y);
+      }
+      cx = (minX + maxX) / 2;
+      cy = (minY + maxY) / 2;
+    }
+
     viewportCamera.value = {
-      x: (scene.width * cam.zoom - vw) / 2,
-      y: (scene.height * cam.zoom - vh) / 2,
+      x: cx * cam.zoom - vw / 2,
+      y: cy * cam.zoom - vh / 2,
       zoom: cam.zoom,
     };
   }, []);
@@ -283,20 +299,8 @@ export function ViewportCanvas() {
     ctx.translate(-cam.x, -cam.y);
     ctx.scale(cam.zoom, cam.zoom);
 
-    // 1. 场景区域内背景（略亮于外部）
-    ctx.fillStyle = "#1e1e1e";
-    ctx.fillRect(0, 0, scene.width, scene.height);
-
-    // 2. 边界外变暗（evenodd 挖空场景区域）
-    drawOutOfBounds(ctx, scene.width, scene.height, cam, w, h);
-
-    // 3. 网格（裁剪到场景边界）+ 中心轴
-    drawGrid(ctx, scene.width, scene.height, gridSize);
-
-    // 4. 场景边界
-    ctx.strokeStyle = "#4a90d9";
-    ctx.lineWidth = 2 / cam.zoom;
-    ctx.strokeRect(0, 0, scene.width, scene.height);
+    // 1. 无限网格 + 中心轴
+    drawGrid(ctx, gridSize);
 
     // 5. 绘制所有 Entity（按层排序，过滤不可见层）
     const sortedEntities = [...scene.entities]
@@ -360,9 +364,6 @@ export function ViewportCanvas() {
     drawOriginMarker(ctx, cam);
 
     ctx.restore();
-
-    // 9. 轴向指示器（屏幕空间）
-    drawAxisGizmo(ctx, 48);
   }, []);
 
   // ═══════════════════════════════════════════════════════════════
@@ -447,53 +448,22 @@ export function ViewportCanvas() {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // 绘制边界外变暗
-  // ═══════════════════════════════════════════════════════════════
-
-  function drawOutOfBounds(
-    ctx: CanvasRenderingContext2D,
-    sceneW: number,
-    sceneH: number,
-    cam: ViewportCamera,
-    viewW: number,
-    viewH: number,
-  ) {
-    const visibleLeft = cam.x / cam.zoom;
-    const visibleTop = cam.y / cam.zoom;
-    const visibleW = viewW / cam.zoom;
-    const visibleH = viewH / cam.zoom;
-
-    ctx.save();
-    ctx.beginPath();
-    // 外矩形（整个可视世界区域，留足余量）
-    ctx.rect(visibleLeft - 500, visibleTop - 500, visibleW + 1000, visibleH + 1000);
-    // 内矩形（场景区域），evenodd 会挖空
-    ctx.rect(0, 0, sceneW, sceneH);
-    ctx.fillStyle = "rgba(0, 0, 0, 0.50)";
-    ctx.fill("evenodd");
-    ctx.restore();
-  }
-
-  // ═══════════════════════════════════════════════════════════════
   // 绘制网格
   // ═══════════════════════════════════════════════════════════════
 
-  function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number, size: number) {
+  function drawGrid(ctx: CanvasRenderingContext2D, size: number) {
+    if (!showGrid.value) return;
     if (!gridSettings.value.enabled) return;
 
     const cam = viewportCamera.value;
 
     ctx.save();
-    // 裁剪到场景边界，确保网格不越界
-    ctx.beginPath();
-    ctx.rect(0, 0, width, height);
-    ctx.clip();
 
     // 普通网格线（极淡）
     ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
     ctx.lineWidth = 1 / cam.zoom;
 
-    // 计算可见区域
+    // 计算可见区域（无限延伸）
     const startX = Math.floor(cam.x / cam.zoom / size) * size;
     const startY = Math.floor(cam.y / cam.zoom / size) * size;
     const endX = startX + (ctx.canvas.width / cam.zoom) + size * 2;
@@ -501,28 +471,26 @@ export function ViewportCanvas() {
 
     ctx.beginPath();
     for (let x = startX; x <= endX; x += size) {
-      ctx.moveTo(x, Math.max(0, startY));
-      ctx.lineTo(x, Math.min(height, endY));
+      ctx.moveTo(x, startY);
+      ctx.lineTo(x, endY);
     }
     for (let y = startY; y <= endY; y += size) {
-      ctx.moveTo(Math.max(0, startX), y);
-      ctx.lineTo(Math.min(width, endX), y);
+      ctx.moveTo(startX, y);
+      ctx.lineTo(endX, y);
     }
     ctx.stroke();
 
-    // 世界中心轴（略粗、略明显）
-    // X 轴：红色水平线（沿 y=0）
+    // 世界中心轴（略粗、略明显）—— 无限延伸，仅在可见区域绘制
     ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(width, 0);
+    ctx.moveTo(startX, 0);
+    ctx.lineTo(endX, 0);
     ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
     ctx.lineWidth = 1.5 / cam.zoom;
     ctx.stroke();
 
-    // Y 轴：绿色垂直线（沿 x=0）
     ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(0, height);
+    ctx.moveTo(0, startY);
+    ctx.lineTo(0, endY);
     ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
     ctx.lineWidth = 1.5 / cam.zoom;
     ctx.stroke();

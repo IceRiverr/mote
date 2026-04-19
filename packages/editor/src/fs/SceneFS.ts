@@ -225,11 +225,11 @@ export class SceneFS {
   /**
    * 创建新 Scene
    */
-  async create(id: string, name: string, width = 640, height = 480, relativePath?: string): Promise<Scene | null> {
+  async create(id: string, name: string, relativePath?: string): Promise<Scene | null> {
     const filePath = relativePath || `${id}${SCENE_EXTENSION}`;
     const { createScene } = await import('../data/Scene');
     const scene: Scene = {
-      ...createScene(id, name, width, height),
+      ...createScene(id, name),
       path: filePath,
     };
 
@@ -438,10 +438,6 @@ export class SceneFS {
     return {
       id: scene.id,
       name: scene.name,
-      bounds: {
-        width: scene.width,
-        height: scene.height,
-      },
       entities: scene.entities.map(e => ({
         prefab: e.prefab,
         name: e.name,

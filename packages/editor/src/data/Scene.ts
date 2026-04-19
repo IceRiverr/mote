@@ -91,12 +91,6 @@ export interface Scene {
   /** 场景文件路径（相对于 assets/） */
   path?: string;
 
-  /** 场景宽度（像素） */
-  width: number;
-
-  /** 场景高度（像素） */
-  height: number;
-
   /** 网格设置 */
   grid: GridSettings;
 
@@ -113,17 +107,13 @@ export interface Scene {
  */
 export function createScene(
   id: string,
-  name: string,
-  width: number = 640,
-  height: number = 480
+  name: string
 ): Scene {
   return {
     version: SCENE_VERSION,
     kind: SCENE_KIND,
     id,
     name,
-    width,
-    height,
     grid: {
       enabled: true,
       size: 32,
@@ -247,8 +237,6 @@ export function validateScene(scene: any): scene is Scene {
   if (scene.kind !== SCENE_KIND) return false;
   if (!scene.id || typeof scene.id !== 'string') return false;
   if (!scene.name || typeof scene.name !== 'string') return false;
-  if (typeof scene.width !== 'number') return false;
-  if (typeof scene.height !== 'number') return false;
   if (!Array.isArray(scene.entities)) return false;
 
   // 逐个验证 entity（新格式严格要求）
@@ -338,10 +326,6 @@ export function exportToECS(scene: Scene): object {
   return {
     id: scene.id,
     name: scene.name,
-    bounds: {
-      width: scene.width,
-      height: scene.height,
-    },
     entities: scene.entities.map((e) => ({
       prefab: e.prefab,
       name: e.name,

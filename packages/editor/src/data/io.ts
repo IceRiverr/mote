@@ -30,8 +30,6 @@ export interface SceneJson {
   kind: "scene";
   id: string;
   name: string;
-  width: number;
-  height: number;
   grid: {
     enabled: boolean;
     size: number;
@@ -126,8 +124,6 @@ export function sceneToJson(scene: Scene): SceneJson {
     kind: scene.kind,
     id: scene.id,
     name: scene.name,
-    width: scene.width,
-    height: scene.height,
     grid: {
       enabled: scene.grid.enabled,
       size: scene.grid.size,
@@ -169,8 +165,6 @@ export function sceneFromJson(json: SceneJson): Scene {
     kind: json.kind,
     id: json.id,
     name: json.name,
-    width: json.width,
-    height: json.height,
     grid: {
       enabled: json.grid.enabled,
       size: json.grid.size,
@@ -374,8 +368,6 @@ export function isSceneJson(json: unknown): json is SceneJson {
     obj.kind === "scene" &&
     typeof obj.id === "string" &&
     typeof obj.name === "string" &&
-    typeof obj.width === "number" &&
-    typeof obj.height === "number" &&
     obj.grid !== undefined &&
     Array.isArray(obj.entities)
   );

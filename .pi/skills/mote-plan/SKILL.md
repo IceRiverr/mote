@@ -1,7 +1,11 @@
+---
+name: mote-plan
+description: 当用户说"plan"、"拆解任务"、"任务计划"、"execution plan"、"milestone"时触发。在设计最终化后，将架构决策转化为可执行、可验证的实现步骤。
+---
+
 # Mote 任务拆解与执行计划
 
 > 在 design 最终化后，将架构决策转化为可执行、可验证的实现步骤。
-> 触发词：plan、拆解任务、任务计划、execution plan、milestone
 
 ---
 

@@ -1,7 +1,11 @@
+---
+name: mote-design
+description: 当用户说"design"、"architecture"、"API design"、"data structure design"、"module design"时触发。为 mote 游戏引擎和编辑器设计新功能、API、数据结构或模块边界。
+---
+
 # Mote 软件架构与 API 设计指南
 
 > 为 mote 游戏引擎（ECS + WebGPU/WebGL2）和 Preact 编辑器设计新功能、API、数据结构或模块边界。
-> 触发词：design、architecture、API design、data structure design、module design
 
 ---
 

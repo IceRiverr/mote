@@ -1,3 +1,8 @@
+---
+name: mote-guidelines
+description: mote 项目（ECS 游戏引擎 + Preact 编辑器）的编码行为指南。自动应用于所有编码、审查和重构任务。
+---
+
 # Mote 编码行为指南
 
 > mote 项目（ECS 游戏引擎 + Preact 编辑器）的编码行为约束。

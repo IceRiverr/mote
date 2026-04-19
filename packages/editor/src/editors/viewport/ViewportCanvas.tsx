@@ -23,8 +23,7 @@ import { prefabs, getPrefab } from "../../store/prefabs";
 import { openSpawnMenu, closeSpawnMenu, spawnMenuOpen, spawnMenuPos, spawnWorldPos } from "../../store/spawnMenu";
 import { SpawnMenu } from "../../components/SpawnMenu";
 import { layerVisibility, isLayerVisible } from "../../editors/inspector/panels/LayerPanel";
-import { activeTool } from "../../store/selection";
-import { onEditModeChange, handleViewportShortcut } from "../../store/viewport-mode";
+import { onEditModeChange, handleViewportShortcut, editMode, entityTool, brushTool, setBrushTool } from "../../store/viewport-mode";
 import {
   viewportCamera,
   needsInitialCenter,
@@ -136,14 +135,20 @@ const hoverGridPos = signal<{ x: number; y: number } | null>(null);
 /** 获取当前工具的光标样式 */
 function getCursorStyle(): string {
   if (isPanning.value) return "grabbing";
-  
-  switch (activeTool.value) {
-    case "select": return "default";
+
+  if (editMode.value === "entity") {
+    switch (entityTool.value) {
+      case "select": return "default";
+      case "move": return "move";
+      default: return "default";
+    }
+  }
+
+  switch (brushTool.value) {
     case "brush": return "crosshair";
     case "eraser": return "cell";
-    case "fill": return "pointer";
     case "eyedropper": return "copy";
-    case "entity": return "copy";
+    case "rect-select": return "crosshair";
     default: return "default";
   }
 }
@@ -300,7 +305,7 @@ export function ViewportCanvas() {
     }
 
     // 6. 笔刷预览
-    if (hoverGridPos.value && (activeTool.value === "brush" || activeTool.value === "eraser")) {
+    if (hoverGridPos.value && editMode.value === "brush" && (brushTool.value === "brush" || brushTool.value === "eraser")) {
       drawBrushPreview(ctx, hoverGridPos.value.x, hoverGridPos.value.y, gridSize);
     }
 
@@ -337,7 +342,7 @@ export function ViewportCanvas() {
   function drawBrushPreview(ctx: CanvasRenderingContext2D, gridX: number, gridY: number, gridSize: number) {
     const cam = viewportCamera.value;
     
-    if (activeTool.value === "brush" && activePrefabPath.value) {
+    if (brushTool.value === "brush" && activePrefabPath.value) {
       // 绘制笔刷图案预览
       const positions = getBrushGridPositions(gridX, gridY);
       
@@ -359,7 +364,7 @@ export function ViewportCanvas() {
       }
       
       ctx.restore();
-    } else if (activeTool.value === "eraser") {
+    } else if (brushTool.value === "eraser") {
       // 绘制橡皮擦预览（红色框）
       const size = brushSize.value;
       const halfSize = Math.floor(size / 2);
@@ -755,7 +760,7 @@ export function ViewportCanvas() {
       setSinglePrefabBrush(result.prefabPath);
       targetLayer.value = result.layer;
       // 切换回笔刷工具
-      activeTool.value = "brush";
+      setBrushTool("brush");
     }
   }
 
@@ -789,76 +794,69 @@ export function ViewportCanvas() {
       return;
     }
 
-    // 左键：根据当前工具处理
+    // 左键：根据当前模式处理
     if (e.button === 0) {
-      const tool = activeTool.value;
-      
-      switch (tool) {
-        case "brush":
-          if (!activePrefabPath.value) return;
-          isPainting.value = true;
-          paintedCells.value = new Set();
-          currentBrushCmd.value = new PaintBrushCommand("绘制");
-          paintAt(gridPos.x, gridPos.y, scene.grid.size);
-          draw();
-          break;
-          
-        case "eraser":
-          isPainting.value = true;
-          paintedCells.value = new Set();
-          currentBrushCmd.value = new PaintBrushCommand("擦除");
-          eraseAt(gridPos.x, gridPos.y, scene.grid.size);
-          draw();
-          break;
-          
-        case "fill":
-          fillAt(gridPos.x, gridPos.y, scene.grid.size);
-          draw();
-          break;
-          
-        case "eyedropper":
-          eyedropperAt(gridPos.x, gridPos.y, scene.grid.size);
-          draw();
-          break;
-          
-        case "select":
-        default:
-          // 查找点击的 Entity
-          const clickedEntity = findEntityAt(worldPos.x, worldPos.y, 16);
+      if (editMode.value === "brush") {
+        const bt = brushTool.value;
+        switch (bt) {
+          case "brush":
+            if (!activePrefabPath.value) return;
+            isPainting.value = true;
+            paintedCells.value = new Set();
+            currentBrushCmd.value = new PaintBrushCommand("绘制");
+            paintAt(gridPos.x, gridPos.y, scene.grid.size);
+            draw();
+            break;
 
-          if (clickedEntity) {
-            // 选中 Entity
-            if (!e.ctrlKey) {
-              selectEntity(clickedEntity.id);
-            } else {
-              // Ctrl+点击：切换选中
-              // TODO: toggle selection
-            }
+          case "eraser":
+            isPainting.value = true;
+            paintedCells.value = new Set();
+            currentBrushCmd.value = new PaintBrushCommand("擦除");
+            eraseAt(gridPos.x, gridPos.y, scene.grid.size);
+            draw();
+            break;
 
-            // 开始移动
-            isMovingEntity.value = true;
-            moveStart.value = worldPos;
-            moveEntitiesStart.value = new Map(
-              selectedEntityIds.value.size > 0
-                ? Array.from(selectedEntityIds.value).map(id => {
-                    const entity = getEntity(id);
-                    const t = entity ? entity.transform : { x: 0, y: 0 };
-                    return [id, { x: t.x, y: t.y }];
-                  })
-                : (() => {
-                    return [[clickedEntity.id, { x: clickedEntity.transform.x, y: clickedEntity.transform.y }]];
-                  })()
-            );
-          } else {
-            // 点击空白处：开始框选
-            if (!e.ctrlKey) {
-              clearSelection();
-            }
+          case "eyedropper":
+            eyedropperAt(gridPos.x, gridPos.y, scene.grid.size);
+            draw();
+            break;
+
+          case "rect-select":
+            // TODO: rect-select 暂用框选行为
+            if (!e.ctrlKey) clearSelection();
             isBoxSelecting.value = true;
             boxSelectStart.value = worldPos;
             boxSelectCurrent.value = worldPos;
+            draw();
+            break;
+        }
+      } else {
+        // entity 模式：select / move 行为一致（Blender 风格）
+        const clickedEntity = findEntityAt(worldPos.x, worldPos.y, 16);
+
+        if (clickedEntity) {
+          if (!e.ctrlKey) {
+            selectEntity(clickedEntity.id);
           }
-          break;
+
+          isMovingEntity.value = true;
+          moveStart.value = worldPos;
+          moveEntitiesStart.value = new Map(
+            selectedEntityIds.value.size > 0
+              ? Array.from(selectedEntityIds.value).map(id => {
+                  const entity = getEntity(id);
+                  const t = entity ? entity.transform : { x: 0, y: 0 };
+                  return [id, { x: t.x, y: t.y }];
+                })
+              : [[clickedEntity.id, { x: clickedEntity.transform.x, y: clickedEntity.transform.y }]]
+          );
+        } else {
+          if (!e.ctrlKey) clearSelection();
+          isBoxSelecting.value = true;
+          boxSelectStart.value = worldPos;
+          boxSelectCurrent.value = worldPos;
+        }
+        draw();
       }
     }
   };
@@ -911,8 +909,8 @@ export function ViewportCanvas() {
     }
     
     // 笔刷连续绘制
-    if (isPainting.value && (activeTool.value === "brush" || activeTool.value === "eraser")) {
-      if (activeTool.value === "brush") {
+    if (isPainting.value && editMode.value === "brush" && (brushTool.value === "brush" || brushTool.value === "eraser")) {
+      if (brushTool.value === "brush") {
         paintAt(gridPos.x, gridPos.y, scene.grid.size);
       } else {
         eraseAt(gridPos.x, gridPos.y, scene.grid.size);

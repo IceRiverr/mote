@@ -8,10 +8,7 @@ import {
 } from "../../store/viewport";
 import {
   editMode,
-  brushTool,
-  BRUSH_TOOLS,
   setEditMode,
-  setBrushTool,
 } from "../../store/viewport-mode";
 
 export function ViewportHeader() {
@@ -77,31 +74,6 @@ export function ViewportHeader() {
           onClick={() => setEditMode("brush")}
         />
       </div>
-
-      {/* ── 笔刷模式工具按钮 ─────────────────── */}
-      {mode === "brush" && (
-        <div style={{ display: "flex", gap: 2 }}>
-          {BRUSH_TOOLS.map((t) => (
-            <button
-              key={t.id}
-              title={`${t.label} (${t.shortcut})`}
-              onClick={() => setBrushTool(t.id)}
-              style={{
-                background:
-                  brushTool.value === t.id ? "var(--accent)" : "transparent",
-                border: "none",
-                borderRadius: 3,
-                padding: "2px 8px",
-                cursor: "pointer",
-                fontSize: 14,
-                opacity: t.id === "rect-select" ? 0.5 : 1,
-              }}
-            >
-              {t.icon}
-            </button>
-          ))}
-        </div>
-      )}
 
       <div style={{ flex: 1 }} />
 

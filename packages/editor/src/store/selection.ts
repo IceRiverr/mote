@@ -1,9 +1,5 @@
 import { signal } from "@preact/signals";
 
-export type ToolType = "select" | "brush" | "eraser" | "fill" | "eyedropper" | "entity";
-
-export const activeTool = signal<ToolType>("brush");
-
 /** Currently selected tile GIDs forming the brush */
 export const brushTiles = signal<number[]>([]);
 export const brushWidth = signal(1);
@@ -67,32 +63,5 @@ export function parseDisplayScale(raw: string): number | null {
   return val;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 工具切换
-// ═══════════════════════════════════════════════════════════════
 
-/** 工具定义 */
-export const TOOLS: { id: ToolType; label: string; icon: string; shortcut: string }[] = [
-  { id: "select", label: "选择", icon: "↖", shortcut: "V" },
-  { id: "brush", label: "笔刷", icon: "✏️", shortcut: "B" },
-  { id: "eraser", label: "橡皮", icon: "🧹", shortcut: "E" },
-  { id: "fill", label: "填充", icon: "🪣", shortcut: "G" },
-  { id: "eyedropper", label: "吸管", icon: "💉", shortcut: "I" },
-  { id: "entity", label: "实体", icon: "◇", shortcut: "N" },
-];
-
-/** 设置当前工具 */
-export function setTool(tool: ToolType): void {
-  activeTool.value = tool;
-}
-
-/** 通过快捷键切换工具 */
-export function setToolByShortcut(key: string): boolean {
-  const tool = TOOLS.find(t => t.shortcut.toLowerCase() === key.toLowerCase());
-  if (tool) {
-    activeTool.value = tool.id;
-    return true;
-  }
-  return false;
-}
 

@@ -4,7 +4,7 @@
 
 import type { Prefab } from "../../data/Prefab";
 import { getPrefabThumbnail } from "../../data/Prefab";
-import { activeTool } from "../../store/selection";
+import { editMode, setEditMode, setBrushTool } from "../../store/viewport-mode";
 import { setSinglePrefabBrush, activePrefabPath } from "../../store/brush";
 
 interface PrefabCardProps {
@@ -28,9 +28,10 @@ export function PrefabCard({
   const handleClick = () => {
     // 设为当前笔刷
     setSinglePrefabBrush(path);
-    // 自动切换到笔刷工具
-    if (activeTool.value !== "brush") {
-      activeTool.value = "brush";
+    // 自动切换到笔刷模式
+    if (editMode.value !== "brush") {
+      setEditMode("brush");
+      setBrushTool("brush");
     }
   };
 

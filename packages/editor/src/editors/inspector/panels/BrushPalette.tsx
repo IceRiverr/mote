@@ -6,12 +6,12 @@
 
 import { brushPattern, brushSize, targetLayer, activePrefabPath, BRUSH_SIZES, LAYERS } from "../../../store/brush";
 import { getPrefab } from "../../../store/prefabs";
-import { activeTool } from "../../../store/selection";
+import { brushTool } from "../../../store/viewport-mode";
 
 export function BrushPalette() {
   const currentPrefab = activePrefabPath.value;
   const prefab = currentPrefab ? getPrefab(currentPrefab) : null;
-  const tool = activeTool.value;
+  const tool = brushTool.value;
 
   // 如果没有选中 Prefab 且不是橡皮工具，显示提示
   if (!prefab && tool !== "eraser") {
@@ -83,7 +83,7 @@ export function BrushPalette() {
 function CurrentBrushInfo() {
   const currentPrefab = activePrefabPath.value;
   const prefab = currentPrefab ? getPrefab(currentPrefab) : null;
-  const tool = activeTool.value;
+  const tool = brushTool.value;
   const pattern = brushPattern.value;
 
   // 橡皮擦模式
@@ -115,43 +115,6 @@ function CurrentBrushInfo() {
           color: "var(--text-secondary)",
         }}>
           {brushSize.value}×{brushSize.value} 范围擦除
-        </div>
-      </div>
-    );
-  }
-
-  // 填充模式
-  if (tool === "fill") {
-    return (
-      <div style={{
-        padding: "12px",
-        background: "rgba(74, 144, 217, 0.1)",
-        borderRadius: "6px",
-        marginBottom: "12px",
-        border: "1px solid rgba(74, 144, 217, 0.3)",
-      }}>
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          marginBottom: "4px",
-        }}>
-          <span style={{ fontSize: "16px" }}>🪣</span>
-          <span style={{
-            fontWeight: 600,
-            color: "var(--accent)",
-          }}>
-            填充工具
-          </span>
-        </div>
-        <div style={{
-          fontSize: "11px",
-          color: "var(--text-secondary)",
-        }}>
-          {prefab 
-            ? `填充为: ${prefab.name}`
-            : "请先选择 Prefab"
-          }
         </div>
       </div>
     );
@@ -222,7 +185,7 @@ function CurrentBrushInfo() {
 // ═══════════════════════════════════════════════════════════════
 
 function BrushSizeSelector() {
-  const tool = activeTool.value;
+  const tool = brushTool.value;
   const isEraser = tool === "eraser";
 
   return (

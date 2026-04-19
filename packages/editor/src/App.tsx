@@ -15,21 +15,12 @@ import { useEffect } from "preact/hooks";
 import { LayoutRoot } from "./components/LayoutRoot";
 import { MenuBar } from "./components/MenuBar";
 import { StatusBar } from "./components/StatusBar";
-import { activeTool, type ToolType } from "./store/selection";
+import { handleViewportShortcut } from "./store/viewport-mode";
 import {
   initializeProjectStore,
   saveCurrentProject,
   createInMemoryProject,
 } from "./project";
-
-const TOOL_SHORTCUTS: Record<string, ToolType> = {
-  v: "select",
-  b: "brush",
-  e: "eraser",
-  g: "fill",
-  i: "eyedropper",
-  n: "entity",
-};
 
 export function App() {
   // Initialize on mount - auto create in-memory project
@@ -53,12 +44,10 @@ export function App() {
         return;
       }
 
-      // Tool shortcuts (single key, no modifiers)
+      // Viewport tool shortcuts (single key, no modifiers)
       if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
-        const tool = TOOL_SHORTCUTS[e.key.toLowerCase()];
-        if (tool) {
+        if (handleViewportShortcut(e.key)) {
           e.preventDefault();
-          activeTool.value = tool;
           return;
         }
       }

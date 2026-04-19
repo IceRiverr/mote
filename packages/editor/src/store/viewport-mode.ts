@@ -3,7 +3,6 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { signal, computed } from "@preact/signals";
-import { activeTool } from "./selection";
 
 // ── 编辑模式 ─────────────────────────────────────────────────
 
@@ -66,22 +65,7 @@ export const editModeLabel = computed(() =>
   editMode.value === "entity" ? "实体" : "笔刷"
 );
 
-// ── 与旧 activeTool 的桥接 ───────────────────────────────────
 
-/** 将新模式状态同步到旧的 activeTool，供 Canvas 过渡使用 */
-function syncToLegacyTool() {
-  if (editMode.value === "entity") {
-    // 实体模式下，select 和 move 都映射到旧的 "select"
-    //（Canvas 的 select 工具已包含拖拽移动行为）
-    activeTool.value = "select";
-  } else {
-    const bt = brushTool.value;
-    if (bt === "brush") activeTool.value = "brush";
-    else if (bt === "eraser") activeTool.value = "eraser";
-    else if (bt === "eyedropper") activeTool.value = "eyedropper";
-    else if (bt === "rect-select") activeTool.value = "select"; // 暂用 select 兜底
-  }
-}
 
 // ── 瞬态状态清除回调注册 ─────────────────────────────────────
 
@@ -112,7 +96,6 @@ export function setEditMode(mode: EditMode): void {
   if (editMode.value === mode) return;
   clearTransientState();
   editMode.value = mode;
-  syncToLegacyTool();
 }
 
 export function toggleEditMode(): void {
@@ -121,16 +104,10 @@ export function toggleEditMode(): void {
 
 export function setEntityTool(tool: EntityTool): void {
   entityTool.value = tool;
-  if (editMode.value === "entity") {
-    syncToLegacyTool();
-  }
 }
 
 export function setBrushTool(tool: BrushTool): void {
   brushTool.value = tool;
-  if (editMode.value === "brush") {
-    syncToLegacyTool();
-  }
 }
 
 // ── 快捷键分发 ───────────────────────────────────────────────

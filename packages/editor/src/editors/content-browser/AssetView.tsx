@@ -24,7 +24,7 @@ import {
 } from '../../store/contentBrowser';
 import type { AssetNode } from '../../store/contentBrowser';
 import { setSinglePrefabBrush } from '../../store/brush';
-import { activeTool } from '../../store/selection';
+import { editMode } from '../../store/viewport-mode';
 import { layoutTree } from '../../store/layout';
 import { openEditorForResource } from '../../layout/tree';
 
@@ -264,7 +264,7 @@ function handleAssetClick(asset: AssetNode) {
   selectedAssetPaths.value = [asset.path];
 
   // ② Prefab 特殊逻辑：仅在 Brush 模式下才更新笔刷
-  if (asset.type === 'prefab' && activeTool.value === 'brush') {
+  if (asset.type === 'prefab' && editMode.value === 'brush') {
     setSinglePrefabBrush(asset.path);
   }
 

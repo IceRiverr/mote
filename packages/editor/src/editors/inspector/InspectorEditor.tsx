@@ -1,7 +1,6 @@
 import { registerEditor } from "../registry";
 import { EntityInspector } from "../../components/inspector/EntityInspector";
 import { BrushPalette } from "./panels/BrushPalette";
-import { activeTool } from "../../store/selection";
 
 function InspectorEditor({ areaId }: { areaId: string }) {
   return (

@@ -35,3 +35,10 @@ export {
   resetSceneFS,
 } from './SceneFS';
 export type { SceneMeta } from './SceneFS';
+
+// SpriteSheet 文件系统
+export {
+  SpriteSheetFS,
+  getSpriteSheetFS,
+  resetSpriteSheetFS,
+} from './SpriteSheetFS';

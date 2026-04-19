@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { useRef, useEffect, useCallback } from "preact/hooks";
-import { signal } from "@preact/signals";
+import { signal, useSignalEffect } from "@preact/signals";
 import {
   currentScene,
   sceneVersion,
@@ -23,7 +23,19 @@ import { prefabs, getPrefab } from "../../store/prefabs";
 import { openSpawnMenu, closeSpawnMenu, spawnMenuOpen, spawnMenuPos, spawnWorldPos } from "../../store/spawnMenu";
 import { SpawnMenu } from "../../components/SpawnMenu";
 import { layerVisibility, isLayerVisible } from "../../editors/inspector/panels/LayerPanel";
-import { activeTool, setToolByShortcut } from "../../store/selection";
+import { activeTool } from "../../store/selection";
+import { onEditModeChange, handleViewportShortcut } from "../../store/viewport-mode";
+import {
+  viewportCamera,
+  needsInitialCenter,
+  hoverWorldPos,
+  screenToWorld,
+  worldToScreen,
+  worldToGrid,
+  setZoomAt,
+  type ViewportCamera,
+} from "../../store/viewport";
+import { spriteSheets, spriteSheetImages } from "../../store/spriteSheet";
 import { 
   brushPattern, 
   brushSize, 
@@ -37,6 +49,7 @@ import {
 import type { SceneEntity } from "../../data/Scene";
 import { createSceneEntity, getNextEntityName } from "../../data/Scene";
 import { derivePrefabId } from "../../data/Prefab";
+import { resolveEntitySprite, getEntityDisplaySize } from "../../utils/entitySprite";
 
 // ═══════════════════════════════════════════════════════════════
 // 辅助函数：查找指定网格位置的实体
@@ -80,18 +93,7 @@ import {
   pickPrefab,
 } from "../../commands/brush-tool-commands";
 
-// ═══════════════════════════════════════════════════════════════
-// 相机状态
-// ═══════════════════════════════════════════════════════════════
-
-interface Camera {
-  x: number;
-  y: number;
-  zoom: number;
-}
-
-const camera = signal<Camera>({ x: 0, y: 0, zoom: 1 });
-const needsCenter = signal(true);
+// 相机状态已迁移到 store/viewport.ts
 
 // ═══════════════════════════════════════════════════════════════
 // 拖拽状态
@@ -100,7 +102,7 @@ const needsCenter = signal(true);
 /** 是否正在平移相机 */
 const isPanning = signal(false);
 const panStart = signal<{ x: number; y: number } | null>(null);
-const panStartCamera = signal<Camera | null>(null);
+const panStartCamera = signal<ViewportCamera | null>(null);
 
 /** 是否正在框选 */
 const isBoxSelecting = signal(false);
@@ -129,45 +131,7 @@ const hoverGridPos = signal<{ x: number; y: number } | null>(null);
 // 工具函数
 // ═══════════════════════════════════════════════════════════════
 
-/** 设置缩放，保持指定屏幕点对应的世界坐标不变 */
-function setZoomAt(newZoom: number, screenX: number, screenY: number) {
-  const cam = camera.value;
-  const worldX = (screenX + cam.x) / cam.zoom;
-  const worldY = (screenY + cam.y) / cam.zoom;
-  camera.value = {
-    x: worldX * newZoom - screenX,
-    y: worldY * newZoom - screenY,
-    zoom: Math.max(0.1, Math.min(5, newZoom)),
-  };
-}
 
-/** 屏幕坐标 → 世界坐标 */
-function screenToWorld(screenX: number, screenY: number, rect: DOMRect): { x: number; y: number } {
-  const cam = camera.value;
-  const x = screenX - rect.left + cam.x;
-  const y = screenY - rect.top + cam.y;
-  return {
-    x: x / cam.zoom,
-    y: y / cam.zoom,
-  };
-}
-
-/** 世界坐标 → 网格坐标 */
-function worldToGrid(worldX: number, worldY: number, gridSize: number): { x: number; y: number } {
-  return {
-    x: Math.floor(worldX / gridSize),
-    y: Math.floor(worldY / gridSize),
-  };
-}
-
-/** 世界坐标 → 屏幕坐标 */
-function worldToScreen(worldX: number, worldY: number): { x: number; y: number } {
-  const cam = camera.value;
-  return {
-    x: worldX * cam.zoom - cam.x,
-    y: worldY * cam.zoom - cam.y,
-  };
-}
 
 /** 获取当前工具的光标样式 */
 function getCursorStyle(): string {
@@ -205,6 +169,25 @@ export function ViewportCanvas() {
   // 初始化
   // ═══════════════════════════════════════════════════════════════
 
+  // 注册模式切换时的瞬态状态清除
+  useEffect(() => {
+    return onEditModeChange(() => {
+      isPanning.value = false;
+      panStart.value = null;
+      panStartCamera.value = null;
+      isBoxSelecting.value = false;
+      boxSelectStart.value = null;
+      boxSelectCurrent.value = null;
+      isMovingEntity.value = false;
+      moveStart.value = null;
+      moveEntitiesStart.value = new Map();
+      isPainting.value = false;
+      currentBrushCmd.value = null;
+      paintedCells.value = new Set();
+      hoverGridPos.value = null;
+    });
+  }, []);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -219,9 +202,9 @@ export function ViewportCanvas() {
       canvas.style.height = container.clientHeight + "px";
       
       // 首次居中
-      if (needsCenter.value) {
+      if (needsInitialCenter.value) {
         centerCamera();
-        needsCenter.value = false;
+        needsInitialCenter.value = false;
       }
       
       draw();
@@ -243,11 +226,11 @@ export function ViewportCanvas() {
     const scene = currentScene.value;
     if (!container || !scene) return;
 
-    const cam = camera.value;
+    const cam = viewportCamera.value;
     const vw = container.clientWidth;
     const vh = container.clientHeight;
 
-    camera.value = {
+    viewportCamera.value = {
       x: (scene.width * cam.zoom - vw) / 2,
       y: (scene.height * cam.zoom - vh) / 2,
       zoom: cam.zoom,
@@ -276,7 +259,7 @@ export function ViewportCanvas() {
     ctx.fillStyle = "#1a1a1a";
     ctx.fillRect(0, 0, w, h);
 
-    const cam = camera.value;
+    const cam = viewportCamera.value;
     const gridSize = scene.grid.size;
 
     // 应用相机变换
@@ -284,15 +267,22 @@ export function ViewportCanvas() {
     ctx.translate(-cam.x, -cam.y);
     ctx.scale(cam.zoom, cam.zoom);
 
-    // 绘制网格
+    // 1. 场景区域内背景（略亮于外部）
+    ctx.fillStyle = "#1e1e1e";
+    ctx.fillRect(0, 0, scene.width, scene.height);
+
+    // 2. 边界外变暗（evenodd 挖空场景区域）
+    drawOutOfBounds(ctx, scene.width, scene.height, cam, w, h);
+
+    // 3. 网格（裁剪到场景边界）+ 中心轴
     drawGrid(ctx, scene.width, scene.height, gridSize);
 
-    // 绘制场景边界
+    // 4. 场景边界
     ctx.strokeStyle = "#4a90d9";
     ctx.lineWidth = 2 / cam.zoom;
     ctx.strokeRect(0, 0, scene.width, scene.height);
 
-    // 绘制所有 Entity（按层排序，过滤不可见层）
+    // 5. 绘制所有 Entity（按层排序，过滤不可见层）
     const sortedEntities = [...scene.entities]
       .filter(entity => {
         const layer = getPrefab(entity.prefab)?.components.Sprite?.layer ?? 0;
@@ -309,12 +299,12 @@ export function ViewportCanvas() {
       drawEntity(ctx, entity, selectedEntityIds.value.has(entity.id));
     }
 
-    // 绘制笔刷预览
+    // 6. 笔刷预览
     if (hoverGridPos.value && (activeTool.value === "brush" || activeTool.value === "eraser")) {
       drawBrushPreview(ctx, hoverGridPos.value.x, hoverGridPos.value.y, gridSize);
     }
 
-    // 绘制框选框
+    // 7. 框选框
     if (isBoxSelecting.value && boxSelectStart.value && boxSelectCurrent.value) {
       const x1 = boxSelectStart.value.x;
       const y1 = boxSelectStart.value.y;
@@ -331,7 +321,13 @@ export function ViewportCanvas() {
       ctx.setLineDash([]);
     }
 
+    // 8. 原点标记（世界空间）
+    drawOriginMarker(ctx, cam);
+
     ctx.restore();
+
+    // 9. 轴向指示器（屏幕空间）
+    drawAxisGizmo(ctx, 48);
   }, []);
 
   // ═══════════════════════════════════════════════════════════════
@@ -339,7 +335,7 @@ export function ViewportCanvas() {
   // ═══════════════════════════════════════════════════════════════
 
   function drawBrushPreview(ctx: CanvasRenderingContext2D, gridX: number, gridY: number, gridSize: number) {
-    const cam = camera.value;
+    const cam = viewportCamera.value;
     
     if (activeTool.value === "brush" && activePrefabPath.value) {
       // 绘制笔刷图案预览
@@ -388,14 +384,50 @@ export function ViewportCanvas() {
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // 绘制边界外变暗
+  // ═══════════════════════════════════════════════════════════════
+
+  function drawOutOfBounds(
+    ctx: CanvasRenderingContext2D,
+    sceneW: number,
+    sceneH: number,
+    cam: ViewportCamera,
+    viewW: number,
+    viewH: number,
+  ) {
+    const visibleLeft = cam.x / cam.zoom;
+    const visibleTop = cam.y / cam.zoom;
+    const visibleW = viewW / cam.zoom;
+    const visibleH = viewH / cam.zoom;
+
+    ctx.save();
+    ctx.beginPath();
+    // 外矩形（整个可视世界区域，留足余量）
+    ctx.rect(visibleLeft - 500, visibleTop - 500, visibleW + 1000, visibleH + 1000);
+    // 内矩形（场景区域），evenodd 会挖空
+    ctx.rect(0, 0, sceneW, sceneH);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.50)";
+    ctx.fill("evenodd");
+    ctx.restore();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // 绘制网格
   // ═══════════════════════════════════════════════════════════════
 
   function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number, size: number) {
     if (!gridSettings.value.enabled) return;
 
-    const cam = camera.value;
-    ctx.strokeStyle = gridSettings.value.color || "rgba(255, 255, 255, 0.1)";
+    const cam = viewportCamera.value;
+
+    ctx.save();
+    // 裁剪到场景边界，确保网格不越界
+    ctx.beginPath();
+    ctx.rect(0, 0, width, height);
+    ctx.clip();
+
+    // 普通网格线（极淡）
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
     ctx.lineWidth = 1 / cam.zoom;
 
     // 计算可见区域
@@ -405,20 +437,119 @@ export function ViewportCanvas() {
     const endY = startY + (ctx.canvas.height / cam.zoom) + size * 2;
 
     ctx.beginPath();
-    
-    // 垂直线
-    for (let x = startX; x <= Math.min(endX, width); x += size) {
+    for (let x = startX; x <= endX; x += size) {
       ctx.moveTo(x, Math.max(0, startY));
       ctx.lineTo(x, Math.min(height, endY));
     }
-    
-    // 水平线
-    for (let y = startY; y <= Math.min(endY, height); y += size) {
+    for (let y = startY; y <= endY; y += size) {
       ctx.moveTo(Math.max(0, startX), y);
       ctx.lineTo(Math.min(width, endX), y);
     }
-    
     ctx.stroke();
+
+    // 世界中心轴（略粗、略明显）
+    // X 轴：红色水平线（沿 y=0）
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(width, 0);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+    ctx.lineWidth = 1.5 / cam.zoom;
+    ctx.stroke();
+
+    // Y 轴：绿色垂直线（沿 x=0）
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, height);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+    ctx.lineWidth = 1.5 / cam.zoom;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 绘制原点标记（世界空间）
+  // ═══════════════════════════════════════════════════════════════
+
+  function drawOriginMarker(ctx: CanvasRenderingContext2D, cam: ViewportCamera) {
+    // 在世界 (0,0) 绘制一个小十字 + "0" 标签
+    const markerSize = 8 / cam.zoom;
+    const labelOffset = 10 / cam.zoom;
+
+    ctx.save();
+
+    // 十字
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+    ctx.lineWidth = 1 / cam.zoom;
+    ctx.beginPath();
+    ctx.moveTo(-markerSize, 0);
+    ctx.lineTo(markerSize, 0);
+    ctx.moveTo(0, -markerSize);
+    ctx.lineTo(0, markerSize);
+    ctx.stroke();
+
+    // 圆环
+    ctx.beginPath();
+    ctx.arc(0, 0, markerSize / 2, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+    ctx.stroke();
+
+    // 标签 "0"
+    ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+    ctx.font = `bold ${10 / cam.zoom}px monospace`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText("0", labelOffset, labelOffset);
+
+    ctx.restore();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 绘制轴向指示器（屏幕空间，左下角）
+  // ═══════════════════════════════════════════════════════════════
+
+  function drawAxisGizmo(ctx: CanvasRenderingContext2D, size: number) {
+    const dpr = window.devicePixelRatio || 1;
+    const viewW = ctx.canvas.width / dpr;
+    const viewH = ctx.canvas.height / dpr;
+    const padding = 16;
+    const cx = padding + size / 2;
+    const cy = viewH - padding - size / 2;
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // 屏幕空间
+
+    // X 轴箭头（红色，向右）
+    ctx.strokeStyle = "#e06060";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + size * 0.65, cy);
+    ctx.stroke();
+    // X 箭头头部
+    ctx.beginPath();
+    ctx.moveTo(cx + size * 0.65, cy - 4);
+    ctx.lineTo(cx + size * 0.85, cy);
+    ctx.lineTo(cx + size * 0.65, cy + 4);
+    ctx.fillStyle = "#e06060";
+    ctx.fill();
+
+    // Y 轴箭头（绿色，向上 —— 视觉上的"World Up"）
+    ctx.strokeStyle = "#60c060";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx, cy - size * 0.65);
+    ctx.stroke();
+    // Y 箭头头部
+    ctx.beginPath();
+    ctx.moveTo(cx - 4, cy - size * 0.65);
+    ctx.lineTo(cx, cy - size * 0.85);
+    ctx.lineTo(cx + 4, cy - size * 0.65);
+    ctx.fillStyle = "#60c060";
+    ctx.fill();
+
+    ctx.restore();
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -429,41 +560,65 @@ export function ViewportCanvas() {
     const prefab = getPrefab(entity.prefab);
     if (!prefab) return;
 
-    const cam = camera.value;
-    
-    ctx.save();
-    
+    const cam = viewportCamera.value;
     const t = entity.transform;
-    
-    // 应用 Entity 变换
+
+    // 解析精灵（图片 + 帧矩形）
+    const resolved = resolveEntitySprite(entity);
+    const displaySize = getEntityDisplaySize(entity, currentScene.value?.grid.size ?? 32);
+
+    ctx.save();
     ctx.translate(t.x, t.y);
     ctx.rotate(t.rotation * Math.PI / 180);
     ctx.scale(t.scaleX, t.scaleY);
 
-    // 绘制 Sprite（如果有）
-    const sprite = prefab.components.Sprite;
+    // 关闭图像平滑（像素风）
+    ctx.imageSmoothingEnabled = false;
+
+    // 绘制 Sprite（优先真实图片）
+    const sprite = prefab.components.Sprite as { visible?: boolean } | undefined;
     if (sprite?.visible !== false) {
-      // TODO: 实际从 Atlas 加载图像并绘制
-      // 现在先用色块代替
-      ctx.fillStyle = getPrefabColor(prefab.tags?.[0] ?? '');
-      ctx.fillRect(-8, -8, 16, 16);
-      
-      // 绘制图标/首字母
-      ctx.fillStyle = "#fff";
-      ctx.font = `bold ${12 / cam.zoom}px sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText((prefab.name || '?').charAt(0).toUpperCase(), 0, 0);
+      if (resolved.image && resolved.frame) {
+        const { x: sx, y: sy, w: sw, h: sh } = resolved.frame;
+        const dw = sw;
+        const dh = sh;
+
+        if (resolved.rotated) {
+          // rotated 90° CW：交换宽高并旋转绘制
+          ctx.save();
+          ctx.rotate(-Math.PI / 2);
+          ctx.drawImage(resolved.image, sx, sy, sw, sh, -dh / 2, -dw / 2, dh, dw);
+          ctx.restore();
+        } else {
+          // 正常绘制：以中心为原点
+          ctx.drawImage(resolved.image, sx, sy, sw, sh, -dw / 2, -dh / 2, dw, dh);
+        }
+      } else {
+        // 回退：精灵未加载时绘制网格大小的占位矩形
+        const fw = displaySize.w;
+        const fh = displaySize.h;
+        ctx.fillStyle = getPrefabColor(prefab.tags?.[0] ?? '');
+        ctx.fillRect(-fw / 2, -fh / 2, fw, fh);
+
+        // 绘制图标/首字母
+        ctx.fillStyle = "#fff";
+        ctx.font = `bold ${12 / cam.zoom}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText((prefab.name || '?').charAt(0).toUpperCase(), 0, 0);
+      }
     }
 
-    // 绘制选中框
+    // 绘制选中框（精确匹配精灵尺寸）
     if (isSelected) {
-      ctx.strokeStyle = "#4a90d9";
+      const selW = displaySize.w;
+      const selH = displaySize.h;
+      ctx.strokeStyle = "#f4a742"; // 橙色（设计文档标准）
       ctx.lineWidth = 2 / cam.zoom;
-      ctx.strokeRect(-10, -10, 20, 20);
-      
-      // 绘制中心点
-      ctx.fillStyle = "#4a90d9";
+      ctx.strokeRect(-selW / 2 - 1, -selH / 2 - 1, selW + 2, selH + 2);
+
+      // 轴心点
+      ctx.fillStyle = "#f4a742";
       ctx.beginPath();
       ctx.arc(0, 0, 3 / cam.zoom, 0, Math.PI * 2);
       ctx.fill();
@@ -630,7 +785,7 @@ export function ViewportCanvas() {
     if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
       isPanning.value = true;
       panStart.value = { x: e.clientX, y: e.clientY };
-      panStartCamera.value = { ...camera.value };
+      panStartCamera.value = { ...viewportCamera.value };
       return;
     }
 
@@ -721,12 +876,13 @@ export function ViewportCanvas() {
     
     const gridPos = worldToGrid(worldPos.x, worldPos.y, scene.grid.size);
     hoverGridPos.value = gridPos;
+    hoverWorldPos.value = worldPos;
 
     // 平移相机
     if (isPanning.value && panStart.value && panStartCamera.value) {
       const dx = e.clientX - panStart.value.x;
       const dy = e.clientY - panStart.value.y;
-      camera.value = {
+      viewportCamera.value = {
         x: panStartCamera.value.x - dx,
         y: panStartCamera.value.y - dy,
         zoom: panStartCamera.value.zoom,
@@ -863,7 +1019,7 @@ export function ViewportCanvas() {
     const mouseY = e.clientY - rect.top;
 
     const factor = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = camera.value.zoom * factor;
+    const newZoom = viewportCamera.value.zoom * factor;
     
     setZoomAt(newZoom, mouseX, mouseY);
     draw();
@@ -922,8 +1078,8 @@ export function ViewportCanvas() {
         return;
       }
 
-      // 工具快捷键 (V, B, E, G, I, N)
-      if (setToolByShortcut(e.key)) {
+      // 视口快捷键：Tab 切换模式，各模式工具快捷键
+      if (handleViewportShortcut(e.key)) {
         e.preventDefault();
         draw();
         return;
@@ -1000,6 +1156,19 @@ export function ViewportCanvas() {
   useEffect(() => {
     draw();
   }, [sceneVersion.value]);
+
+  // 监听相机变化自动重绘（支持外部 zoom 修改后即时刷新）
+  useSignalEffect(() => {
+    const _ = viewportCamera.value;
+    draw();
+  });
+
+  // 监听 SpriteSheet 加载完成自动重绘
+  useSignalEffect(() => {
+    const _ = spriteSheets.value;
+    const __ = spriteSheetImages.value;
+    draw();
+  });
 
   // ═══════════════════════════════════════════════════════════════
   // 拖放：从 Content Browser 拖入 Prefab

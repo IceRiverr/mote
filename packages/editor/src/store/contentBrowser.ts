@@ -168,7 +168,7 @@ async function scanDirectoryRecursive(dirPath: string): Promise<AssetNode[]> {
           type: detectAssetType(entry.name),
         });
 
-        // 自动加载 Prefab 到 store（使用完整路径作为 key，保持全系统一致）
+        // 自动加载 Prefab 到 store
         if (
           entry.name.endsWith('.mote-prefab.json') &&
           dirPath.startsWith('assets')
@@ -182,6 +182,8 @@ async function scanDirectoryRecursive(dirPath: string): Promise<AssetNode[]> {
             setPrefab(prefabId, prefab, relativePath);
           }
         }
+
+        // SpriteSheet 统一在 scanAssets() 后批量加载
       }
     }
   } catch (err) {
@@ -219,6 +221,11 @@ export async function scanAssets(): Promise<void> {
   }
 
   assetTree.value = result;
+
+  // 批量加载所有 SpriteSheet
+  const spriteSheetFS = (await import('../fs/SpriteSheetFS')).getSpriteSheetFS();
+  spriteSheetFS.setAssetsDir('assets');
+  await spriteSheetFS.initialize();
 }
 
 /**
@@ -314,8 +321,17 @@ export async function loadSceneFromPath(assetPath: string): Promise<boolean> {
     const scene = sceneFromJson(json);
     scene.path = assetPath;
 
+    // ═══════════════════════════════════════════════════════════════
+    // 先加载场景中可能引用的 SpriteSheets，再加载场景
+    // ═══════════════════════════════════════════════════════════════
+    const spriteSheetFS = (await import('../fs/SpriteSheetFS')).getSpriteSheetFS();
+    spriteSheetFS.setAssetsDir('assets');
+    await spriteSheetFS.rescan();
+
+    // 再加载场景（触发渲染）
     const { loadScene } = await import('./scene');
     loadScene(scene);
+
     console.log('[ContentBrowser] Scene loaded:', scene.name);
     return true;
   } catch (err) {

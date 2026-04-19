@@ -8,6 +8,7 @@ import { createProject, validateProject, touchProject, generateProjectId, DEFAUL
 import { getFileSystem } from '../fs/FileSystem';
 import { getPrefabFS } from '../fs/PrefabFS';
 import { getSceneFS } from '../fs/SceneFS';
+import { getSpriteSheetFS } from '../fs/SpriteSheetFS';
 import { newScene } from '../store/scene';
 
 // ═══════════════════════════════════════════════════════════════
@@ -60,7 +61,7 @@ export async function createNewProject(
     isLoading.value = true;
 
     const fs = getFileSystem();
-    
+
     // 选择项目目录
     const success = await fs.openProject();
     if (!success) {
@@ -72,7 +73,7 @@ export async function createNewProject(
     const id = generateProjectId(name);
     const project = createProject(id, name, settings);
 
-    // 创建标准目录结构（仅 assets 和 src）
+    // 创建标准目录结构(仅 assets 和 src)
     await fs.createDirectory('assets');
     await fs.createDirectory('src');
 
@@ -85,7 +86,7 @@ export async function createNewProject(
 
     // 设置当前项目
     setProject(project);
-    
+
     // 添加到最近项目
     addToRecentProjects(project);
 
@@ -101,7 +102,7 @@ export async function createNewProject(
 }
 
 /**
- * 扫描当前目录中的项目文件（应只有一个）
+ * 扫描当前目录中的项目文件(应只有一个)
  */
 export async function scanProjectsInDirectory(): Promise<string[]> {
   const fs = getFileSystem();
@@ -122,7 +123,7 @@ export async function openExistingProject(): Promise<Project | null> {
     isLoading.value = true;
 
     const fs = getFileSystem();
-    
+
     // 选择项目目录
     const success = await fs.openProject();
     if (!success) {
@@ -134,7 +135,7 @@ export async function openExistingProject(): Promise<Project | null> {
 
     if (projectFiles.length === 0) {
       console.error('No .mote-project.json found');
-      if (confirm('未找到项目文件。是否在此创建新项目？')) {
+      if (confirm('未找到项目文件。是否在此创建新项目?')) {
         return await createNewProject();
       }
       return null;
@@ -156,7 +157,7 @@ export async function openExistingProject(): Promise<Project | null> {
     // 设置当前项目
     setProject(project);
 
-    // 加载最后打开的场景（lastOpenedScene 存储的是完整路径）
+    // 加载最后打开的场景(lastOpenedScene 存储的是完整路径)
     if (project.lastOpenedScene) {
       const sceneFS = getSceneFS();
       await sceneFS.loadFromPath(project.lastOpenedScene);
@@ -177,11 +178,11 @@ export async function openExistingProject(): Promise<Project | null> {
 }
 
 /**
- * 从路径打开项目（用于最近项目列表）
+ * 从路径打开项目(用于最近项目列表)
  */
 export async function openProjectFromPath(path: string): Promise<Project | null> {
   // TODO: 实现从特定路径打开
-  // 当前 FileSystem 只支持选择目录，需要扩展
+  // 当前 FileSystem 只支持选择目录,需要扩展
   console.warn('openProjectFromPath not fully implemented');
   return openExistingProject();
 }
@@ -198,15 +199,15 @@ export async function saveCurrentProject(): Promise<boolean> {
   try {
     // 更新修改时间
     const updated = touchProject(currentProject.value);
-    
+
     // 保存项目文件
     const success = await saveProjectFile(updated);
-    
+
     if (success) {
       currentProject.value = updated;
       hasUnsavedChanges.value = false;
       lastSavedAt.value = Date.now();
-      
+
       console.log('Project saved');
     }
 
@@ -278,7 +279,7 @@ export function renameProject(newName: string): void {
 }
 
 /**
- * 设置最后打开的场景（存储完整路径）
+ * 设置最后打开的场景(存储完整路径)
  */
 export function setLastOpenedScene(scenePath: string): void {
   if (!currentProject.value) return;
@@ -292,7 +293,7 @@ export function setLastOpenedScene(scenePath: string): void {
 }
 
 /**
- * 添加最近使用的 Prefab（存储完整路径）
+ * 添加最近使用的 Prefab(存储完整路径)
  */
 export function addRecentPrefab(prefabPath: string): void {
   if (!currentProject.value) return;
@@ -300,7 +301,7 @@ export function addRecentPrefab(prefabPath: string): void {
   const recent = currentProject.value.recentPrefabs || [];
   const filtered = recent.filter(p => p !== prefabPath);
   filtered.unshift(prefabPath);
-  
+
   // 只保留最近 10 个
   currentProject.value = {
     ...currentProject.value,
@@ -322,7 +323,7 @@ export function markAsUnsaved(): void {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * 加载最近项目列表（从 localStorage）
+ * 加载最近项目列表(从 localStorage)
  */
 export function loadRecentProjects(): void {
   try {
@@ -366,7 +367,7 @@ function addToRecentProjects(project: Project, fileName?: string): void {
   // 去重并移到最前
   const filtered = recentProjects.value.filter(p => p.id !== project.id);
   filtered.unshift(info);
-  
+
   recentProjects.value = filtered.slice(0, 10);
   saveRecentProjects();
 }
@@ -401,15 +402,20 @@ function setProject(project: Project): void {
 export async function initializeSubsystems(): Promise<void> {
   const assetsDir = currentProject.value?.assetsDir || 'assets';
 
-  // 初始化 PrefabFS
+  // 初始化 PrefabFS(用 rescan 确保重新扫描)
   const prefabFS = getPrefabFS();
   prefabFS.setAssetsDir(assetsDir);
-  await prefabFS.initialize();
+  await prefabFS.rescan();
 
   // 初始化 SceneFS
   const sceneFS = getSceneFS();
   sceneFS.setAssetsDir(assetsDir);
   await sceneFS.initialize();
+
+  // 初始化 SpriteSheetFS(用 rescan 确保重新扫描)
+  const spriteSheetFS = getSpriteSheetFS();
+  spriteSheetFS.setAssetsDir(assetsDir);
+  await spriteSheetFS.rescan();
 }
 
 async function saveProjectFile(project: Project, fileName?: string): Promise<boolean> {
@@ -422,7 +428,7 @@ async function saveProjectFile(project: Project, fileName?: string): Promise<boo
 async function loadProjectFile(fileName: string): Promise<Project | null> {
   const fs = getFileSystem();
   const content = await fs.readFile(fileName);
-  
+
   if (!content) return null;
 
   try {
@@ -439,25 +445,28 @@ async function loadProjectFile(fileName: string): Promise<Project | null> {
 }
 
 /**
- * 创建内存项目（不关联文件系统，直接打开编辑器）
+ * 创建内存项目(不关联文件系统,直接打开编辑器)
  */
 export function createInMemoryProject(): void {
   const id = generateProjectId('Untitled');
   const project = createProject(id, 'Untitled Project');
-  
+
   // 初始化子系统（使用内存模式）
   const prefabFS = getPrefabFS();
   prefabFS.initialize();
-  
+
   const sceneFS = getSceneFS();
   sceneFS.initialize();
-  
+
+  const spriteSheetFS = getSpriteSheetFS();
+  spriteSheetFS.initialize();
+
   // 设置当前项目
   setProject(project);
-  
-  // 自动创建默认场景（640x480）
+
+  // 自动创建默认场景(640x480)
   newScene(640, 480);
-  
+
   console.log('In-memory project created:', project.id);
 }
 

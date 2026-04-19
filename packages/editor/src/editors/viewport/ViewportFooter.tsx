@@ -9,8 +9,11 @@ import {
 } from "../../store/selection";
 import { selectedEntityIds, currentScene } from "../../store/scene";
 import { canUndo, canRedo, undoLabel, redoLabel, undo, redo } from "../../store/history";
+import { editModeLabel, activeToolLabel } from "../../store/viewport-mode";
+import { hoverWorldPos } from "../../store/viewport";
 
 export function ViewportFooter() {
+  const worldPos = hoverWorldPos.value;
   const tile = hoverTile.value;
   const locked = viewportZoomLocked.value;
   const gridOn = showGrid.value;
@@ -34,7 +37,12 @@ export function ViewportFooter() {
       }}
     >
       {/* Position display */}
-      <span>{tile ? `Position (${tile.x}, ${tile.y})` : "—"}</span>
+      <span>
+        {worldPos
+          ? `(${worldPos.x.toFixed(1)}, ${worldPos.y.toFixed(1)})`
+          : "—"}
+        {tile ? ` [${tile.x},${tile.y}]` : ""}
+      </span>
       
       {/* Entity count */}
       <span>
@@ -81,6 +89,13 @@ export function ViewportFooter() {
           ↷
         </button>
       </div>
+
+      {/* Mode + Tool display */}
+      <span style={{ fontWeight: 600, color: "var(--text)" }}>
+        {editModeLabel.value}
+      </span>
+      <span>·</span>
+      <span>{activeToolLabel.value}</span>
 
       {/* Grid toggle */}
       <button

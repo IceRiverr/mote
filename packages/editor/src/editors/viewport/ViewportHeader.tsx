@@ -1,15 +1,21 @@
 import { useRef, useState } from "preact/hooks";
 import {
-  activeTool,
-  viewportZoom,
   viewportZoomLocked,
-  TOOLS,
-  setTool,
-  type ToolType,
 } from "../../store/selection";
+import {
+  viewportCamera,
+  setZoom,
+} from "../../store/viewport";
+import {
+  editMode,
+  brushTool,
+  BRUSH_TOOLS,
+  setEditMode,
+  setBrushTool,
+} from "../../store/viewport-mode";
 
 export function ViewportHeader() {
-  const zoom = viewportZoom.value;
+  const zoom = viewportCamera.value.zoom;
   const locked = viewportZoomLocked.value;
   const isInteger = Math.abs(zoom - Math.round(zoom)) < 0.01;
   const [editing, setEditing] = useState(false);
@@ -25,9 +31,7 @@ export function ViewportHeader() {
     setEditing(false);
     const v = parseFloat(editValue);
     if (!isNaN(v) && v >= 0.25 && v <= 16) {
-      window.dispatchEvent(
-        new CustomEvent("mote-set-viewport-zoom", { detail: { zoom: v } })
-      );
+      setZoom(v);
     }
   };
 
@@ -36,6 +40,8 @@ export function ViewportHeader() {
     setEditing(true);
     requestAnimationFrame(() => inputRef.current?.select());
   };
+
+  const mode = editMode.value;
 
   return (
     <div
@@ -46,33 +52,60 @@ export function ViewportHeader() {
         display: "flex",
         alignItems: "center",
         padding: "0 8px",
-        gap: 2,
+        gap: 8,
         flexShrink: 0,
       }}
     >
-      {TOOLS.map((t) => (
-        <button
-          key={t.id}
-          title={`${t.label} (${t.shortcut})`}
-          onClick={() => setTool(t.id)}
-          style={{
-            background:
-              activeTool.value === t.id ? "var(--accent)" : "transparent",
-            border: "none",
-            borderRadius: 3,
-            padding: "2px 8px",
-            cursor: "pointer",
-            fontSize: t.id === "select" ? 16 : 14,
-            fontWeight: t.id === "select" ? 700 : 400,
-          }}
-        >
-          {t.icon}
-        </button>
-      ))}
+      {/* ── 模式标签 ─────────────────────────── */}
+      <div
+        style={{
+          display: "flex",
+          gap: 2,
+          background: "rgba(0,0,0,0.2)",
+          borderRadius: 4,
+          padding: 2,
+        }}
+      >
+        <ModeTab
+          label="实体"
+          active={mode === "entity"}
+          onClick={() => setEditMode("entity")}
+        />
+        <ModeTab
+          label="笔刷"
+          active={mode === "brush"}
+          onClick={() => setEditMode("brush")}
+        />
+      </div>
+
+      {/* ── 笔刷模式工具按钮 ─────────────────── */}
+      {mode === "brush" && (
+        <div style={{ display: "flex", gap: 2 }}>
+          {BRUSH_TOOLS.map((t) => (
+            <button
+              key={t.id}
+              title={`${t.label} (${t.shortcut})`}
+              onClick={() => setBrushTool(t.id)}
+              style={{
+                background:
+                  brushTool.value === t.id ? "var(--accent)" : "transparent",
+                border: "none",
+                borderRadius: 3,
+                padding: "2px 8px",
+                cursor: "pointer",
+                fontSize: 14,
+                opacity: t.id === "rect-select" ? 0.5 : 1,
+              }}
+            >
+              {t.icon}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div style={{ flex: 1 }} />
 
-      {/* Zoom input / display */}
+      {/* ── 缩放控件 ─────────────────────────── */}
       <span
         style={{
           fontSize: 11,
@@ -159,5 +192,36 @@ export function ViewportHeader() {
         {locked ? "🔒" : "🔓"}
       </button>
     </div>
+  );
+}
+
+// ── 模式标签按钮 ─────────────────────────────────────────────
+
+function ModeTab({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: active ? "var(--accent)" : "transparent",
+        border: "none",
+        borderRadius: 3,
+        padding: "2px 10px",
+        cursor: "pointer",
+        fontSize: 12,
+        fontWeight: active ? 600 : 400,
+        color: active ? "#fff" : "var(--text-secondary)",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </button>
   );
 }

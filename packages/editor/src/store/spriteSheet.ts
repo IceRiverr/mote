@@ -32,7 +32,9 @@ export const activeSpriteSheet = computed((): SpriteSheet | null => {
 // ── CRUD operations ───────────────────────────────────────────
 
 export function addSpriteSheet(sheet: SpriteSheet, img: HTMLImageElement): void {
-  spriteSheets.value = [...spriteSheets.value, sheet];
+  // 去重：替换已有相同 id 的 sheet，避免重复 key
+  const filtered = spriteSheets.value.filter(s => s.id !== sheet.id);
+  spriteSheets.value = [...filtered, sheet];
   const newImages = new Map(spriteSheetImages.value);
   newImages.set(sheet.id, img);
   spriteSheetImages.value = newImages;

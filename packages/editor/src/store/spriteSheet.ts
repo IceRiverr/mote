@@ -38,7 +38,7 @@ export function addSpriteSheet(sheet: SpriteSheet, img: HTMLImageElement): void 
   const newImages = new Map(spriteSheetImages.value);
   newImages.set(sheet.id, img);
   spriteSheetImages.value = newImages;
-  activeSpriteSheetId.value = sheet.id;
+  // Note: 不自动设为 active，由调用方决定是否激活显示
 }
 
 export function removeSpriteSheet(id: string): void {

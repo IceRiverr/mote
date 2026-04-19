@@ -429,8 +429,9 @@ export async function openAssetInSpriteEditor(assetPath: string): Promise<boolea
     console.log('[ContentBrowser] Step 6 OK: SpriteSheet created,', Object.keys(sheet.frames).length, 'frames');
 
     // ── Step 7: 添加到 store ──
-    const { addSpriteSheet, isTemporarySpriteSheet } = await import('./spriteSheet');
+    const { addSpriteSheet, isTemporarySpriteSheet, activeSpriteSheetId } = await import('./spriteSheet');
     addSpriteSheet(sheet, img);
+    activeSpriteSheetId.value = sheet.id;
     isTemporarySpriteSheet.value = false;
     console.log('[ContentBrowser] Step 7 OK: added to store');
 
@@ -487,8 +488,9 @@ export async function openImageInSpriteEditor(imagePath: string): Promise<boolea
     console.log('[ContentBrowser] SpriteSheet created,', Object.keys(sheet.frames).length, 'frames (16x16 grid)');
 
     // ── Step 4: 添加到 store ──
-    const { addSpriteSheet, isTemporarySpriteSheet } = await import('./spriteSheet');
+    const { addSpriteSheet, isTemporarySpriteSheet, activeSpriteSheetId } = await import('./spriteSheet');
     addSpriteSheet(sheet, img);
+    activeSpriteSheetId.value = sheet.id;
     isTemporarySpriteSheet.value = true;
     console.log('[ContentBrowser] Added to store');
 

@@ -41,7 +41,7 @@ export type ColliderTool = 'rect' | 'circle' | 'polygon' | 'eraser' | 'full' | '
 export const colliderTool = signal<ColliderTool>('full');
 
 /** Whether to always show collider overlay (Blender viewport overlay style) */
-export const showColliderOverlay = signal(true);
+export const showColliderOverlay = signal(false);
 
 // ═══════════════════════════════════════════════════════════════
 // UI State

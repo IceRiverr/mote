@@ -8,61 +8,12 @@ import {
   activeSpriteSheet,
   selectedFrameIds,
   activeFrame,
-  setFrameCollider,
   setFrameTags,
   propertiesPanelVisible,
 } from './state';
-import { COLLIDER_PRESETS } from '../../data/Collider';
-import type { ColliderShape } from '../../data/Collider';
 import { getFileSystem } from '../../fs/FileSystem';
 import { OpenProjectDialog } from '../../components/OpenProjectDialog';
 import { GeneratePrefabDialog } from './GeneratePrefabDialog';
-
-// ── Collider Preset Button ────────────────────────────────────
-
-interface PresetButtonProps {
-  label: string;
-  icon: string;
-  active: boolean;
-  onClick: () => void;
-}
-
-function PresetButton({ label, icon, active, onClick }: PresetButtonProps) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '6px 10px',
-        background: active ? 'rgba(74, 144, 217, 0.2)' : 'transparent',
-        border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-        borderRadius: 4,
-        cursor: 'pointer',
-        color: active ? 'var(--accent)' : 'var(--text-primary)',
-        fontSize: 11,
-        width: '100%',
-        textAlign: 'left',
-        transition: 'all 0.15s ease',
-      }}
-      onMouseEnter={(e) => {
-        if (!active) {
-          (e.currentTarget as HTMLElement).style.background = 'var(--bg-input)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!active) {
-          (e.currentTarget as HTMLElement).style.background = 'transparent';
-        }
-      }}
-    >
-      <span style={{ fontSize: 14, width: 16, textAlign: 'center' }}>{icon}</span>
-      <span>{label}</span>
-      {active && <span style={{ marginLeft: 'auto', fontSize: 10 }}>✓</span>}
-    </button>
-  );
-}
 
 // ── Generate Prefab Button ───────────────────────────────────
 
@@ -218,74 +169,6 @@ function FrameInfoSection() {
       <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
         位置：({frame.frame.x}, {frame.frame.y})
       </div>
-    </div>
-  );
-}
-
-// ── Collider Section ─────────────────────────────────────────
-
-function ColliderSection() {
-  const [expanded, setExpanded] = useState(true);
-  const sheet = activeSpriteSheet.value;
-  const selected = selectedFrameIds.value;
-  const frame = activeFrame.value;
-
-  if (!sheet || selected.length === 0) return null;
-
-  // Get current collider of first selected frame
-  const currentCollider = frame?.frame.collider;
-  const hasCollider = currentCollider && currentCollider.length > 0;
-
-  // Check if preset matches
-  const isPresetActive = (shapes: ColliderShape[]): boolean => {
-    if (!currentCollider || currentCollider.length !== shapes.length) return false;
-    return JSON.stringify(currentCollider) === JSON.stringify(shapes);
-  };
-
-  const applyPreset = (shapes: ColliderShape[] | undefined) => {
-    selected.forEach(frameId => {
-      setFrameCollider(sheet.id, frameId, shapes);
-    });
-  };
-
-  const presets = [
-    { key: 'none', label: '无', icon: '○', shapes: undefined },
-    { key: 'full', label: '完整矩形', icon: '■', shapes: COLLIDER_PRESETS.full },
-    { key: 'halfTop', label: '上半部分', icon: '▀', shapes: COLLIDER_PRESETS.halfTop },
-    { key: 'halfBottom', label: '下半部分', icon: '▄', shapes: COLLIDER_PRESETS.halfBottom },
-    { key: 'slopeNE', label: '斜坡 NE', icon: '◿', shapes: COLLIDER_PRESETS.slopeNE },
-    { key: 'slopeNW', label: '斜坡 NW', icon: '◸', shapes: COLLIDER_PRESETS.slopeNW },
-    { key: 'slopeSE', label: '斜坡 SE', icon: '◹', shapes: COLLIDER_PRESETS.slopeSE },
-    { key: 'slopeSW', label: '斜坡 SW', icon: '◺', shapes: COLLIDER_PRESETS.slopeSW },
-  ] as const;
-
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <SectionHeader
-        title="碰撞体"
-        expanded={expanded}
-        onToggle={() => setExpanded(!expanded)}
-      />
-      
-      {expanded && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {presets.map((preset) => (
-            <PresetButton
-              key={preset.key}
-              label={preset.label}
-              icon={preset.icon}
-              active={preset.shapes ? isPresetActive(preset.shapes) : !hasCollider}
-              onClick={() => applyPreset(preset.shapes)}
-            />
-          ))}
-          
-          {hasCollider && (
-            <div style={{ marginTop: 8, padding: '8px', background: 'rgba(74, 144, 217, 0.1)', borderRadius: 4, fontSize: 10, color: 'var(--text-secondary)' }}>
-              当前帧有 {currentCollider?.length} 个碰撞形状
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -500,7 +383,6 @@ export function SpriteEditorProperties() {
         }}
       >
         <FrameInfoSection />
-        <ColliderSection />
         <TagsSection />
         <GeneratePrefabButton />
       </div>

@@ -12,7 +12,7 @@ import {
   importMoteSpriteSheet,
 } from '../../data/sprite-sheet-import';
 import { isFileSystemAccessSupported } from '../../data/fs-access';
-import { addSpriteSheet } from '../../store/spriteSheet';
+import { addSpriteSheet, activeSpriteSheetId } from '../../store/spriteSheet';
 import { createGridSpriteSheet } from '../../data/SpriteSheet';
 import { ENGINE_VERSION } from '@mote/engine/core/version';
 
@@ -311,6 +311,7 @@ export function ImportDialog({ onClose }: Props) {
         if (!imgFile) throw new Error('未找到图片文件');
         const { sheet, img } = await importGridSpriteSheetFromImage(imgFile, tileW, tileH, margin, spacing, undefined, imgFile.name);
         addSpriteSheet(sheet, img);
+        activeSpriteSheetId.value = sheet.id;
       } else if (mode === 'mote') {
         const jsonFile = selectedFiles.find(f => f.name.endsWith('.json'));
         // Use auto-matched image or manually selected image
@@ -319,23 +320,27 @@ export function ImportDialog({ onClose }: Props) {
         if (!imgFile) throw new Error('需要图片文件，请选择 ' + (moteJsonData?.image || '对应的 PNG 文件'));
         const { sheet, img } = await importMoteSpriteSheet(jsonFile, imgFile, undefined, imgFile.name);
         addSpriteSheet(sheet, img);
+        activeSpriteSheetId.value = sheet.id;
       } else if (mode === 'packed') {
         const jsonFile = selectedFiles.find(f => f.name.endsWith('.json'));
         const imgFile = selectedFiles.find(f => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
         if (!jsonFile || !imgFile) throw new Error('需要 JSON + 图片文件');
         const { sheet, img } = await importPackedSpriteSheet(jsonFile, imgFile, undefined, imgFile.name);
         addSpriteSheet(sheet, img);
+        activeSpriteSheetId.value = sheet.id;
       } else if (mode === 'xml') {
         const xmlFile = selectedFiles.find(f => /\.(xml|txt)$/i.test(f.name));
         const imgFile = selectedFiles.find(f => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
         if (!xmlFile || !imgFile) throw new Error('需要 XML + 图片文件');
         const { sheet, img } = await importXmlSpriteSheet(xmlFile, imgFile, undefined, imgFile.name);
         addSpriteSheet(sheet, img);
+        activeSpriteSheetId.value = sheet.id;
       } else {
         const imgFiles = selectedFiles.filter(f => /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name));
         if (imgFiles.length < 2) throw new Error('至少需要 2 张图片');
         const { sheet, img } = await importLooseSpriteSheet(imgFiles, undefined, 1, 'atlas.png');
         addSpriteSheet(sheet, img);
+        activeSpriteSheetId.value = sheet.id;
       }
       
       onClose();
@@ -435,6 +440,7 @@ export function ImportDialog({ onClose }: Props) {
         };
         
         addSpriteSheet(sheet, img);
+        activeSpriteSheetId.value = sheet.id;
         onClose();
         return;
       }
@@ -505,6 +511,7 @@ export function ImportDialog({ onClose }: Props) {
       }, url);
       
       addSpriteSheet(sheet, img);
+      activeSpriteSheetId.value = sheet.id;
       onClose();
     } catch (e: any) {
       if (e.name !== 'AbortError') {

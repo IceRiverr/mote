@@ -1,147 +1,191 @@
----
-name: mote-guidelines
-description: Behavioral guidelines for coding in the mote project (ECS game engine + Preact editor). Automatically applies to all coding, reviewing, and refactoring tasks in this codebase.
-license: MIT
----
+# Mote 编码行为指南
 
-# Mote Coding Guidelines
+> mote 项目（ECS 游戏引擎 + Preact 编辑器）的编码行为约束。
+> 自动应用于所有编码、审查和重构任务。
 
-Behavioral guidelines to reduce common mistakes when working on the mote game engine and editor. Derived from Andrej Karpathy's observations on LLM coding pitfalls, tailored for this specific codebase.
-
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+**权衡：** 这些指南偏向谨慎而非速度。对于显而易见的任务，自行判断。
 
 ---
 
-## Confusion Protocol
+## 歧义处理协议
 
-When you encounter high-stakes ambiguity during coding:
-- Two plausible architectures or data models for the same requirement
-- A request that contradicts existing patterns and you're unsure which to follow
-- A destructive operation where the scope is unclear
-- Missing context that would change your approach significantly
+遇到高风险的歧义时（两套可能的架构、与现有模式冲突、破坏性操作、关键上下文缺失）：
 
-**STOP.** Name the ambiguity in one sentence. Present 2-3 options with tradeoffs. Ask the user. Do not guess on architectural or data model decisions.
+**STOP。** 用一句话命名歧义。列出 2-3 个选项及利弊。问用户。不要在架构或数据模型决策上猜测。
 
-This does NOT apply to routine coding, small features, or obvious changes.
+不适用于：常规编码、小功能、显而易见的变更。
 
 ---
 
-## 1. Think Before Coding
+## 1. 编码前先思考
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
+**不要假设。不要隐藏困惑。暴露利弊。**
 
-Before implementing:
+编码前：
 
-- **State your assumptions explicitly.** If uncertain, ask.
-- **If multiple interpretations exist, present them — don't pick silently.**
-- **Check existing patterns first.** Look at how similar features are already implemented in the codebase before inventing new conventions.
-- **If something is unclear, stop.** Name what's confusing. Ask.
+- **显式陈述你的假设。** 如果不确定，就问。
+- **如果存在多种理解，列出来——不要默默选择。**
+- **先检查现有模式。** 在代码库中看看类似功能是怎么实现的，再发明新约定。
+- **如果不清楚，停下来。** 命名哪里不清楚。问。
 
-### Mote-Specific
+### Mote 专属
 
-- **ECS first:** Before adding state, ask "Should this be a Component?" Don't put mutable state directly on systems or managers.
-- **Renderer first:** Before touching graphics, confirm whether the feature needs WebGPU (new shader) or can be done with existing rendering pipeline. Don't add WebGL2-specific code when WebGPU path exists.
-- **Editor context:** Before adding UI state, check if it should live in a Signal (`@preact/signals`) or if it's ephemeral local state.
-
----
-
-## 2. Simplicity First
-
-**Minimum code that solves the problem. Nothing speculative.**
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- **If you write 200 lines and it could be 50, rewrite it.**
-
-Ask yourself: *"Would a senior engineer say this is overcomplicated?"* If yes, simplify.
-
-### Mote-Specific
-
-- **Component constructors must be parameterless.** Don't add convenience constructors with arguments. This is enforced by the ECS registry.
-- **Don't create helper classes/managers unless multiple systems need them.** A single system can inline its logic.
-- **Avoid premature plugin abstraction.** If a feature is only used in one place, don't make it a Plugin yet.
-- **Shaders:** Start with the simplest WGSL that works. Don't add uniform buffers or bind groups that aren't strictly necessary.
+- **数据优先：** 添加状态前先问"这应该是 Component 吗？" 不要把可变状态直接放在 system 或 manager 上。
+- **渲染器优先：** 触碰图形前先确认功能需要 WebGPU（新 shader）还是可用现有渲染管线。不要在已有 WebGPU 路径时添加 WebGL2 特定代码。
+- **编辑器上下文：** 添加 UI 状态前先检查它应该放在 Signal（`@preact/signals`）中还是临时本地状态。
 
 ---
 
-## 3. Surgical Changes
+## 2. 简洁优先
 
-**Touch only what you must. Clean up only your own mess.**
+**用最少代码解决问题。不要臆测。**
 
-When editing existing code:
+- 不要实现需求之外的功能。
+- 不要为一次性代码创建抽象。
+- 不要添加未被要求的"灵活性"或"可配置性"。
+- 不要为不可能的场景写错误处理。
+- **如果你写了 200 行而其实可以 50 行，重写它。**
 
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- **Match existing style, even if you'd do it differently.**
-- If you notice unrelated dead code, mention it — don't delete it.
+问自己：*"资深工程师会说这过度设计了吗？"* 如果是，简化。
 
-When your changes create orphans:
+### Mote 专属
 
-- Remove imports/variables/functions that **YOUR** changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-**The test:** Every changed line should trace directly to the user's request.
-
-### Mote-Specific
-
-- **Preserve undo/redo compatibility.** If you modify editor commands, ensure the command pattern (execute/undo/redo) still works.
-- **Don't change existing Component shapes unless absolutely necessary.** Adding/removing fields breaks saved scenes and serialization.
-- **If modifying a System, check `world.query()` patterns in similar systems first.** Don't invent new query conventions.
+- **Component 构造函数必须无参。** 不要添加带参数的便利构造函数。这是 ECS registry 强制要求的。
+- **不要创建 helper 类/manager，除非多个 system 需要。** 单个 system 可以内联逻辑。
+- **避免过早抽象成 Plugin。** 如果功能只在一个地方用，不要做成 Plugin。
+- **Shader：** 从最简单的 WGSL 开始。不要添加不必要的 uniform buffer 或 bind group。
 
 ---
 
-## 4. Goal-Driven Execution
+## 3. 精准修改
 
-**Define success criteria. Loop until verified.**
+**只碰必须碰的。只清理你制造的。**
 
-Transform tasks into verifiable goals:
+编辑现有代码时：
 
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
+- 不要"改进"相邻的代码、注释或格式。
+- 不要重构没坏的东西。
+- **匹配现有风格，即使你个人偏好不同。**
+- 如果注意到无关的死代码，提一下——不要删。
 
-For multi-step tasks, state a brief plan:
+当你的变更产生孤儿时：
+
+- 移除**你的**变更导致的未使用 import/变量/函数。
+- 不要删除已有的死代码，除非被要求。
+
+**测试：** 每行变更都能直接追溯到用户的请求。
+
+### Mote 专属
+
+- **保持 undo/redo 兼容性。** 如果修改编辑器命令，确保命令模式（execute/undo/redo）仍然工作。
+- **不要改变现有 Component 的形状，除非绝对必要。** 增删字段会破坏保存的场景和序列化。
+- **如果修改 System，先检查类似 system 的 `world.query()` 模式。** 不要发明新的 query 约定。
+
+---
+
+## 4. 目标驱动执行
+
+**定义成功标准。循环直到验证。**
+
+把任务变成可验证的目标：
+
+- "添加验证" → "为无效输入写测试，然后让它们通过"
+- "修复 bug" → "写测试复现它，然后让它通过"
+- "重构 X" → "确保测试在重构前后都通过"
+
+多步骤任务中，简要陈述计划：
 
 ```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
+1. [步骤] → 验证：[检查]
+2. [步骤] → 验证：[检查]
+3. [步骤] → 验证：[检查]
 ```
 
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+强的成功标准让你能独立循环。弱的标准（"让它工作"）需要不断澄清。
 
-### Mote-Specific
+### Mote 专属
 
-- **Graphics changes:** Success criteria must include visual verification. "The sprite renders correctly" is weak. "The sprite renders at the correct position with nearest filtering, and the pixel art is not blurred" is strong.
-- **Editor changes:** Success criteria must include interaction verification. "The panel shows data" is weak. "Clicking an entity in the hierarchy selects it, and the inspector updates within 1 frame" is strong.
-- **Performance claims:** If you optimize, measure. "Faster" is not a success criterion. "Reduces draw calls from N to M" is.
+- **图形变更：** 成功标准必须包含视觉验证。"精灵正确渲染"是弱的。"精灵在正确位置渲染，nearest 过滤，像素艺术不模糊"是强的。
+- **编辑器变更：** 成功标准必须包含交互验证。"面板显示数据"是弱的。"点击 hierarchy 中的 entity 选中它，inspector 在 1 帧内更新"是强的。
+- **性能声明：** 如果优化，要测量。"更快"不是标准。"draw call 从 N 降到 M"是。
 
 ---
 
-## 5. Hard Constraints (Never Violate)
+## 5. 硬约束（绝不违反）
 
-These are project-level invariants. Violating them creates immediate bugs.
+这些是项目级不变量。违反它们会立即产生 bug。
 
-| Constraint | Consequence of Violation |
+### ECS 运行时
+
+| 约束 | 违反后果 |
 |---|---|
-| Component `new()` must be parameterless | ECS `ComponentRegistry` fails to instantiate |
-| WebGPU + WGSL only for rendering | WebGL2 fallback is auto-generated; Canvas 2D fallback is out of scope |
-| Editor uses Preact + `@preact/signals` only | React/Vue imports break the build |
-| Undo/Redo must be pure command objects | State desync, broken undo history |
-| `dt` capped at 200ms in `GameLoop` | Tab-switch death spiral |
-| Texture filtering is `nearest` | Pixel art becomes blurry |
-| Coordinate system: top-left origin, Y down | All position math is wrong |
+| Component `new()` 必须无参 | ECS `ComponentRegistry` 无法实例化 |
+| 渲染只用 WebGPU + WGSL | WebGL2 fallback 由 `createGfxDevice()` 自动生成；Canvas 2D fallback 超出范围 |
+| `dt` 在 `GameLoop` 中上限 200ms | 标签页切换死亡螺旋 |
+| 纹理过滤默认 `nearest` | 像素艺术变模糊 |
+| 坐标系：左上角原点，Y 向下 | 所有位置计算错误 |
+
+### 编辑器数据层（新增，与 ECS 同级重要）
+
+| 约束 | 违反后果 |
+|---|---|
+| 编辑器只用 Preact + `@preact/signals` | React/Vue 导入会破坏构建 |
+| Undo/Redo 必须是纯命令对象 | 状态不同步，undo 历史损坏 |
+| **运行时-only 数据不写入文件** | 文件膨胀、跨 session 不一致、加载后引用断裂 |
+| **默认值不在 JSON 中显式出现** | 文件冗余、diff 噪音、格式不一致 |
+| **所有保存入口复用统一序列化函数** | 同一数据不同格式（如 `SceneFS.serializeScene` vs `io.sceneToJson`） |
+| 保存文件包含 `version` 字段 | 无法区分格式版本，加载失败难以诊断 |
+
+### 设计决策推翻时
+
+| 约束 | 违反后果 |
+|---|---|
+| 旧文件删除前先全局搜索引用 | 编译错误、运行时崩溃 |
+| 破坏性变更时明确是兼容还是拒绝 | 旧文件静默加载失败，数据丢失 |
+| 删除旧文件后必须编译验证 | 遗漏的引用可能在运行时触发 |
 
 ---
 
-## 6. When to Pause and Ask
+## 6. 何时停下来问
 
-Stop and ask the user before proceeding if:
+ Proceed 前先问用户，如果：
 
-- The task requires adding a new top-level module or package.
-- The task contradicts an existing pattern and a refactor seems necessary.
-- You need to modify a file marked as "orphan" or "deprecated" in AGENTS.md.
-- The task involves serialization format changes (will break saved projects).
-- You find yourself writing more than 150 lines for what seems like a simple feature.
+- 任务需要添加新的顶层模块或包。
+- 任务与现有模式矛盾，似乎需要重构。
+- 你需要修改 AGENTS.md 中标记为"孤儿"或"已废弃"的文件。
+- 任务涉及序列化格式变更（会破坏保存的项目）。
+- 你发现自己在为一个看似简单的功能写超过 150 行代码。
+- **用户明确推翻之前的设计决策**（如"entity id 不要了""编辑器只是预览器"）：列出影响面，确认清理范围。
+
+---
+
+## 7. 用户意图变更处理（新增）
+
+用户在编码中途推翻设计是常见情况（如本次"去掉 entity 持久 id""编辑器只是预览器"）。
+
+处理流程：
+
+1. **明确变更范围**：哪些类型/接口受影响？哪些文件已按旧设计实现？
+2. **列出废弃清单**：旧文件、旧函数、旧字段、旧序列化逻辑
+3. **评估清理优先级**：
+   - **必须清理**：类型定义、序列化、验证函数（否则编译或运行时出错）
+   - **尽快清理**：Store 操作、UI 组件（引用不存在的字段）
+   - **可以延后**：纯注释、文档（不影响运行）
+4. **验证无引用**：
+   ```bash
+   grep -rn "OldType\|oldFunction" src/ --include="*.ts" --include="*.tsx"
+   ```
+5. **清理后编译验证**
+
+---
+
+## 8. 常见陷阱（从本次会话总结）
+
+| 陷阱 | 场景 | 避免方式 |
+|------|------|----------|
+| 直接 `as T` 类型断言 | `const scene = json as Scene` | 用 `sceneFromJson(json)` 做运行时转换 |
+| 多处实现序列化 | `SceneFS.serializeScene` 和 `io.sceneToJson` | 所有保存入口复用 `io.ts` 的函数 |
+| 用实体数量做编号 | `count + 1` → 编号重复 | 用 `getNextEntityName` 基于最大编号 |
+| 运行时 id 写入文件 | `id` 在 `entityToJson` 中输出 | 明确标记运行时-only 字段，序列化时过滤 |
+| 不订阅 signal 导致 UI 不更新 | SceneTree 不响应笔刷绘制 | 渲染函数中读取 `sceneVersion.value` 建立订阅 |
+| 旧架构文件残留 | EntityDef/TileMap/formats 仍存在 | 推翻设计后检查废弃文件，确认无引用后删除 |

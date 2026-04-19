@@ -1,237 +1,246 @@
----
-name: mote-plan
-description: Task breakdown and execution planning for mote project features. Trigger manually when the user says "plan", "拆解任务", "任务计划", "execution plan", "milestone", or "/skill:mote-plan". Use after a design is finalized to create actionable steps.
----
+# Mote 任务拆解与执行计划
 
-# Mote Plan
-
-Task breakdown and execution planning for the mote game engine and editor. Use this skill after a design is finalized to convert architecture decisions into concrete, verifiable implementation steps.
+> 在 design 最终化后，将架构决策转化为可执行、可验证的实现步骤。
+> 触发词：plan、拆解任务、任务计划、execution plan、milestone
 
 ---
 
-## When to Use This Skill
+## 何时使用本技能
 
-- A design document or architecture decision is ready, and implementation needs to begin
-- A large feature needs to be broken into incremental deliverables
-- You need to establish milestones with clear success criteria
-- Multiple files/modules need coordinated changes
-- The user asks "怎么开始？" / "从哪下手？" / "plan this out"
-
----
-
-## Confusion Protocol
-
-When you encounter high-stakes ambiguity during planning or execution:
-- Two plausible architectures or data models for the same requirement
-- A request that contradicts existing patterns and you're unsure which to follow
-- A destructive operation where the scope is unclear
-- Missing context that would change your approach significantly
-
-**STOP.** Name the ambiguity in one sentence. Present 2-3 options with tradeoffs. Ask the user. Do not guess on architectural or data model decisions.
-
-This does NOT apply to routine coding, small features, or obvious changes.
+- 设计文档就绪，需要开始编码
+- 大功能需要拆成增量交付物
+- 需要建立里程碑与验收标准
+- 多文件/模块需要协调变更
+- 用户问"怎么开始？""从哪下手？"
 
 ---
 
-## Planning Process
+## 歧义处理协议
 
-### Phase 1: Decomposition
+遇到高风险的歧义时（两套可能的架构、与现有模式冲突、破坏性操作、关键上下文缺失）：
 
-Break the design into **atomic tasks**. An atomic task:
+**STOP。** 用一句话命名歧义。列出 2-3 个选项及利弊。问用户。不要在架构或数据模型决策上猜测。
 
-- Touches at most 2-3 files
-- Can be described in one sentence
-- Has a clear yes/no completion criterion
-- Takes roughly 15-60 minutes of focused implementation
+不适用于：常规编码、小功能、显而易见的变更。
 
-**If a task feels too big, split it.** If a task feels too small (5 minutes), batch it with a related task.
+---
 
-### Phase 2: Dependency Sorting
+## 计划流程
 
-Order tasks by dependency:
+### 阶段 1：拆解
 
-1. **Foundation first:** Data structures, types, interfaces, constants
-2. **Core logic next:** Systems, algorithms, business rules
-3. **Integration last:** Wiring, event handlers, UI connections
-4. **Polish final:** Styling, animations, edge cases, error messages
+把设计拆成**原子任务**。一个原子任务：
 
-Use this notation:
+- 最多触及 2-3 个文件
+- 能用一句话描述
+- 有明确的 yes/no 完成标准
+- 大约 15-60 分钟专注实现
 
+**如果任务太大，继续拆分。** 如果太小（5 分钟），和相关任务合并。
+
+### 阶段 2：依赖排序
+
+按依赖排序：
+
+1. **地基先行**：数据结构、类型、接口、常量
+2. **核心逻辑**：系统、算法、业务规则
+3. **集成接线**：事件绑定、UI 连接、命令串联
+4. **清理废弃**：删除旧文件、移除废弃引用、统一序列化入口
+5. **打磨**：样式、动画、边界情况、错误提示
+
+依赖标注：
 ```
-Task A → Task B     (B depends on A)
-Task C || Task D    (C and D are independent, can be parallel)
+任务 A → 任务 B      (B 依赖 A)
+任务 C || 任务 D     (C 和 D 独立，可并行)
 ```
 
-### Phase 3: Verification Definition
+### 阶段 3：验证定义
 
-For every task, define **how you will know it's done**:
+每个任务必须定义**怎么知道它做完了**：
 
-| Weak | Strong |
+| 弱的 | 强的 |
 |---|---|
-| "Implement the component" | "Create `Health.ts` with parameterless constructor, fields `current: number`, `max: number`, register in `ComponentRegistry`" |
-| "Add the system" | "Create `HealthSystem.ts` that queries `Health` components and decrements `current` each frame, respects `dt` cap" |
-| "Make the UI work" | "Inspector panel displays `Health.current` / `Health.max` as numeric inputs; modifying input updates component within 1 frame" |
-| "Fix the bug" | "Reproduce: spawn 1000 entities → before: frame time > 16ms, after: frame time < 16ms" |
+| "实现组件" | "创建 `Health.ts`，无参构造函数，字段 `current: number`、`max: number`，注册到 `ComponentRegistry`" |
+| "添加系统" | "创建 `HealthSystem.ts`，查询 `Health` 组件每帧递减 `current`，遵守 `dt` 上限" |
+| "让 UI 工作" | "Inspector 面板显示 `Health.current`/`max` 数字输入框；修改输入后 1 帧内更新组件" |
+| "修复 bug" | "复现：生成 1000 个 entity → 修复前帧时间 >16ms，修复后 <16ms" |
+| "保存正常" | "导出场景文件，人工检查：无运行时 id、无默认值冗余、所有 entity 有 name" |
 
 ---
 
-## Task Categories
+## 任务类别
 
-### 🏗️ Foundation (Data & Types)
+### 🏗️ 地基（数据与类型）
 
-- Define interfaces, types, enums
-- Create Component classes (parameterless constructor!)
-- Add constants, config objects
-- Update registries (ComponentRegistry, System registry, etc.)
+- 定义接口、类型、枚举
+- 创建 Component 类（无参构造函数！）
+- 添加常量、配置对象
+- 更新注册表（ComponentRegistry、System registry 等）
 
-**Verify:** TypeScript compiles without errors. New types are importable.
+**验证**：TypeScript 编译无错误。新类型可导入。
 
-### ⚙️ Core (Logic & Systems)
+### ⚙️ 核心（逻辑与系统）
 
-- Implement System update loops
-- Implement algorithms, utility functions
-- Add engine plugin initialization
+- 实现 System 更新循环
+- 实现算法、工具函数
+- 添加引擎插件初始化
 
-**Verify:** Unit test or manual test passes. System produces expected output for known input.
+**验证**：单元测试或手动测试通过。已知输入产生预期输出。
 
-### 🔌 Integration (Wiring)
+### 🔌 集成（接线）
 
-- Connect new system to game loop
-- Hook editor UI to engine state
-- Add event listeners / command bindings
-- Update module exports / barrel files
+- 连接新系统到游戏循环
+- 钩子：编辑器 UI ↔ 引擎状态
+- 添加事件监听 / 命令绑定
+- 更新模块导出 / barrel 文件
 
-**Verify:** End-to-end: perform the user action → observe the correct result.
+**验证**：端到端：执行用户操作 → 观察正确结果。
 
-### 🎨 UI/UX (Editor)
+### 🧹 清理（废弃与统一）
 
-- Add Preact components
-- Connect Signals to engine data
-- Implement commands (execute/undo/redo)
-- Add keyboard shortcuts
+- 删除旧架构遗留文件
+- 移除废弃引用和 import
+- 统一序列化入口（所有保存走 `io.ts`，禁止重复实现）
+- 验证无编译错误、无运行时残留
 
-**Verify:** Visual check + interaction check + undo/redo check.
+**验证**：
+- `grep` 确认旧类型/函数无引用
+- 编译零错误
+- 保存文件人工检查格式一致性
 
-### 🧪 Test & Polish
+### 🎨 UI/UX（编辑器）
 
-- Add tests for edge cases
-- Verify performance (frame time, memory)
-- Check serialization round-trip
-- Verify WebGL2 fallback works (if graphics)
+- 添加 Preact 组件
+- 连接 Signals 到引擎数据
+- 实现命令（execute/undo/redo）
+- 添加键盘快捷键
+
+**验证**：视觉检查 + 交互检查 + undo/redo 检查。
+
+### 🧪 测试与打磨
+
+- 边界情况测试
+- 性能验证（帧时间、内存）
+- 序列化往返测试
+- WebGL2 fallback 检查（如涉及图形）
 
 ---
 
-## Output Format
-
-When asked to plan something, produce:
+## 输出格式
 
 ```
-## Overview
-Total tasks: N
-Estimated phases: N
-Critical path: Task X → Task Y → Task Z
+## 概览
+总任务数：N
+预计阶段：N
+关键路径：任务 X → 任务 Y → 任务 Z
 
-## Phase 1: Foundation
-1. [Task name] → verify: [specific criterion]
-2. [Task name] → verify: [specific criterion]
+## 阶段 1：地基
+1. [任务名] → 验证：[具体标准]
+2. [任务名] → 验证：[具体标准]
 
-## Phase 2: Core Logic
-3. [Task name] → verify: [specific criterion]
+## 阶段 2：核心逻辑
+3. [任务名] → 验证：[具体标准]
 ...
 
-## Phase 3: Integration
+## 阶段 3：集成
 ...
 
-## Phase 4: Polish
+## 阶段 4：清理废弃
 ...
 
-## Risk Areas
-- [What could go wrong and how to mitigate]
+## 阶段 5：打磨
+...
 
-## Open Questions
-- [Anything that might block execution]
+## 风险区域
+- [可能出错的地方及缓解措施]
+
+## 未决问题
+- [可能阻塞执行的事项]
 ```
 
-Then save the complete plan document to the project root `plans/` directory:
+保存到项目根目录 `plans/`：
 
-### File Naming
+### 文件命名
 
 ```
-plan-{keywords}-{YYYYMMDD}.md
+plan-{关键词}-{YYYYMMDD}.md
 ```
 
-- `keywords`: 2-4 keywords describing the requirement, lowercase, hyphen-separated
-- `YYYYMMDD`: current date
+- `关键词`：2-4 个描述需求的关键词，小写，短横线分隔
+- `YYYYMMDD`：当前日期
 
-Examples:
+示例：
 - `plan-health-damage-system-20260418.md`
 - `plan-particle-renderer-webgpu-20260418.md`
-- `plan-sprite-editor-blender-layout-20260418.md`
-
-If the user hasn't provided a clear keyword summary, derive one from the requirement or ask for confirmation before saving.
-
-### Save Location
-
-Project root: `plans/` (create the directory if it doesn't exist)
 
 ---
 
-## Execution Guidelines
+## 执行指南
 
-### During Implementation
+### 编码中
 
-- **Implement one phase at a time.** Don't start Phase 2 until Phase 1 is verified.
-- **If a task reveals a design flaw, pause.** Don't patch around it. Flag it, propose a design adjustment, get confirmation.
-- **Commit after each phase.** (If using version control.)
-- **If a verification fails, debug before proceeding.** Don't "come back to it later."
+- **一次一个阶段。** 阶段 1 验证通过前不开始阶段 2。
+- **如果任务暴露设计缺陷，暂停。** 不要绕过它打补丁。标记它，提出设计调整，等确认。
+- **每阶段结束后提交。**（如果用版本控制。）
+- **验证失败就调试，不要"以后再说"。**
 
-### Handling Blockers
+### 处理阻塞
 
-If you hit an unexpected blocker:
+1. 一句话说明阻塞
+2. 列出 2-3 种解决方案及利弊
+3. 问用户选哪个
+4. 解决前不继续
 
-1. State the blocker in one sentence
-2. List 2-3 possible resolutions with tradeoffs
-3. Ask the user which to pursue
-4. Do not proceed until resolved
+### 范围蔓延防御
 
-### Scope Creep Defense
+如果编码中发现"顺便我也应该..."：
 
-If mid-implementation you discover "while I'm here, I should also...":
+- 记下来作为后续任务
+- **不要在当前任务里实现**
+- 当前计划完成后再提给用户
 
-- Write it down as a follow-up task
-- Do NOT implement it in the current task
-- Present it to the user after the current plan is complete
+### 设计演进处理（新增）
+
+本技能预设"设计最终化后再拆解"。但实际情况往往是**编码中推翻设计**（如"entity id 不要持久化""编辑器只是预览器"）。
+
+当设计在中途变更时：
+
+1. **列出影响面**：哪些文件已按旧设计实现？
+2. **标记废弃代码**：旧文件、旧函数、旧字段
+3. **新增清理任务**：删除/迁移旧代码
+4. **验证一致性**：新格式保存 → 新格式加载 → 旧文件仍可读（如果需要兼容）或拒绝加载（如果破坏性变更）
 
 ---
 
-## Example
+## 示例
 
-**Design:** Add a "Health" component and a damage system to the engine, with editor support.
-
-**Plan:**
+**设计：** 添加 Health 组件和伤害系统，编辑器支持。
 
 ```
-## Overview
-Total tasks: 7
-Estimated phases: 4
-Critical path: Define Component → Register Component → HealthSystem → Inspector Panel
+## 概览
+总任务数：7
+预计阶段：4
+关键路径：定义组件 → 注册组件 → HealthSystem → Inspector 面板
 
-## Phase 1: Foundation
-1. Create `Health.ts` component with `current`, `max` fields → verify: compiles, constructor has zero params
-2. Register `Health` in `ComponentRegistry` → verify: `world.add(entity, new Health())` works
+## 阶段 1：地基
+1. 创建 `Health.ts` 组件，`current`、`max` 字段 → 验证：编译通过，构造函数无参
+2. `ComponentRegistry` 注册 Health → 验证：`world.add(entity, new Health())` 可用
 
-## Phase 2: Core Logic
-3. Create `HealthSystem.ts` that decrements `current` when `Damage` event fired → verify: spawn entity with Health=10, apply Damage=3, Health=7
-4. Create `Damage` event type → verify: event can be emitted and consumed
+## 阶段 2：核心逻辑
+3. 创建 `HealthSystem.ts`，Damage 事件触发时递减 `current` → 验证：Health=10，Damage=3，结果 7
+4. 创建 `Damage` 事件类型 → 验证：可 emit 和 consume
 
-## Phase 3: Integration
-5. Add `HealthSystem` to engine system list → verify: system runs each frame
-6. Add Health inspector panel in editor → verify: selecting entity shows current/max, editable
+## 阶段 3：集成
+5. HealthSystem 加入引擎系统列表 → 验证：每帧运行
+6. 编辑器 Inspector 添加 Health 面板 → 验证：选中 entity 显示 current/max，可编辑
 
-## Phase 4: Polish
-7. Add undo/redo for health edits → verify: modify health → undo → redo, values correct
+## 阶段 4：清理（如旧系统存在）
+7. 删除旧的生命值字段 → 验证：编译零错误，旧引用清零
 
-## Risk Areas
-- Damage event delivery: if event system doesn't exist, need to create it first (new foundation task)
-- Inspector panel may need numeric input component; check if one exists in shared-ui
+## 阶段 5：打磨
+8. Health 编辑支持 undo/redo → 验证：修改 → undo → redo，数值正确
+
+## 风险区域
+- Damage 事件分发：如果事件系统不存在，需要先创建它（新增地基任务）
+- Inspector 可能需要数字输入组件；检查 shared-ui 中是否已有
 ```

@@ -6,7 +6,7 @@
 import type { Command } from "../store/history";
 import { currentScene, bumpVersion } from "../store/scene";
 import type { SceneEntity } from "../data/Scene";
-import { createSceneEntity } from "../data/Scene";
+import { createSceneEntity, cloneEntity } from "../data/Scene";
 
 // ═══════════════════════════════════════════════════════════════
 // AddEntityCommand - 添加实体
@@ -119,29 +119,46 @@ export class MoveEntityCommand implements Command {
 // MoveEntitiesCommand - 批量移动实体（用于框选移动）
 // ═══════════════════════════════════════════════════════════════
 
+export interface MoveRecord {
+  id: string;
+  oldX: number;
+  oldY: number;
+  newX: number;
+  newY: number;
+}
+
 export class MoveEntitiesCommand implements Command {
   readonly label = "移动实体";
-  private moves: Array<{
-    id: string;
-    oldX: number;
-    oldY: number;
-    newX: number;
-    newY: number;
-  }>;
+  private moves: MoveRecord[];
 
-  constructor(entityIds: string[], deltaX: number, deltaY: number) {
-    const scene = currentScene.value;
-    this.moves = [];
-    for (const id of entityIds) {
-      const entity = scene?.entities.find(e => e.id === id);
-      if (entity) {
-        this.moves.push({
-          id,
-          oldX: entity.transform.x,
-          oldY: entity.transform.y,
-          newX: entity.transform.x + deltaX,
-          newY: entity.transform.y + deltaY
-        });
+  /** 从明确的 old/new 位置构造（推荐：拖拽结束时的精确位置） */
+  constructor(moves: MoveRecord[]);
+  /** 从 delta 偏移构造（旧方式：构造函数时读取当前场景状态） */
+  constructor(entityIds: string[], deltaX: number, deltaY: number);
+  constructor(
+    arg1: MoveRecord[] | string[],
+    deltaX?: number,
+    deltaY?: number,
+  ) {
+    if (Array.isArray(arg1) && arg1.length > 0 && typeof arg1[0] !== 'string') {
+      // 直接传入 MoveRecord 数组
+      this.moves = arg1 as MoveRecord[];
+    } else {
+      // 从 delta 构造（旧方式）
+      const entityIds = arg1 as string[];
+      const scene = currentScene.value;
+      this.moves = [];
+      for (const id of entityIds) {
+        const entity = scene?.entities.find(e => e.id === id);
+        if (entity) {
+          this.moves.push({
+            id,
+            oldX: entity.transform.x,
+            oldY: entity.transform.y,
+            newX: entity.transform.x + (deltaX ?? 0),
+            newY: entity.transform.y + (deltaY ?? 0),
+          });
+        }
       }
     }
   }
@@ -165,6 +182,45 @@ export class MoveEntitiesCommand implements Command {
       }
     }
     bumpVersion();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DuplicateEntitiesCommand - 批量复制实体（Blender Shift+D）
+// ═══════════════════════════════════════════════════════════════
+
+export class DuplicateEntitiesCommand implements Command {
+  readonly label = "复制实体";
+  private clones: SceneEntity[];
+
+  constructor(entities: SceneEntity[]) {
+    // 克隆每个实体，赋予新 ID
+    this.clones = entities.map(e => cloneEntity(e));
+  }
+
+  execute(): void {
+    const scene = currentScene.value;
+    if (!scene) return;
+    for (const clone of this.clones) {
+      scene.entities.push(clone);
+    }
+    bumpVersion();
+  }
+
+  undo(): void {
+    const scene = currentScene.value;
+    if (!scene) return;
+    const cloneIds = new Set(this.clones.map(c => c.id));
+    scene.entities = scene.entities.filter(e => !cloneIds.has(e.id));
+    bumpVersion();
+  }
+
+  getCloneIds(): string[] {
+    return this.clones.map(c => c.id);
+  }
+
+  getClones(): SceneEntity[] {
+    return this.clones;
   }
 }
 

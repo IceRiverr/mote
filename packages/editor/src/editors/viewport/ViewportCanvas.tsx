@@ -8,10 +8,11 @@ import {
   currentScene,
   sceneVersion,
   selectedEntityIds,
+  lastSelectedEntityId,
   selectEntity,
+  toggleEntitySelection,
   selectEntitiesInRect,
   clearSelection,
-  moveEntity,
   gridSettings,
   snapEnabled,
   findEntityAt,
@@ -46,7 +47,7 @@ import {
   BrushMode,
 } from "../../store/brush";
 import type { SceneEntity } from "../../data/Scene";
-import { createSceneEntity, getNextEntityName } from "../../data/Scene";
+import { createSceneEntity, getNextEntityName, snapToSize } from "../../data/Scene";
 import { derivePrefabId } from "../../data/Prefab";
 import { resolveEntitySprite, getEntityDisplaySize } from "../../utils/entitySprite";
 
@@ -84,6 +85,8 @@ import {
 import {
   MoveEntitiesCommand,
   RemoveEntityCommand,
+  DuplicateEntitiesCommand,
+  type MoveRecord,
 } from "../../commands";
 import {
   PaintBrushCommand,
@@ -165,7 +168,7 @@ export function ViewportCanvas() {
   // 当前 stroke 的 Command（用于移动操作）
   // ═══════════════════════════════════════════════════════════════
   
-  const moveCommandRef = useRef<MoveEntitiesCommand | null>(null);
+
   
   /** 记录最后一次鼠标位置（屏幕坐标），用于 Shift+A 菜单位置 */
   const lastMousePosRef = useRef<{ x: number; y: number } | null>(null);
@@ -301,7 +304,9 @@ export function ViewportCanvas() {
       });
     
     for (const entity of sortedEntities) {
-      drawEntity(ctx, entity, selectedEntityIds.value.has(entity.id));
+      const isSelected = selectedEntityIds.value.has(entity.id);
+      const isLastSelected = isSelected && lastSelectedEntityId.value === entity.id;
+      drawEntity(ctx, entity, isSelected, isLastSelected);
     }
 
     // 6. 笔刷预览
@@ -561,7 +566,7 @@ export function ViewportCanvas() {
   // 绘制 Entity
   // ═══════════════════════════════════════════════════════════════
 
-  function drawEntity(ctx: CanvasRenderingContext2D, entity: SceneEntity, isSelected: boolean) {
+  function drawEntity(ctx: CanvasRenderingContext2D, entity: SceneEntity, isSelected: boolean, isLastSelected: boolean) {
     const prefab = getPrefab(entity.prefab);
     if (!prefab) return;
 
@@ -614,19 +619,35 @@ export function ViewportCanvas() {
       }
     }
 
-    // 绘制选中框（精确匹配精灵尺寸）
+    // 绘制选中框（恰好贴合精灵尺寸 + 多选视觉层级）
     if (isSelected) {
-      const selW = displaySize.w;
-      const selH = displaySize.h;
-      ctx.strokeStyle = "#f4a742"; // 橙色（设计文档标准）
-      ctx.lineWidth = 2 / cam.zoom;
-      ctx.strokeRect(-selW / 2 - 1, -selH / 2 - 1, selW + 2, selH + 2);
+      // 使用精灵实际绘制的尺寸（与 drawImage 一致）
+      const selW = resolved.frame ? resolved.frame.w : displaySize.w;
+      const selH = resolved.frame ? resolved.frame.h : displaySize.h;
 
-      // 轴心点
-      ctx.fillStyle = "#f4a742";
-      ctx.beginPath();
-      ctx.arc(0, 0, 3 / cam.zoom, 0, Math.PI * 2);
-      ctx.fill();
+      if (isLastSelected) {
+        // 活动选择项：最亮橙色，2px
+        ctx.strokeStyle = "#ffbb5c";
+        ctx.lineWidth = 2 / cam.zoom;
+        ctx.strokeRect(-selW / 2, -selH / 2, selW, selH);
+
+        // 轴心点
+        ctx.fillStyle = "#ffbb5c";
+        ctx.beginPath();
+        ctx.arc(0, 0, 3 / cam.zoom, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // 非活动选择项：较深橙色，1px
+        ctx.strokeStyle = "#c4802a";
+        ctx.lineWidth = 1 / cam.zoom;
+        ctx.strokeRect(-selW / 2, -selH / 2, selW, selH);
+
+        // 轴心点（更小更淡）
+        ctx.fillStyle = "#c4802a";
+        ctx.beginPath();
+        ctx.arc(0, 0, 2 / cam.zoom, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     ctx.restore();
@@ -831,32 +852,58 @@ export function ViewportCanvas() {
             break;
         }
       } else {
-        // entity 模式：select / move 行为一致（Blender 风格）
+        // entity 模式
+        const et = entityTool.value;
         const clickedEntity = findEntityAt(worldPos.x, worldPos.y, 16);
 
-        if (clickedEntity) {
-          if (!e.ctrlKey) {
-            selectEntity(clickedEntity.id);
+        if (et === "move") {
+          // move 工具：无论点击哪里，只要有选中的实体就直接移动
+          if (selectedEntityIds.value.size > 0) {
+            isMovingEntity.value = true;
+            moveStart.value = worldPos;
+            moveEntitiesStart.value = new Map(
+              Array.from(selectedEntityIds.value).map(id => {
+                const entity = getEntity(id);
+                const t = entity ? entity.transform : { x: 0, y: 0 };
+                return [id, { x: t.x, y: t.y }];
+              })
+            );
           }
-
-          isMovingEntity.value = true;
-          moveStart.value = worldPos;
-          moveEntitiesStart.value = new Map(
-            selectedEntityIds.value.size > 0
-              ? Array.from(selectedEntityIds.value).map(id => {
-                  const entity = getEntity(id);
-                  const t = entity ? entity.transform : { x: 0, y: 0 };
-                  return [id, { x: t.x, y: t.y }];
-                })
-              : [[clickedEntity.id, { x: clickedEntity.transform.x, y: clickedEntity.transform.y }]]
-          );
+          // 点击空白且无选中：什么都不做
+          draw();
         } else {
-          if (!e.ctrlKey) clearSelection();
-          isBoxSelecting.value = true;
-          boxSelectStart.value = worldPos;
-          boxSelectCurrent.value = worldPos;
+          // select 工具（Blender 风格）
+          // 点击实体 = 选中 + 准备移动
+          // 点击空白 = 框选
+          if (clickedEntity) {
+            if (e.ctrlKey) {
+              toggleEntitySelection(clickedEntity.id);
+            } else if (!selectedEntityIds.value.has(clickedEntity.id)) {
+              // 点击未选中的实体：单选它
+              selectEntity(clickedEntity.id);
+            } else {
+              // 点击已选中的实体：保持多选，只更新活动项
+              lastSelectedEntityId.value = clickedEntity.id;
+            }
+
+            // 准备移动（所有已选实体）
+            isMovingEntity.value = true;
+            moveStart.value = worldPos;
+            moveEntitiesStart.value = new Map(
+              Array.from(selectedEntityIds.value).map(id => {
+                const entity = getEntity(id);
+                const t = entity ? entity.transform : { x: 0, y: 0 };
+                return [id, { x: t.x, y: t.y }];
+              })
+            );
+          } else {
+            if (!e.ctrlKey) clearSelection();
+            isBoxSelecting.value = true;
+            boxSelectStart.value = worldPos;
+            boxSelectCurrent.value = worldPos;
+          }
+          draw();
         }
-        draw();
       }
     }
   };
@@ -896,13 +943,27 @@ export function ViewportCanvas() {
       return;
     }
 
-    // 移动 Entity
+    // 移动 Entity（直接设置 transform，实时吸附）
     if (isMovingEntity.value && moveStart.value) {
       const dx = worldPos.x - moveStart.value.x;
       const dy = worldPos.y - moveStart.value.y;
+      const snapSize =
+        snapEnabled.value && scene.grid.snap
+          ? scene.grid.snapSize ?? scene.grid.size
+          : null;
 
       for (const [id, startPos] of moveEntitiesStart.value) {
-        moveEntity(id, startPos.x + dx, startPos.y + dy);
+        let nx = startPos.x + dx;
+        let ny = startPos.y + dy;
+        if (snapSize !== null) {
+          const s = snapToSize(nx, ny, snapSize);
+          nx = s.x;
+          ny = s.y;
+        }
+        const entity = getEntity(id);
+        if (entity) {
+          entity.transform = { ...entity.transform, x: nx, y: ny };
+        }
       }
       draw();
       return;
@@ -955,31 +1016,31 @@ export function ViewportCanvas() {
 
     // 结束移动 - 提交 MoveEntitiesCommand
     if (isMovingEntity.value && moveStart.value) {
-      const worldPos = screenToWorld(e.clientX, e.clientY, rect);
-      const dx = worldPos.x - moveStart.value.x;
-      const dy = worldPos.y - moveStart.value.y;
-      
-      // 只有真正移动了才提交命令
-      if (dx !== 0 || dy !== 0) {
-        const entityIds = Array.from(moveEntitiesStart.value.keys());
-        
-        // 先恢复原位（因为实时预览已经 mutate 了数据）
-        for (const [id, startPos] of moveEntitiesStart.value) {
-          const entity = getEntity(id);
-          if (entity) {
-            entity.transform = { ...entity.transform, x: startPos.x, y: startPos.y };
-          }
+      const moves: MoveRecord[] = [];
+      for (const [id, startPos] of moveEntitiesStart.value) {
+        const entity = getEntity(id);
+        if (entity) {
+          moves.push({
+            id,
+            oldX: startPos.x,
+            oldY: startPos.y,
+            newX: entity.transform.x,
+            newY: entity.transform.y,
+          });
         }
-        
-        // 提交 Command（会再次执行到目标位置）
-        executeCommand(new MoveEntitiesCommand(entityIds, dx, dy));
+      }
+
+      // 只有真正移动了才提交命令
+      const hasMoved = moves.some((m) => m.oldX !== m.newX || m.oldY !== m.newY);
+      if (hasMoved) {
+        executeCommand(new MoveEntitiesCommand(moves));
         draw();
       }
-      
+
       isMovingEntity.value = false;
       moveStart.value = null;
       moveEntitiesStart.value = new Map();
-      moveCommandRef.current = null;
+
       return;
     }
     
@@ -1124,6 +1185,83 @@ export function ViewportCanvas() {
         return;
       }
       
+      // Shift+D: 复制选中实体（Blender 风格）
+      if (e.shiftKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        const selectedIds = Array.from(selectedEntityIds.value);
+        if (selectedIds.length === 0) return;
+
+        const scene = currentScene.value;
+        if (!scene) return;
+
+        const entities = selectedIds
+          .map(id => scene.entities.find(e => e.id === id))
+          .filter((e): e is SceneEntity => !!e);
+
+        if (entities.length === 0) return;
+
+        const cmd = new DuplicateEntitiesCommand(entities);
+        executeCommand(cmd);
+
+        // 选中新克隆的实体
+        const cloneIds = cmd.getCloneIds();
+        selectedEntityIds.value = new Set(cloneIds);
+        lastSelectedEntityId.value = cloneIds[cloneIds.length - 1] ?? null;
+
+        // 计算鼠标世界位置（用于将克隆体整体偏移到鼠标附近）
+        const container = containerRef.current;
+        let mouseWorldPos = { x: 0, y: 0 };
+        if (container && lastMousePosRef.current) {
+          const rect = container.getBoundingClientRect();
+          mouseWorldPos = screenToWorld(
+            lastMousePosRef.current.x,
+            lastMousePosRef.current.y,
+            rect
+          );
+        }
+
+        // 将克隆体整体偏移到鼠标附近（保持相对位置）
+        const firstOld = entities[0].transform;
+        let targetX = mouseWorldPos.x;
+        let targetY = mouseWorldPos.y;
+        // 考虑吸附
+        const snapSize =
+          snapEnabled.value && scene.grid.snap
+            ? scene.grid.snapSize ?? scene.grid.size
+            : null;
+        if (snapSize !== null) {
+          const s = snapToSize(targetX, targetY, snapSize);
+          targetX = s.x;
+          targetY = s.y;
+        }
+        const offsetX = targetX - firstOld.x;
+        const offsetY = targetY - firstOld.y;
+
+        for (const id of cloneIds) {
+          const entity = getEntity(id);
+          if (entity) {
+            entity.transform = {
+              ...entity.transform,
+              x: entity.transform.x + offsetX,
+              y: entity.transform.y + offsetY,
+            };
+          }
+        }
+
+        // 立即进入移动模式（以鼠标为锚点，克隆体跟随鼠标）
+        isMovingEntity.value = true;
+        moveStart.value = { x: targetX, y: targetY };
+        moveEntitiesStart.value = new Map(
+          cloneIds.map(id => {
+            const entity = getEntity(id);
+            return [id, { x: entity?.transform.x ?? 0, y: entity?.transform.y ?? 0 }];
+          })
+        );
+
+        draw();
+        return;
+      }
+
       // Delete: 删除选中
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();

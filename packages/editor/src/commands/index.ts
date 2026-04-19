@@ -8,7 +8,9 @@ export {
   MoveEntityCommand,
   MoveEntitiesCommand,
   UpdateEntityCommand,
+  DuplicateEntitiesCommand,
 } from './scene-commands';
+export type { MoveRecord } from './scene-commands';
 
 export {
   PaintBrushCommand,

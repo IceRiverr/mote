@@ -21,6 +21,9 @@ export const sceneVersion = signal(0);
 /** 选中的实体 ID 集合 */
 export const selectedEntityIds = signal<Set<string>>(new Set());
 
+/** 最后选中的实体 ID（活动选择项，用于多选时的视觉层级） */
+export const lastSelectedEntityId = signal<string | null>(null);
+
 /** 当前悬停的实体 ID */
 export const hoveredEntityId = signal<string | null>(null);
 
@@ -258,6 +261,7 @@ export function moveEntity(entityId: string, x: number, y: number): boolean {
  */
 export function selectEntity(entityId: string): void {
   selectedEntityIds.value = new Set([entityId]);
+  lastSelectedEntityId.value = entityId;
 }
 
 /**
@@ -280,6 +284,7 @@ export function addToSelection(entityId: string): void {
   const newSet = new Set(selectedEntityIds.value);
   newSet.add(entityId);
   selectedEntityIds.value = newSet;
+  lastSelectedEntityId.value = entityId;
 }
 
 /**
@@ -300,6 +305,7 @@ export function selectEntitiesInRect(x1: number, y1: number, x2: number, y2: num
     .map(e => e.id);
   
   selectedEntityIds.value = new Set(ids);
+  lastSelectedEntityId.value = ids[ids.length - 1] ?? null;
   bumpVersion();
 }
 
@@ -308,6 +314,7 @@ export function selectEntitiesInRect(x1: number, y1: number, x2: number, y2: num
  */
 export function clearSelection(): void {
   selectedEntityIds.value = new Set();
+  lastSelectedEntityId.value = null;
 }
 
 /**

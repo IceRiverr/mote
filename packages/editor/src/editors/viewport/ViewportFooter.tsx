@@ -7,7 +7,7 @@ import {
   viewportZoomLocked,
   showGrid,
 } from "../../store/selection";
-import { selectedEntityIds, currentScene } from "../../store/scene";
+import { selectedEntityIds, currentScene, snapEnabled, toggleSnap } from "../../store/scene";
 import { canUndo, canRedo, undoLabel, redoLabel, undo, redo } from "../../store/history";
 import { editModeLabel, activeToolLabel } from "../../store/viewport-mode";
 import { hoverWorldPos } from "../../store/viewport";
@@ -17,9 +17,13 @@ export function ViewportFooter() {
   const tile = hoverTile.value;
   const locked = viewportZoomLocked.value;
   const gridOn = showGrid.value;
+  const snapOn = snapEnabled.value;
   const selectedCount = selectedEntityIds.value.size;
   const scene = currentScene.value;
   const entityCount = scene?.entities.length ?? 0;
+
+  const snapSizes = [1, 2, 4, 8, 16, 32, 64];
+  const currentSnapSize = scene?.grid.snapSize ?? scene?.grid.size ?? 32;
 
   return (
     <div
@@ -97,6 +101,61 @@ export function ViewportFooter() {
       <span>·</span>
       <span>{activeToolLabel.value}</span>
 
+      {/* Snap toggle */}
+      <button
+        onClick={() => toggleSnap()}
+        title={snapOn ? "禁用吸附" : "启用吸附"}
+        style={{
+          fontSize: 10,
+          padding: "0 5px",
+          height: 16,
+          border: "1px solid var(--border)",
+          borderRadius: 2,
+          background: snapOn ? "rgba(244, 167, 66, 0.25)" : "transparent",
+          color: snapOn ? "var(--text)" : "var(--text-secondary)",
+          cursor: "pointer",
+          opacity: snapOn ? 1 : 0.5,
+          display: "flex",
+          alignItems: "center",
+          gap: 3,
+        }}
+      >
+        <span style={{ fontFamily: "monospace", fontWeight: "bold" }}>🧲</span>
+        <span>{snapOn ? "Snap" : "Free"}</span>
+      </button>
+
+      {/* Snap size dropdown */}
+      {snapOn && scene && (
+        <select
+          value={currentSnapSize}
+          onChange={(e) => {
+            const size = parseInt((e.target as HTMLSelectElement).value, 10);
+            if (scene) {
+              currentScene.value = {
+                ...scene,
+                grid: { ...scene.grid, snapSize: size },
+              };
+            }
+          }}
+          title="吸附增量"
+          style={{
+            fontSize: 10,
+            height: 16,
+            padding: "0 2px",
+            border: "1px solid var(--border)",
+            borderRadius: 2,
+            background: "transparent",
+            color: "var(--text-secondary)",
+            cursor: "pointer",
+            outline: "none",
+          }}
+        >
+          {snapSizes.map((size) => (
+            <option key={size} value={size}>{size}px</option>
+          ))}
+        </select>
+      )}
+
       {/* Grid toggle */}
       <button
         onClick={() => { showGrid.value = !showGrid.value; }}
@@ -117,7 +176,7 @@ export function ViewportFooter() {
         }}
       >
         <span style={{ fontFamily: "monospace", fontWeight: "bold" }}>#</span>
-        <span>{gridOn ? "Grid: On" : "Grid: Off"}</span>
+        <span>{gridOn ? "Grid" : "No Grid"}</span>
       </button>
 
       <div style={{ flex: 1 }} />

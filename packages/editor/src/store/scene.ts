@@ -4,7 +4,7 @@
 
 import { signal, computed } from '@preact/signals';
 import type { Scene, SceneEntity, GridSettings } from '../data/Scene';
-import { createScene, createSceneEntity, snapToGrid, getNextEntityName } from '../data/Scene';
+import { createScene, createSceneEntity, snapToGrid, snapToSize, getNextEntityName } from '../data/Scene';
 import { registerPrefabInstance, unregisterPrefabInstance, prefabInstanceMap } from './engineSync';
 import { derivePrefabId } from '../data/Prefab';
 
@@ -152,9 +152,10 @@ export function spawnPrefab(
     ? derivePrefabId(prefabIdOrPath)
     : prefabIdOrPath;
 
-  // 网格吸附
+  // 网格吸附（使用独立的 snapSize，默认回退到 grid.size）
   if (snapEnabled.value && currentScene.value.grid.snap) {
-    const snapped = snapToGrid(x, y, currentScene.value.grid.size);
+    const snapSize = currentScene.value.grid.snapSize ?? currentScene.value.grid.size;
+    const snapped = snapToSize(x, y, snapSize);
     x = snapped.x;
     y = snapped.y;
   }
@@ -232,13 +233,14 @@ export function updateEntity(entityId: string, updates: Partial<SceneEntity>): b
 export function moveEntity(entityId: string, x: number, y: number): boolean {
   if (!currentScene.value) return false;
   
-  // 网格吸附
+  // 网格吸附（使用独立的 snapSize，默认回退到 grid.size）
   if (snapEnabled.value && currentScene.value.grid.snap) {
-    const snapped = snapToGrid(x, y, currentScene.value.grid.size);
+    const snapSize = currentScene.value.grid.snapSize ?? currentScene.value.grid.size;
+    const snapped = snapToSize(x, y, snapSize);
     x = snapped.x;
     y = snapped.y;
   }
-  
+
   const entity = currentScene.value.entities.find(e => e.id === entityId);
   if (!entity) return false;
   

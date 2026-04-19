@@ -1,6 +1,6 @@
 ---
 name: mote-guidelines
-description: 当用户要求编码、审查、重构、添加功能、修复 bug、技术选型或设计决策时触发。mote 项目（ECS 游戏引擎 + Preact 编辑器）的编码行为指南。涉及 ECS、WebGPU/WGSL、Preact、@preact/signals、序列化、命令模式、undo/redo、资源引用、状态管理时优先引用。
+description: 当用户要求编码、审查、重构、添加功能、继续某个功能开发、修复 bug、技术选型或设计决策时触发。mote 项目（ECS 游戏引擎 + Preact 编辑器）的编码行为指南。涉及 ECS、WebGPU/WGSL、Preact、@preact/signals、序列化、命令模式、undo/redo、资源引用、状态管理时优先引用。
 ---
 
 # Mote 编码行为指南

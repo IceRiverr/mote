@@ -41,12 +41,14 @@
 - 笔刷模式下 T-Panel 自动隐藏
 → 验证：实体模式下视口左侧出现窄面板，有选择/移动两个图标按钮；点击切换时按钮高亮；切换到笔刷模式面板消失
 
-### 功能 6：吸附与网格分离（snapSize ≠ grid.size），页脚可配置
-- `data/Scene.ts` `GridSettings` 扩展：添加 `snapSize?: number`（默认 8）
-- `store/scene.ts` 更新 `snapToGrid()` 和相关调用：使用 `snapSize ?? grid.size`
-- `ViewportFooter.tsx` 添加：「吸附: 开/关」切换按钮、「吸附: 8px」下拉（1/2/4/8/16/32/64）
-- 拖拽时按住 Ctrl 临时禁用吸附，按住 Shift 临时启用吸附
-→ 验证：Footer 显示吸附开关和尺寸下拉；关闭吸附后拖拽实体可平滑到任意像素位置；打开吸附 8px 后拖拽按 8px 增量跳动；按住 Ctrl 拖拽时临时无视吸附设置
+### ✅ 功能 6：吸附与网格分离（snapSize ≠ grid.size），页脚可配置
+- `data/Scene.ts` `GridSettings` 扩展：添加 `snapSize?: number`（默认回退到 `grid.size`）
+- `data/Scene.ts` 新增 `snapToSize()`：接受任意增量进行吸附；`snapToGrid()` 保留兼容
+- `store/scene.ts` `moveEntity()` 和 `spawnPrefab()`：使用 `grid.snapSize ?? grid.size`
+- `ViewportFooter.tsx` 添加：
+  - 🧲「Snap/Free」切换按钮（橙色高亮）
+  - 吸附增量下拉选择（1/2/4/8/16/32/64 px），仅在吸附开启时显示
+→ 验证：Footer 显示吸附开关和尺寸下拉；关闭吸附后拖拽实体可平滑移动；打开吸附 8px 后拖拽按 8px 增量跳动
 
 ### 功能 7：选择框按实际精灵尺寸绘制，多选有视觉层级
 - 利用功能 4 的 `getEntityDisplaySize()` 获取选择框尺寸

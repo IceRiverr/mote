@@ -59,11 +59,14 @@ export interface GridSettings {
   /** 是否启用网格 */
   enabled: boolean;
 
-  /** 网格大小（像素） */
+  /** 网格大小（像素）—— 视觉网格线间距 */
   size: number;
 
   /** 是否吸附到网格 */
   snap: boolean;
+
+  /** 吸附增量（像素）—— 默认等于 grid.size */
+  snapSize?: number;
 
   /** 网格颜色（CSS 颜色） */
   color?: string;
@@ -303,16 +306,28 @@ export function gridToWorld(
 }
 
 /**
- * 将世界坐标对齐到网格
+ * 将世界坐标对齐到网格（使用网格大小）
+ * @deprecated 使用 snapToSize 以支持独立的 snapSize
  */
 export function snapToGrid(
   worldX: number,
   worldY: number,
   gridSize: number
 ): { x: number; y: number } {
+  return snapToSize(worldX, worldY, gridSize);
+}
+
+/**
+ * 将世界坐标对齐到指定增量
+ */
+export function snapToSize(
+  worldX: number,
+  worldY: number,
+  snapSize: number
+): { x: number; y: number } {
   return {
-    x: Math.round(worldX / gridSize) * gridSize,
-    y: Math.round(worldY / gridSize) * gridSize,
+    x: Math.round(worldX / snapSize) * snapSize,
+    y: Math.round(worldY / snapSize) * snapSize,
   };
 }
 

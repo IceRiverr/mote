@@ -568,3 +568,20 @@ export function getAssetIcon(type: AssetType): string {
     default: return '📄';
   }
 }
+
+/**
+ * 获取类型对应的本地化标签
+ */
+export function getAssetTypeLabel(type: AssetType): string {
+  switch (type) {
+    case 'folder': return '文件夹';
+    case 'image': return '图片';
+    case 'sprite': return '精灵图';
+    case 'prefab': return '预制体';
+    case 'scene': return '场景';
+    case 'tilemap': return '地图';
+    case 'script': return '脚本';
+    case 'audio': return '音频';
+    default: return '文件';
+  }
+}

@@ -100,8 +100,8 @@ function GridView({
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
-        gap: '4px',
+        gridTemplateColumns: 'repeat(auto-fill, 72px)',
+        gap: '6px',
         padding: '8px',
         overflow: 'auto',
         height: '100%',

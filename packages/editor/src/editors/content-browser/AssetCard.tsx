@@ -5,6 +5,8 @@
 import type { AssetNode } from '../../store/contentBrowser';
 import { getAssetIcon } from '../../store/contentBrowser';
 import { getPrefab } from '../../store/prefabs';
+import { derivePrefabId } from '../../data/Prefab';
+import { PrefabThumbnail } from '../prefab-preview/PrefabThumbnail';
 
 interface AssetCardProps {
   asset: AssetNode;
@@ -24,7 +26,8 @@ export function AssetCard({
   const icon = getAssetIcon(asset.type);
 
   // Prefab 特殊处理：尝试从 store 获取 Prefab 数据
-  const prefab = asset.type === 'prefab' ? getPrefab(asset.path) : null;
+  // getPrefab 需要 PrefabId（derivePrefabId 结果），不是文件路径
+  const prefab = asset.type === 'prefab' ? getPrefab(derivePrefabId(asset.path)) : null;
   const hasSprite = prefab?.components.Sprite;
   const displayName = prefab?.name || asset.name;
 
@@ -77,10 +80,8 @@ export function AssetCard({
           boxShadow: isSelected ? '0 0 8px rgba(74, 144, 217, 0.5)' : 'none',
         }}
       >
-        {asset.type === 'prefab' ? (
-          <span style={{ fontSize: '24px', opacity: isSelected ? 1 : 0.7 }}>
-            {hasSprite ? '🎨' : '📦'}
-          </span>
+        {asset.type === 'prefab' && prefab && hasSprite ? (
+          <PrefabThumbnail prefab={prefab} size={48} />
         ) : (
           <span style={{ fontSize: '24px' }}>{icon}</span>
         )}

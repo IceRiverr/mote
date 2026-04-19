@@ -13,6 +13,7 @@ interface PrefabThumbnailProps {
 
 export function PrefabThumbnail({ prefab, size = 80 }: PrefabThumbnailProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dimRef = useRef({ w: 0, h: 0 });
   const sprite = prefab.components.Sprite;
 
   useEffect(() => {
@@ -40,17 +41,21 @@ export function PrefabThumbnail({ prefab, size = 80 }: PrefabThumbnailProps) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // 设置 canvas 尺寸为帧尺寸（但限制最大 size）
-    const scale = Math.min(size / frame.w, size / frame.h, 1);
-    const drawW = frame.w * scale;
-    const drawH = frame.h * scale;
+    // 设置 canvas 尺寸：小精灵放大、大精灵缩小，始终适配容器
+    const scale = Math.min(size / frame.w, size / frame.h);
+    const drawW = Math.round(frame.w * scale);
+    const drawH = Math.round(frame.h * scale);
 
-    canvas.width = Math.round(drawW);
-    canvas.height = Math.round(drawH);
+    canvas.width = drawW;
+    canvas.height = drawH;
+    dimRef.current = { w: drawW, h: drawH };
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 绘制帧区域
+    // 像素风：禁用平滑过滤
+    ctx.imageSmoothingEnabled = false;
+
+    // 绘制帧区域（使用整数坐标避免子像素模糊）
     ctx.drawImage(
       img,
       frame.x,
@@ -74,13 +79,17 @@ export function PrefabThumbnail({ prefab, size = 80 }: PrefabThumbnailProps) {
     if (sheet && frame) {
       const img = spriteSheetImages.value.get(sheet.id);
       if (img?.complete) {
+        // 复用 useEffect 中已计算的尺寸，确保 canvas 内部像素和 CSS 显示像素 1:1 对齐
+        const { w, h } = dimRef.current;
+        const styleW = w || Math.round(frame.w * Math.min(size / frame.w, size / frame.h));
+        const styleH = h || Math.round(frame.h * Math.min(size / frame.w, size / frame.h));
         return (
           <canvas
             ref={canvasRef}
             style={{
               imageRendering: 'pixelated',
-              maxWidth: size,
-              maxHeight: size,
+              width: styleW,
+              height: styleH,
             }}
             title={`${atlas}:${frameId} (${frame.w}×${frame.h})`}
           />

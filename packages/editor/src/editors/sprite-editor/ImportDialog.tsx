@@ -14,6 +14,7 @@ import {
 import { isFileSystemAccessSupported } from '../../data/fs-access';
 import { addSpriteSheet } from '../../store/spriteSheet';
 import { createGridSpriteSheet } from '../../data/SpriteSheet';
+import { ENGINE_VERSION } from '@mote/engine/core/version';
 
 type ImportMode = 'tilesheet' | 'packed' | 'xml' | 'loose' | 'mote';
 
@@ -455,7 +456,7 @@ export function ImportDialog({ onClose }: Props) {
       }
       
       // Warn about version mismatch (but still try to load)
-      if (jsonRaw.version && jsonRaw.version !== '1.0.0') {
+      if (jsonRaw.version && jsonRaw.version !== ENGINE_VERSION) {
         console.warn(`文件版本 ${jsonRaw.version} 可能与当前编辑器不兼容`);
       }
       
@@ -495,7 +496,7 @@ export function ImportDialog({ onClose }: Props) {
       const { spriteSheetFromJson } = await import('../../data/io');
       const sheet = spriteSheetFromJson({
         type: 'mote-sprite',
-        version: '1.0.0',
+        version: ENGINE_VERSION,
         id: jsonData.id,
         name: jsonData.name,
         image: imageFile.name,

@@ -4,6 +4,7 @@
 
 import { useState } from "preact/hooks";
 import type { Prefab } from "../../data/Prefab";
+import { derivePrefabId } from "../../data/Prefab";
 import { PrefabCard } from "./PrefabCard";
 import { spawnPrefab } from "../../store/scene";
 import { activePrefabPath } from "../../store/brush";
@@ -87,7 +88,8 @@ export function PrefabCategory({
               isActive={activePrefabPath.value === path}
               onDoubleClick={() => {
                 // 双击在场景中心创建
-                spawnPrefab(path, 320, 240);
+                const prefabId = derivePrefabId(path);
+                spawnPrefab(prefabId, 320, 240);
               }}
               onContextMenu={(e) => {
                 e.preventDefault();

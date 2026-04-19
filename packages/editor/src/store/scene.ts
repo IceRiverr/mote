@@ -4,7 +4,9 @@
 
 import { signal, computed } from '@preact/signals';
 import type { Scene, SceneEntity, GridSettings } from '../data/Scene';
-import { createScene, createSceneEntity, snapToGrid, getEntityTransform, setEntityTransform } from '../data/Scene';
+import { createScene, createSceneEntity, snapToGrid, getNextEntityName } from '../data/Scene';
+import { registerPrefabInstance, unregisterPrefabInstance, prefabInstanceMap } from './engineSync';
+import { derivePrefabId } from '../data/Prefab';
 
 // ═══════════════════════════════════════════════════════════════
 // 状态
@@ -57,6 +59,13 @@ export const gridSettings = computed(() => {
  */
 export function loadScene(scene: Scene): void {
   currentScene.value = scene;
+
+  // 重建 Prefab 实例映射
+  prefabInstanceMap.value = new Map();
+  for (const entity of scene.entities) {
+    registerPrefabInstance(entity.id, entity.prefab);
+  }
+
   selectedEntityIds.value = new Set();
   bumpVersion();
 }
@@ -121,9 +130,10 @@ export function addEntity(entity: SceneEntity): void {
 
 /**
  * 从 Prefab 实例化实体
+ * @param prefabIdOrPath - PrefabId（如 "npcs/enemy"）或文件路径（如 "npcs/enemy.mote-prefab.json"）
  */
 export function spawnPrefab(
-  prefabId: string,
+  prefabIdOrPath: string,
   x: number,
   y: number,
   options?: {
@@ -136,20 +146,31 @@ export function spawnPrefab(
   }
 ): SceneEntity | null {
   if (!currentScene.value) return null;
-  
+
+  // 兼容文件路径和 PrefabId：去掉扩展名得到标准 PrefabId
+  const prefabId = prefabIdOrPath.endsWith('.mote-prefab.json')
+    ? derivePrefabId(prefabIdOrPath)
+    : prefabIdOrPath;
+
   // 网格吸附
   if (snapEnabled.value && currentScene.value.grid.snap) {
     const snapped = snapToGrid(x, y, currentScene.value.grid.size);
     x = snapped.x;
     y = snapped.y;
   }
-  
-  const entity = createSceneEntity(prefabId, x, y, options);
+
+  // 自动生成 name：基于同 prefab 实体的最大编号 + 1
+  const name = options?.name ?? getNextEntityName(prefabId, currentScene.value.entities);
+
+  const entity = createSceneEntity(prefabId, { x, y, rotation: options?.rotation, scaleX: options?.scaleX, scaleY: options?.scaleY }, { ...options, name });
   addEntity(entity);
-  
+
+  // 注册 Prefab 实例映射
+  registerPrefabInstance(entity.id, prefabId);
+
   // 自动选中新创建的实体
   selectEntity(entity.id);
-  
+
   return entity;
 }
 
@@ -173,7 +194,10 @@ export function removeEntity(entityId: string): boolean {
     newSet.delete(entityId);
     selectedEntityIds.value = newSet;
   }
-  
+
+  // 注销 Prefab 实例映射
+  unregisterPrefabInstance(entityId);
+
   bumpVersion();
   return true;
 }
@@ -218,7 +242,7 @@ export function moveEntity(entityId: string, x: number, y: number): boolean {
   const entity = currentScene.value.entities.find(e => e.id === entityId);
   if (!entity) return false;
   
-  setEntityTransform(entity, { x, y });
+  entity.transform = { ...entity.transform, x, y };
   bumpVersion();
   return true;
 }
@@ -269,8 +293,7 @@ export function selectEntitiesInRect(x1: number, y1: number, x2: number, y2: num
   
   const ids = currentScene.value.entities
     .filter(e => {
-      const t = getEntityTransform(e);
-      return t.x >= minX && t.x <= maxX && t.y >= minY && t.y <= maxY;
+      return e.transform.x >= minX && e.transform.x <= maxX && e.transform.y >= minY && e.transform.y <= maxY;
     })
     .map(e => e.id);
   
@@ -365,9 +388,8 @@ export function findEntityAt(x: number, y: number, tolerance: number = 8): Scene
   
   for (const entity of entities) {
     // 简单的距离检测（后续可改进为使用 Collider）
-    const t = getEntityTransform(entity);
-    const dx = t.x - x;
-    const dy = t.y - y;
+    const dx = entity.transform.x - x;
+    const dy = entity.transform.y - y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     
     if (dist <= tolerance) {

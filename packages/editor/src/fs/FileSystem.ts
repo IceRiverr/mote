@@ -401,9 +401,22 @@ export class FileSystem {
 
   /**
    * 写入文件
+   * 如果项目根目录未设置（内存项目），会自动弹出目录选择器让用户选择
    */
   async writeFile(path: string, content: string): Promise<boolean> {
-    if (this.mode === 'native' && this.nativeFS && this.projectRoot) {
+    if (this.mode === 'native' && this.nativeFS) {
+      // 如果没有 projectRoot，先尝试让用户选择目录
+      if (!this.projectRoot) {
+        console.log('[FileSystem] No project root, prompting for directory...');
+        const success = await this.nativeFS.selectDirectory();
+        if (!success) {
+          console.warn('[FileSystem] Directory selection cancelled');
+          return false;
+        }
+        this.projectRoot = this.nativeFS.getDirectory();
+        if (!this.projectRoot) return false;
+      }
+
       const parts = path.split('/').filter(p => p);
       if (parts.length === 0) return false;
 

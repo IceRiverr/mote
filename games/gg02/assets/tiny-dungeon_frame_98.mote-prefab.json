@@ -1,6 +1,7 @@
 {
-  "id": "tiny-dungeon_frame_122",
-  "name": "tiny-dungeon_frame_122",
+  "version": "0.0.2",
+  "kind": "prefab",
+  "name": "tiny-dungeon_frame_98",
   "tags": [],
   "components": {
     "Transform": {
@@ -12,7 +13,7 @@
     },
     "Sprite": {
       "atlas": "tiny-dungeon.mote-sprite.json",
-      "frame": "frame_122",
+      "frame": "frame_98",
       "layer": 0,
       "tint": "#ffffff",
       "flipX": false,

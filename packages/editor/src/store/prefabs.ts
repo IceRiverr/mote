@@ -1,18 +1,22 @@
 // ═══════════════════════════════════════════════════════════════
 // prefabs.ts - Prefab 状态管理
-// 
-// 设计原则：以文件路径为唯一键，不依赖 id 唯一性
+//
+// 设计原则：以 PrefabId（推导路径）为键
 // ═══════════════════════════════════════════════════════════════
 
 import { signal, computed, type Signal } from '@preact/signals';
-import type { Prefab } from '../data/Prefab';
+import type { Prefab, PrefabId } from '../data/Prefab';
+import { getPrefabDisplayName, derivePrefabId } from '../data/Prefab';
 
 // ═══════════════════════════════════════════════════════════════
 // 状态
 // ═══════════════════════════════════════════════════════════════
 
-/** 所有已加载的 Prefab: path -> Prefab */
-export const prefabs = signal<Map<string, Prefab>>(new Map());
+/** 所有已加载的 Prefab: PrefabId -> Prefab */
+export const prefabs = signal<Map<PrefabId, Prefab>>(new Map());
+
+/** PrefabId -> 文件路径的映射（用于反向查找） */
+export const prefabIdToPath = signal<Map<PrefabId, string>>(new Map());
 
 /** 搜索关键词 */
 export const searchQuery = signal('');
@@ -41,26 +45,27 @@ export const allTags = computed(() => {
 export const filteredPrefabs = computed(() => {
   const query = searchQuery.value.toLowerCase();
   const tag = selectedTag.value;
-  
-  const result: Array<{ path: string; prefab: Prefab }> = [];
-  
-  for (const [path, prefab] of prefabs.value) {
+
+  const result: Array<{ prefabId: PrefabId; prefab: Prefab; path: string }> = [];
+
+  for (const [prefabId, prefab] of prefabs.value) {
     // tag 过滤（匹配第一个 tag）
     if (tag !== 'all' && prefab.tags?.[0] !== tag) {
       continue;
     }
-    
+
     // 搜索过滤
     if (query) {
-      const searchText = `${prefab.id} ${prefab.name} ${prefab.description || ''} ${path}`.toLowerCase();
+      const path = prefabIdToPath.value.get(prefabId) || '';
+      const searchText = `${prefab.name || ''} ${prefab.description || ''} ${path}`.toLowerCase();
       if (!searchText.includes(query)) {
         continue;
       }
     }
-    
-    result.push({ path, prefab });
+
+    result.push({ prefabId, prefab, path: prefabIdToPath.value.get(prefabId) || '' });
   }
-  
+
   // 按首标签和名称排序
   return result.sort((a, b) => {
     const tagA = a.prefab.tags?.[0] ?? '';
@@ -68,21 +73,21 @@ export const filteredPrefabs = computed(() => {
     if (tagA !== tagB) {
       return tagA.localeCompare(tagB);
     }
-    return a.prefab.name.localeCompare(b.prefab.name);
+    return (a.prefab.name || a.prefabId).localeCompare(b.prefab.name || b.prefabId);
   });
 });
 
 /** 按 tag 分组的 Prefab */
 export const prefabsByTag = computed(() => {
-  const groups = new Map<string, Array<{ path: string; prefab: Prefab }>>();
-  
-  for (const { path, prefab } of filteredPrefabs.value) {
-    const tag = prefab.tags?.[0] ?? 'uncategorized';
+  const groups = new Map<string, Array<{ prefabId: PrefabId; prefab: Prefab; path: string }>>();
+
+  for (const item of filteredPrefabs.value) {
+    const tag = item.prefab.tags?.[0] ?? 'uncategorized';
     const list = groups.get(tag) || [];
-    list.push({ path, prefab });
+    list.push(item);
     groups.set(tag, list);
   }
-  
+
   return groups;
 });
 
@@ -91,34 +96,43 @@ export const prefabsByTag = computed(() => {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * 添加或更新 Prefab
+ * 添加或更新 Prefab（同时记录路径映射）
  */
-export function setPrefab(path: string, prefab: Prefab): void {
-  prefabs.value = new Map([...prefabs.value, [path, prefab]]);
+export function setPrefab(prefabId: PrefabId, prefab: Prefab, path?: string): void {
+  prefabs.value = new Map([...prefabs.value, [prefabId, prefab]]);
+  if (path) {
+    prefabIdToPath.value = new Map([...prefabIdToPath.value, [prefabId, path]]);
+  }
   bumpVersion();
 }
 
 /**
  * 批量添加 Prefab
  */
-export function setPrefabs(entries: Array<{ path: string; prefab: Prefab }>): void {
+export function setPrefabs(entries: Array<{ prefabId: PrefabId; prefab: Prefab; path?: string }>): void {
   const map = new Map(prefabs.value);
-  for (const { path, prefab } of entries) {
-    map.set(path, prefab);
+  const pathMap = new Map(prefabIdToPath.value);
+  for (const { prefabId, prefab, path } of entries) {
+    map.set(prefabId, prefab);
+    if (path) pathMap.set(prefabId, path);
   }
   prefabs.value = map;
+  prefabIdToPath.value = pathMap;
   bumpVersion();
 }
 
 /**
  * 删除 Prefab
  */
-export function deletePrefab(path: string): boolean {
-  if (!prefabs.value.has(path)) return false;
-  
+export function deletePrefab(prefabId: PrefabId): boolean {
+  if (!prefabs.value.has(prefabId)) return false;
+
   const map = new Map(prefabs.value);
-  map.delete(path);
+  const pathMap = new Map(prefabIdToPath.value);
+  map.delete(prefabId);
+  pathMap.delete(prefabId);
   prefabs.value = map;
+  prefabIdToPath.value = pathMap;
   bumpVersion();
   return true;
 }
@@ -126,28 +140,32 @@ export function deletePrefab(path: string): boolean {
 /**
  * 获取单个 Prefab
  */
-export function getPrefab(path: string): Prefab | undefined {
-  return prefabs.value.get(path);
+export function getPrefab(prefabId: PrefabId): Prefab | undefined {
+  return prefabs.value.get(prefabId);
+}
+
+/**
+ * 获取 Prefab 的文件路径
+ */
+export function getPrefabPath(prefabId: PrefabId): string | undefined {
+  return prefabIdToPath.value.get(prefabId);
 }
 
 /**
  * 检查 Prefab 是否存在
  */
-export function hasPrefab(path: string): boolean {
-  return prefabs.value.has(path);
+export function hasPrefab(prefabId: PrefabId): boolean {
+  return prefabs.value.has(prefabId);
 }
 
 /**
- * 生成唯一 ID（避免冲突）
+ * 生成唯一 ID（避免冲突）——基于 PrefabId
  */
-export function generateUniqueId(baseId: string): string {
-  const existingIds = new Set<string>();
-  for (const prefab of prefabs.value.values()) {
-    existingIds.add(prefab.id);
-  }
-  
+export function generateUniquePrefabId(baseId: string): string {
+  const existingIds = new Set<string>(prefabs.value.keys());
+
   if (!existingIds.has(baseId)) return baseId;
-  
+
   let counter = 2;
   let newId = `${baseId}_${counter}`;
   while (existingIds.has(newId)) {
@@ -162,6 +180,7 @@ export function generateUniqueId(baseId: string): string {
  */
 export function clearPrefabs(): void {
   prefabs.value = new Map();
+  prefabIdToPath.value = new Map();
   bumpVersion();
 }
 
@@ -195,6 +214,6 @@ export async function loadPrefabsFromDisk(): Promise<void> {
  * 保存 Prefab 到文件系统
  * TODO: 实现文件保存
  */
-export async function savePrefabToDisk(path: string, prefab: Prefab): Promise<void> {
-  console.log('TODO: Save prefab to disk', path);
+export async function savePrefabToDisk(prefabId: PrefabId, prefab: Prefab): Promise<void> {
+  console.log('TODO: Save prefab to disk', prefabId);
 }

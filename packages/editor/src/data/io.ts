@@ -6,6 +6,7 @@
 import type { FileSystemFileHandle } from "./fs-access";
 import { readJsonFile, writeJsonFile } from "./fs-access";
 import type { Scene, SceneEntity } from "./Scene";
+import { generateEntityId } from "./Scene";
 import type { Prefab } from "./Prefab";
 import type { ColliderShape } from "./Collider";
 import type {
@@ -17,6 +18,7 @@ import type {
   XmlSlicing,
 } from "./SpriteSheet";
 import { validateAssetPath } from "@mote/engine/core/path";
+import { ENGINE_VERSION } from "@mote/engine/core/version";
 
 // ═══════════════════════════════════════════════════════════════
 // JSON 类型定义
@@ -24,8 +26,8 @@ import { validateAssetPath } from "@mote/engine/core/path";
 
 /** Scene JSON 格式 */
 export interface SceneJson {
-  type: "mote-scene";
   version: string;
+  kind: "scene";
   id: string;
   name: string;
   width: number;
@@ -39,22 +41,27 @@ export interface SceneJson {
   entities: SceneEntityJson[];
 }
 
-/** Scene Entity JSON */
+/** Scene Entity JSON（v2，含独立 transform） */
 export interface SceneEntityJson {
-  id: string;
   prefab: string;
-  name?: string;
+  name: string;
   parent?: string | null;
+  transform: {
+    x: number;
+    y: number;
+    rotation: number;
+    scaleX: number;
+    scaleY: number;
+  };
   overrides?: Record<string, Record<string, any>>;
   visible?: boolean;
 }
 
-/** Prefab JSON 格式 */
+/** Prefab JSON 格式（无 id） */
 export interface PrefabJson {
-  type: "mote-prefab";
   version: string;
-  id: string;
-  name: string;
+  kind: "prefab";
+  name?: string;
   tags?: string[];
   components: Record<string, Record<string, any>>;
   thumbnail?: string;
@@ -111,12 +118,12 @@ export interface SpriteSheetJson {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Scene → JSON
+ * Scene → JSON（v2）
  */
 export function sceneToJson(scene: Scene): SceneJson {
-  return {
-    type: "mote-scene",
-    version: "1.0.0",
+  const json: SceneJson = {
+    version: scene.version,
+    kind: scene.kind,
     id: scene.id,
     name: scene.name,
     width: scene.width,
@@ -129,32 +136,37 @@ export function sceneToJson(scene: Scene): SceneJson {
     },
     entities: scene.entities.map(entityToJson),
   };
+  // path 是运行时属性，不序列化到文件
+  return json;
 }
 
 /**
- * Entity → JSON
+ * Entity → JSON（v2）
+ * 注意：不输出运行时 id，id 仅在内存中维护
  */
 function entityToJson(entity: SceneEntity): SceneEntityJson {
   const json: SceneEntityJson = {
-    id: entity.id,
     prefab: entity.prefab,
+    name: entity.name,
+    transform: entity.transform,
   };
 
-  if (entity.name) json.name = entity.name;
   if (entity.parent !== undefined && entity.parent !== null) json.parent = entity.parent;
   if (entity.visible === false) json.visible = false;
   if (entity.overrides && Object.keys(entity.overrides).length > 0) {
-    json.overrides = entity.overrides;
+    json.overrides = structuredClone(entity.overrides);
   }
 
   return json;
 }
 
 /**
- * JSON → Scene
+ * JSON → Scene（v2）
  */
 export function sceneFromJson(json: SceneJson): Scene {
   return {
+    version: json.version,
+    kind: json.kind,
     id: json.id,
     name: json.name,
     width: json.width,
@@ -170,21 +182,22 @@ export function sceneFromJson(json: SceneJson): Scene {
 }
 
 /**
- * JSON → Entity
+ * JSON → Entity（v2）
+ * 加载时重新生成运行时 id（编辑器只是预览器，打开即重建）
+ */
+/**
+ * JSON → Entity（v2）
+ * 加载时重新生成运行时 id（编辑器只是预览器，打开即重建）
  */
 function entityFromJson(json: SceneEntityJson): SceneEntity {
-  const error = validateAssetPath(json.prefab);
-  if (error) {
-    throw new Error(`Invalid prefab path in scene entity ${json.id}: ${error}`);
-  }
-
   return {
-    id: json.id,
+    id: generateEntityId(),
     prefab: json.prefab,
     name: json.name,
     parent: json.parent ?? null,
+    transform: json.transform,
     visible: json.visible !== false,
-    overrides: json.overrides,
+    overrides: json.overrides ? structuredClone(json.overrides) : undefined,
   };
 }
 
@@ -223,15 +236,14 @@ export async function loadScene(
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Prefab → JSON
+ * Prefab → JSON（v2）
  */
 export function prefabToJson(prefab: Prefab): PrefabJson {
   const json: PrefabJson = {
-    type: "mote-prefab",
-    version: "1.0.0",
-    id: prefab.id,
+    version: prefab.version,
+    kind: prefab.kind,
     name: prefab.name,
-    components: deepClone(prefab.components),
+    components: structuredClone(prefab.components),
     thumbnail: prefab.thumbnail,
     description: prefab.description,
   };
@@ -242,7 +254,7 @@ export function prefabToJson(prefab: Prefab): PrefabJson {
 }
 
 /**
- * JSON → Prefab
+ * JSON → Prefab（v2）
  */
 export function prefabFromJson(json: PrefabJson): Prefab {
   // 验证 Sprite atlas 路径
@@ -250,15 +262,16 @@ export function prefabFromJson(json: PrefabJson): Prefab {
   if (atlas) {
     const error = validateAssetPath(atlas);
     if (error) {
-      throw new Error(`Invalid atlas path in prefab ${json.id}: ${error}`);
+      throw new Error(`Invalid atlas path in prefab: ${error}`);
     }
   }
 
   return {
-    id: json.id,
+    version: json.version,
+    kind: json.kind,
     name: json.name,
     tags: json.tags ? [...json.tags] : undefined,
-    components: deepClone(json.components),
+    components: structuredClone(json.components),
     thumbnail: json.thumbnail,
     description: json.description,
   };
@@ -302,14 +315,14 @@ export async function loadPrefab(
  * 导出构建包（用于游戏发布）
  */
 export function exportBuildBundle(
-  prefabs: Prefab[],
+  prefabs: Array<{ id: string; prefab: Prefab }>,
   scenes: Scene[]
 ): BuildBundle {
   const prefabRecord: Record<string, PrefabJson> = {};
   const sceneRecord: Record<string, SceneJson> = {};
 
-  for (const prefab of prefabs) {
-    prefabRecord[prefab.id] = prefabToJson(prefab);
+  for (const { id, prefab } of prefabs) {
+    prefabRecord[id] = prefabToJson(prefab);
   }
 
   let totalEntities = 0;
@@ -319,7 +332,7 @@ export function exportBuildBundle(
   }
 
   return {
-    version: "1.0.0",
+    version: ENGINE_VERSION,
     prefabs: prefabRecord,
     scenes: sceneRecord,
     metadata: {
@@ -351,14 +364,14 @@ export function downloadBuildBundle(bundle: BuildBundle, filename?: string): voi
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * 验证是否为 Scene JSON
+ * 验证是否为 Scene JSON（v2）
  */
 export function isSceneJson(json: unknown): json is SceneJson {
   if (!json || typeof json !== "object") return false;
   const obj = json as Record<string, unknown>;
   return (
-    obj.type === "mote-scene" &&
-    typeof obj.version === "string" &&
+    obj.version === ENGINE_VERSION &&
+    obj.kind === "scene" &&
     typeof obj.id === "string" &&
     typeof obj.name === "string" &&
     typeof obj.width === "number" &&
@@ -369,16 +382,14 @@ export function isSceneJson(json: unknown): json is SceneJson {
 }
 
 /**
- * 验证是否为 Prefab JSON
+ * 验证是否为 Prefab JSON（v2）
  */
 export function isPrefabJson(json: unknown): json is PrefabJson {
   if (!json || typeof json !== "object") return false;
   const obj = json as Record<string, unknown>;
   return (
-    obj.type === "mote-prefab" &&
-    typeof obj.version === "string" &&
-    typeof obj.id === "string" &&
-    typeof obj.name === "string" &&
+    obj.version === ENGINE_VERSION &&
+    obj.kind === "prefab" &&
     obj.components !== undefined &&
     typeof obj.components === "object"
   );
@@ -519,7 +530,7 @@ export function spriteSheetToJson(sheet: SpriteSheet, overrideImagePath?: string
 
   return {
     type: "mote-sprite",
-    version: "1.0.0",
+    version: ENGINE_VERSION,
     id: sheet.id,
     name: sheet.name,
     image: imagePath,

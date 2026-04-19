@@ -17,3 +17,16 @@ export {
   pickPrefab,
   PickPrefabResult,
 } from './brush-tool-commands';
+
+export {
+  EditPrefabPropertyCommand,
+  AddPrefabComponentCommand,
+  RemovePrefabComponentCommand,
+  SavePrefabCommand,
+} from './prefab-commands';
+
+export {
+  ApplyOverridesToPrefabCommand,
+  RevertToPrefabCommand,
+  SaveEntityAsPrefabCommand,
+} from './entity-prefab-commands';

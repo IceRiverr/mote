@@ -113,8 +113,10 @@ export function GeneratePrefabDialog({
         }
 
         // 创建 Prefab
+        const { PREFAB_VERSION, PREFAB_KIND } = await import('../../data/Prefab');
         const prefab = {
-          id: prefabId,
+          version: PREFAB_VERSION,
+          kind: PREFAB_KIND,
           name: prefabId,
           tags: dir ? dir.split('/').filter(Boolean) : [],
           components,

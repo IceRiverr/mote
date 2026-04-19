@@ -29,12 +29,14 @@ export class PrefabStore {
 
   /**
    * 注册 Prefab
+   * @param id - 预制体唯一标识
+   * @param prefab - 预制体定义（不含 id）
    */
-  register(prefab: Prefab): void {
-    if (this.prefabs.has(prefab.id)) {
-      console.warn(`[PrefabStore] "${prefab.id}" already registered, overwriting`);
+  register(id: string, prefab: Prefab): void {
+    if (this.prefabs.has(id)) {
+      console.warn(`[PrefabStore] "${id}" already registered, overwriting`);
     }
-    this.prefabs.set(prefab.id, prefab);
+    this.prefabs.set(id, prefab);
   }
 
   /**
@@ -53,6 +55,16 @@ export class PrefabStore {
       throw new Error(`[PrefabStore] Prefab "${id}" not found`);
     }
     return prefab;
+  }
+
+  /**
+   * 更新已注册 Prefab 的组件（不替换整个对象）
+   */
+  update(id: string, components: SpawnConfig): boolean {
+    const prefab = this.prefabs.get(id);
+    if (!prefab) return false;
+    prefab.components = { ...prefab.components, ...components };
+    return true;
   }
 
   /**
@@ -80,25 +92,23 @@ export class PrefabStore {
 /**
  * 深合并 Prefab 组件配置和 override
  * override 中存在的字段覆盖 base，不存在的保留 base
+ * 使用 structuredClone 保证完全独立的深拷贝
  */
-export function mergeSpawnConfig(base: SpawnConfig, overrides: SpawnConfig): SpawnConfig {
-  const result: SpawnConfig = {};
+export function applyOverrides(base: SpawnConfig, overrides: SpawnConfig): SpawnConfig {
+  const result: SpawnConfig = structuredClone(base);
 
-  // 复制 base 的所有组件
-  for (const key of Object.keys(base)) {
-    result[key] = { ...(base[key] as any) };
-  }
-
-  // 合并 overrides
   for (const key of Object.keys(overrides)) {
-    if (result[key]) {
-      // 组件已存在：浅合并字段
-      Object.assign(result[key] as any, overrides[key]);
+    if (result[key] && typeof result[key] === 'object' && overrides[key] && typeof overrides[key] === 'object') {
+      // 组件已存在：深合并字段
+      result[key] = { ...(result[key] as any), ...(structuredClone(overrides[key]) as any) };
     } else {
-      // 新组件：直接赋值
-      result[key] = { ...(overrides[key] as any) };
+      // 新组件或 primitive 覆盖：深拷贝赋值
+      result[key] = structuredClone(overrides[key]);
     }
   }
 
   return result;
 }
+
+/** @deprecated 使用 applyOverrides */
+export const mergeSpawnConfig = applyOverrides;

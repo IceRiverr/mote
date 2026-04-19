@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import type { Prefab, PrefabComponents } from '../data/Prefab';
+import { PREFAB_VERSION, PREFAB_KIND } from '../data/Prefab';
 
 /**
  * Sprite Frame 数据（来自 .mote-sprite.json）
@@ -57,11 +58,8 @@ export function generatePrefabFromFrame(
 ): Prefab {
   const { prefix, tags = ['from-sprite'], autoCollider = true } = options;
   
-  // 生成 ID
-  const frameNum = frame.id.replace('frame_', '');
-  const id = prefix ? `${prefix}_${frameNum}` : `${atlas.id}_${frame.id}`;
-  
   // 生成名称
+  const frameNum = frame.id.replace('frame_', '');
   const name = prefix 
     ? `${prefix} ${frameNum}`
     : `${atlas.name} ${frame.id}`;
@@ -99,7 +97,8 @@ export function generatePrefabFromFrame(
   }
   
   return {
-    id,
+    version: PREFAB_VERSION,
+    kind: PREFAB_KIND,
     name,
     tags,
     components,

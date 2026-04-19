@@ -5,6 +5,7 @@
 import { signal, computed } from '@preact/signals';
 import { getFileSystem, getPrefabFS } from '../fs';
 import { setPrefab } from './prefabs';
+import { derivePrefabId } from '../data/Prefab';
 import type { Scene } from '../data/Scene';
 
 // ═══════════════════════════════════════════════════════════════
@@ -177,7 +178,8 @@ async function scanDirectoryRecursive(dirPath: string): Promise<AssetNode[]> {
             : path;
           const prefab = await prefabFS.loadFromPath(relativePath);
           if (prefab) {
-            setPrefab(path, prefab);
+            const prefabId = derivePrefabId(relativePath);
+            setPrefab(prefabId, prefab, relativePath);
           }
         }
       }
@@ -303,7 +305,13 @@ export async function loadSceneFromPath(assetPath: string): Promise<boolean> {
       return false;
     }
 
-    const scene = json as Scene;
+    const { sceneFromJson, isSceneJson } = await import('../data/io');
+    if (!isSceneJson(json)) {
+      console.error('[ContentBrowser] Invalid scene format:', assetPath);
+      return false;
+    }
+
+    const scene = sceneFromJson(json);
     scene.path = assetPath;
 
     const { loadScene } = await import('./scene');
@@ -487,10 +495,10 @@ export async function createPrefabFile(
   const fileName = `${id}.mote-prefab.json`;
   const path = `${folderPath}/${fileName}`;
 
+  const { PREFAB_VERSION, PREFAB_KIND } = await import('../data/Prefab');
   const prefab = {
-    type: 'mote-prefab',
-    version: '1.0.0',
-    id,
+    version: PREFAB_VERSION,
+    kind: PREFAB_KIND,
     name,
     tags: [],
     components: {

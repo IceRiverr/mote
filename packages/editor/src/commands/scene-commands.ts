@@ -6,7 +6,7 @@
 import type { Command } from "../store/history";
 import { currentScene, bumpVersion } from "../store/scene";
 import type { SceneEntity } from "../data/Scene";
-import { createSceneEntity, getEntityTransform, setEntityTransform } from "../data/Scene";
+import { createSceneEntity } from "../data/Scene";
 
 // ═══════════════════════════════════════════════════════════════
 // AddEntityCommand - 添加实体
@@ -20,9 +20,9 @@ export class AddEntityCommand implements Command {
     rotation?: number;
     scaleX?: number;
     scaleY?: number;
-    overrides?: Record<string, any>;
+    overrides?: Record<string, Record<string, any>>;
   }) {
-    this.entity = createSceneEntity(prefabId, x, y, options);
+    this.entity = createSceneEntity(prefabId, { x, y, rotation: options?.rotation, scaleX: options?.scaleX, scaleY: options?.scaleY }, options);
   }
 
   getEntityId(): string {
@@ -92,8 +92,8 @@ export class MoveEntityCommand implements Command {
     this.newX = newX;
     this.newY = newY;
     const t = currentScene.value?.entities.find(e => e.id === entityId);
-    this.oldX = t ? getEntityTransform(t).x : newX;
-    this.oldY = t ? getEntityTransform(t).y : newY;
+    this.oldX = t ? t.transform.x : newX;
+    this.oldY = t ? t.transform.y : newY;
   }
 
   execute(): void {
@@ -109,7 +109,7 @@ export class MoveEntityCommand implements Command {
     if (!scene) return;
     const entity = scene.entities.find(e => e.id === this.entityId);
     if (entity) {
-      setEntityTransform(entity, { x, y });
+      entity.transform = { ...entity.transform, x, y };
       bumpVersion();
     }
   }
@@ -135,13 +135,12 @@ export class MoveEntitiesCommand implements Command {
     for (const id of entityIds) {
       const entity = scene?.entities.find(e => e.id === id);
       if (entity) {
-        const t = getEntityTransform(entity);
         this.moves.push({
           id,
-          oldX: t.x,
-          oldY: t.y,
-          newX: t.x + deltaX,
-          newY: t.y + deltaY
+          oldX: entity.transform.x,
+          oldY: entity.transform.y,
+          newX: entity.transform.x + deltaX,
+          newY: entity.transform.y + deltaY
         });
       }
     }
@@ -162,7 +161,7 @@ export class MoveEntitiesCommand implements Command {
       const entity = scene.entities.find(e => e.id === move.id);
       if (entity) {
         const pos = fn(move);
-        setEntityTransform(entity, { x: pos.x, y: pos.y });
+        entity.transform = { ...entity.transform, x: pos.x, y: pos.y };
       }
     }
     bumpVersion();

@@ -1,3 +1,5 @@
+import { ENGINE_VERSION } from '@mote/engine/core/version';
+
 // ═══════════════════════════════════════════════════════════════
 // Project.ts - 项目定义和类型
 // 
@@ -104,7 +106,7 @@ export function createProject(
     type: 'mote-project',
     id,
     name,
-    version: '1.0.0',
+    version: ENGINE_VERSION,
     assetsDir: 'assets',
     srcDir: 'src',
     entryScene: undefined,

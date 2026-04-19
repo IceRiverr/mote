@@ -35,7 +35,8 @@ import {
   BrushMode,
 } from "../../store/brush";
 import type { SceneEntity } from "../../data/Scene";
-import { createSceneEntity, getEntityTransform, setEntityTransform } from "../../data/Scene";
+import { createSceneEntity, getNextEntityName } from "../../data/Scene";
+import { derivePrefabId } from "../../data/Prefab";
 
 // ═══════════════════════════════════════════════════════════════
 // 辅助函数：查找指定网格位置的实体
@@ -57,8 +58,7 @@ function findEntityAtGrid(
     const entity = scene.entities[i];
     const p = prefabs.value.get(entity.prefab);
     const entityLayer = p?.components?.Sprite?.layer ?? 0;
-    const t = getEntityTransform(entity);
-    if (entityLayer === layer && t.x === targetX && t.y === targetY) {
+    if (entityLayer === layer && entity.transform.x === targetX && entity.transform.y === targetY) {
       return entity;
     }
   }
@@ -302,7 +302,7 @@ export function ViewportCanvas() {
         const layerA = getPrefab(a.prefab)?.components.Sprite?.layer ?? 0;
         const layerB = getPrefab(b.prefab)?.components.Sprite?.layer ?? 0;
         // 同层按 Y 坐标排序（顶视角遮挡）
-        return layerA - layerB || getEntityTransform(a).y - getEntityTransform(b).y;
+        return layerA - layerB || a.transform.y - b.transform.y;
       });
     
     for (const entity of sortedEntities) {
@@ -433,7 +433,7 @@ export function ViewportCanvas() {
     
     ctx.save();
     
-    const t = getEntityTransform(entity);
+    const t = entity.transform;
     
     // 应用 Entity 变换
     ctx.translate(t.x, t.y);
@@ -453,7 +453,7 @@ export function ViewportCanvas() {
       ctx.font = `bold ${12 / cam.zoom}px sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(prefab.name.charAt(0).toUpperCase(), 0, 0);
+      ctx.fillText((prefab.name || '?').charAt(0).toUpperCase(), 0, 0);
     }
 
     // 绘制选中框
@@ -509,8 +509,18 @@ export function ViewportCanvas() {
       // 检查该位置是否已有实体
       const existingEntity = findEntityAtGrid(pos.x, pos.y, layer, gridSize);
       
+      // 生成带编号的 name
+      const pid = pos.prefabPath.endsWith('.mote-prefab.json')
+        ? derivePrefabId(pos.prefabPath)
+        : pos.prefabPath;
+      const name = getNextEntityName(pid, currentScene.value.entities);
+
       // 创建新实体（和 Command 中保持一致）
-      const newEntity = createSceneEntity(pos.prefabPath, pos.x * gridSize, pos.y * gridSize);
+      const newEntity = createSceneEntity(
+        pos.prefabPath,
+        { x: pos.x * gridSize, y: pos.y * gridSize },
+        { name }
+      );
       
       // 记录到命令
       if (currentBrushCmd.value) {
@@ -677,12 +687,11 @@ export function ViewportCanvas() {
               selectedEntityIds.value.size > 0
                 ? Array.from(selectedEntityIds.value).map(id => {
                     const entity = getEntity(id);
-                    const t = entity ? getEntityTransform(entity) : { x: 0, y: 0 };
+                    const t = entity ? entity.transform : { x: 0, y: 0 };
                     return [id, { x: t.x, y: t.y }];
                   })
                 : (() => {
-                    const t = getEntityTransform(clickedEntity);
-                    return [[clickedEntity.id, { x: t.x, y: t.y }]];
+                    return [[clickedEntity.id, { x: clickedEntity.transform.x, y: clickedEntity.transform.y }]];
                   })()
             );
           } else {
@@ -804,7 +813,7 @@ export function ViewportCanvas() {
         for (const [id, startPos] of moveEntitiesStart.value) {
           const entity = getEntity(id);
           if (entity) {
-            setEntityTransform(entity, { x: startPos.x, y: startPos.y });
+            entity.transform = { ...entity.transform, x: startPos.x, y: startPos.y };
           }
         }
         
@@ -1012,7 +1021,8 @@ export function ViewportCanvas() {
     const rect = container.getBoundingClientRect();
     const worldPos = screenToWorld(e.clientX, e.clientY, rect);
 
-    spawnPrefab(prefabPath, worldPos.x, worldPos.y);
+    const prefabId = derivePrefabId(prefabPath);
+    spawnPrefab(prefabId, worldPos.x, worldPos.y);
     draw();
   };
 

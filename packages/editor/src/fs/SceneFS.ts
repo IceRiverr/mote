@@ -9,6 +9,7 @@
 
 import type { Scene } from '../data/Scene';
 import { validateScene } from '../data/Scene';
+import { sceneFromJson, sceneToJson, type SceneJson } from '../data/io';
 import { FileSystem, getFileSystem } from './FileSystem';
 
 /**
@@ -116,8 +117,8 @@ export class SceneFS {
       await this.fs.createDirectory(dir);
     }
 
-    // 序列化（移除运行时状态）
-    const toSave = this.serializeScene(scene);
+    // 序列化（统一使用 io.ts 的 sceneToJson，确保所有保存路径输出一致）
+    const toSave = sceneToJson(scene);
     const content = JSON.stringify(toSave, null, 2);
 
     // 写入文件
@@ -179,14 +180,8 @@ export class SceneFS {
         return null;
       }
 
-      const scene = data as Scene;
+      const scene = sceneFromJson(data as SceneJson);
       scene.path = filePath;
-      
-      // 确保所有实体都有 ID
-      scene.entities = scene.entities.map((e, i) => ({
-        ...e,
-        id: e.id || `e_${Date.now()}_${i}`,
-      }));
 
       // 更新缓存
       this.cache.set(filePath, scene);
@@ -232,19 +227,10 @@ export class SceneFS {
    */
   async create(id: string, name: string, width = 640, height = 480, relativePath?: string): Promise<Scene | null> {
     const filePath = relativePath || `${id}${SCENE_EXTENSION}`;
+    const { createScene } = await import('../data/Scene');
     const scene: Scene = {
-      id,
-      name,
+      ...createScene(id, name, width, height),
       path: filePath,
-      width,
-      height,
-      grid: {
-        enabled: true,
-        size: 32,
-        snap: true,
-        color: 'rgba(255, 255, 255, 0.2)',
-      },
-      entities: [],
     };
 
     const success = await this.save(scene, filePath);
@@ -312,14 +298,15 @@ export class SceneFS {
       return null;
     }
 
+    const { generateEntityId } = await import('../data/Scene');
     const duplicated: Scene = {
       ...scene,
       id: newId,
       name: `${scene.name} (Copy)`,
       path: newPath,
-      entities: scene.entities.map((e, i) => ({
+      entities: scene.entities.map((e) => ({
         ...e,
-        id: `e_${Date.now()}_${i}`,
+        id: generateEntityId(),
       })),
     };
 
@@ -455,20 +442,13 @@ export class SceneFS {
         width: scene.width,
         height: scene.height,
       },
-      entities: scene.entities.map(e => {
-        const t = e.overrides?.Transform;
-        return {
-          id: e.id,
-          prefab: e.prefab,
-          parent: e.parent,
-          x: t?.x ?? 0,
-          y: t?.y ?? 0,
-          rotation: t?.rotation ?? 0,
-          scaleX: t?.scaleX ?? 1,
-          scaleY: t?.scaleY ?? 1,
-          overrides: e.overrides,
-        };
-      }),
+      entities: scene.entities.map(e => ({
+        prefab: e.prefab,
+        name: e.name,
+        parent: e.parent,
+        transform: e.transform,
+        overrides: e.overrides,
+      })),
     };
   }
 
@@ -551,17 +531,7 @@ export class SceneFS {
     }
   }
 
-  private serializeScene(scene: Scene): object {
-    // 移除运行时状态，只保留持久化数据
-    return {
-      id: scene.id,
-      name: scene.name,
-      width: scene.width,
-      height: scene.height,
-      grid: scene.grid,
-      entities: scene.entities,
-    };
-  }
+  // serializeScene 已删除：统一使用 io.ts 的 sceneToJson
 }
 
 // ═══════════════════════════════════════════════════════════════

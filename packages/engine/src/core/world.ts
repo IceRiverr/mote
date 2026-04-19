@@ -274,8 +274,8 @@ export class World {
   /**
    * 注册 Prefab 模板
    */
-  registerPrefab(prefab: Prefab): void {
-    this.prefabs.register(prefab);
+  registerPrefab(id: string, prefab: Prefab): void {
+    this.prefabs.register(id, prefab);
   }
 
   // ─── 组件注册（供插件使用） ───

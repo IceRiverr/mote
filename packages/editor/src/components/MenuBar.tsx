@@ -13,7 +13,7 @@ import {
   canSave,
   isProjectLoaded,
 } from '../project';
-import { currentScene, newScene, saveScene } from '../store/scene';
+import { currentScene, newScene, saveScene, updateScene } from '../store/scene';
 import { exportScene } from '../data/export';
 import { NewProjectDialog } from './NewProjectDialog';
 
@@ -115,17 +115,34 @@ export function MenuBar() {
 
   async function handleExportScene() {
     if (!currentScene.value) return;
-    
-    const data = exportScene(currentScene.value);
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${currentScene.value.id}.json`;
-    a.click();
-    
-    URL.revokeObjectURL(url);
+
+    const scene = currentScene.value;
+    const defaultPath = scene.path || `${scene.id}.mote-scene.json`;
+    const input = prompt('保存路径（相对于 assets/）:', defaultPath);
+    if (!input) {
+      setActiveMenu(null);
+      return; // 用户取消
+    }
+
+    let path = input.trim();
+    if (!path.endsWith('.mote-scene.json')) {
+      path += '.mote-scene.json';
+    }
+
+    const success = await exportScene(scene, path);
+    if (success) {
+      // 更新 scene 的 path（如果是首次保存）
+      if (scene.path !== path) {
+        updateScene({ path });
+      }
+      // 刷新 Content Browser
+      const { scanAssets } = await import('../store/contentBrowser');
+      await scanAssets();
+      console.log(`[Export] Scene saved to assets/${path}`);
+    } else {
+      alert('保存失败，请检查路径是否正确');
+    }
+
     setActiveMenu(null);
   }
 

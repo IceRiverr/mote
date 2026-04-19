@@ -1,13 +1,24 @@
 // ═══════════════════════════════════════════════════════════════
-// PrefabPreviewEditor.tsx — 轻量 Prefab 预览面板
+// PrefabEditor.tsx — Prefab 可编辑面板（由 PrefabPreviewEditor 升级）
 // ═══════════════════════════════════════════════════════════════
 
+import { useState } from 'preact/hooks';
 import { registerEditor } from '../registry';
 import { previewedPrefabPath } from '../../store/contentBrowser';
-import { getPrefab } from '../../store/prefabs';
+import { getPrefab, prefabs } from '../../store/prefabs';
+import { editingPrefab, createDraft, discardDraft, resetDraft, hasDraftChanges } from '../../store/prefabEditor';
+import {
+  EditPrefabPropertyCommand,
+  AddPrefabComponentCommand,
+  RemovePrefabComponentCommand,
+  SavePrefabCommand,
+} from '../../commands/prefab-commands';
+import { executeCommand } from '../../store/history';
 import { spawnPrefab } from '../../store/scene';
-import { PrefabThumbnail } from './PrefabThumbnail';
+import { ComponentPanel } from '../../components/inspector/ComponentPanel';
 import type { Prefab } from '../../data/Prefab';
+import { derivePrefabId, getPrefabDisplayName, PREFAB_KIND } from '../../data/Prefab';
+import { PrefabThumbnail } from './PrefabThumbnail';
 
 const TAG_COLORS: Record<string, string> = {
   environment: '#4a7c59',
@@ -21,67 +32,80 @@ function getTagColor(tag?: string): string {
   return (tag && TAG_COLORS[tag]) || '#4a90d9';
 }
 
-/** 渲染组件属性的可折叠列表 */
-function ComponentDetails({ name, data }: { name: string; data: Record<string, any> }) {
-  const entries = Object.entries(data).filter(([k]) => k !== 'type');
-  if (entries.length === 0) return null;
+// 模拟的组件 Schema
+const COMPONENT_SCHEMAS: Record<string, any> = {
+  Transform: {
+    properties: {
+      x: { type: "number", label: "X", constraints: { step: 1 } },
+      y: { type: "number", label: "Y", constraints: { step: 1 } },
+      rotation: { type: "number", label: "旋转", constraints: { step: 15 } },
+      scaleX: { type: "number", label: "缩放 X", constraints: { step: 0.1 } },
+      scaleY: { type: "number", label: "缩放 Y", constraints: { step: 0.1 } },
+    },
+  },
+  Sprite: {
+    properties: {
+      atlas: { type: "string", label: "图集" },
+      frame: { type: "string", label: "帧" },
+      layer: { type: "number", label: "层级", constraints: { step: 1 } },
+      tint: { type: "color", label: "染色" },
+      flipX: { type: "boolean", label: "水平翻转" },
+      flipY: { type: "boolean", label: "垂直翻转" },
+      alpha: { type: "number", label: "透明度", constraints: { min: 0, max: 1, step: 0.1 } },
+      visible: { type: "boolean", label: "可见" },
+    },
+  },
+  Collider: {
+    properties: {
+      shapes: { type: "string", label: "形状" },
+      isTrigger: { type: "boolean", label: "触发器" },
+      material: { type: "string", label: "材质" },
+      layer: { type: "number", label: "层级", constraints: { step: 1 } },
+      mask: { type: "number", label: "遮罩" },
+    },
+  },
+  Camera: {
+    properties: {
+      width: { type: "number", label: "宽度", constraints: { step: 1 } },
+      height: { type: "number", label: "高度", constraints: { step: 1 } },
+      zoom: { type: "number", label: "缩放", constraints: { step: 0.1 } },
+      backgroundColor: { type: "string", label: "背景色" },
+      active: { type: "boolean", label: "启用" },
+    },
+  },
+  Rigidbody: {
+    properties: {
+      type: { type: "string", label: "类型" },
+      mass: { type: "number", label: "质量", constraints: { step: 0.1 } },
+      linearDamping: { type: "number", label: "线性阻尼" },
+      angularDamping: { type: "number", label: "角阻尼" },
+      useGravity: { type: "boolean", label: "受重力" },
+      fixedRotation: { type: "boolean", label: "固定旋转" },
+    },
+  },
+};
 
-  return (
-    <div style={{ marginTop: 4 }}>
-      {entries.map(([key, value]) => {
-        const formatted = formatValue(value);
-        return (
-          <div
-            key={key}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              gap: 8,
-              padding: '2px 0',
-              fontSize: 10,
-              color: 'var(--text-secondary)',
-              fontFamily: 'monospace',
-            }}
-          >
-            <span style={{ opacity: 0.7, flexShrink: 0 }}>{key}</span>
-            <span
-              style={{
-                color: 'var(--text-primary)',
-                textAlign: 'right',
-                wordBreak: 'break-all',
-                minWidth: 0,
-              }}
-              title={formatted}
-            >
-              {formatted}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+const AVAILABLE_COMPONENTS = Object.keys(COMPONENT_SCHEMAS).filter(n => n !== 'Transform');
 
-function formatValue(v: unknown): string {
-  if (v === null || v === undefined) return '—';
-  if (typeof v === 'boolean') return v ? 'true' : 'false';
-  if (typeof v === 'number') {
-    if (v === 0) return '0';
-    // 保留最多2位小数，去除末尾0（但保留整数位）
-    const s = v.toFixed(2);
-    return s.replace(/\.00$/, '').replace(/(\d)0$/, '$1');
+function PrefabEditor({ areaId }: { areaId: string }) {
+  const rawPath = previewedPrefabPath.value;
+  // Content Browser 传入的 path 带 "assets/" 前缀，统一转为相对路径
+  const relativePath = rawPath?.startsWith('assets/') ? rawPath.slice(7) : rawPath ?? '';
+  const draftState = editingPrefab.value;
+  const [showAddComponent, setShowAddComponent] = useState(false);
+
+  // 当 path 变化时，自动创建/切换 draft
+  if (relativePath && (!draftState || draftState.path !== relativePath)) {
+    const prefabId = derivePrefabId(relativePath);
+    const prefab = getPrefab(prefabId);
+    if (prefab) {
+      createDraft(prefabId, relativePath, prefab);
+    }
   }
-  if (typeof v === 'string') return v;
-  if (Array.isArray(v)) return `[${v.length}]`;
-  if (typeof v === 'object') return '{…}';
-  return String(v);
-}
 
-function PrefabPreviewEditor({ areaId }: { areaId: string }) {
-  const path = previewedPrefabPath.value;
-  const prefab = path ? getPrefab(path) : null;
-
-  if (!prefab) {
+  // 如果没有 path 或 draft，显示空状态
+  const current = editingPrefab.value;
+  if (!relativePath || !current) {
     return (
       <div
         style={{
@@ -97,13 +121,58 @@ function PrefabPreviewEditor({ areaId }: { areaId: string }) {
         }}
       >
         <span style={{ fontSize: 32, opacity: 0.3 }}>📦</span>
-        <span>请在 Content Browser 中双击 Prefab 进行预览</span>
+        <span>请在 Content Browser 中双击 Prefab 进行编辑</span>
       </div>
     );
   }
 
+  const prefab = current.draft;
+  const prefabId = current.prefabId;
   const tag = prefab.tags?.[0];
   const componentEntries = Object.entries(prefab.components);
+  const dirty = hasDraftChanges();
+
+  // 处理元信息编辑
+  const handleMetaChange = (prop: string, value: any) => {
+    executeCommand(new EditPrefabPropertyCommand('__meta__', prop, value));
+  };
+
+  // 处理组件属性编辑
+  const handleComponentChange = (
+    componentName: string,
+    _data: Record<string, any>,
+    propertyName: string,
+    newValue: any
+  ) => {
+    executeCommand(new EditPrefabPropertyCommand(componentName, propertyName, newValue));
+  };
+
+  // 添加组件
+  const handleAddComponent = (compName: string) => {
+    const defaults: Record<string, Record<string, any>> = {
+      Sprite: { atlas: '', frame: '', layer: 0, tint: '#ffffff', flipX: false, flipY: false, alpha: 1, visible: true },
+      Collider: { shapes: [{ type: 'rect', width: 16, height: 16 }], isTrigger: false, material: 'default', layer: 1, mask: 0xFFFFFFFF },
+      Camera: { width: 640, height: 480, zoom: 1, backgroundColor: '#000000', active: true },
+      Rigidbody: { type: 'dynamic', mass: 1, linearDamping: 0, angularDamping: 0, useGravity: true, fixedRotation: false },
+    };
+    executeCommand(new AddPrefabComponentCommand(compName, defaults[compName] || {}));
+    setShowAddComponent(false);
+  };
+
+  // 删除组件
+  const handleRemoveComponent = (compName: string) => {
+    executeCommand(new RemovePrefabComponentCommand(compName));
+  };
+
+  // 保存
+  const handleSave = async () => {
+    await executeCommand(new SavePrefabCommand(prefabId, current.path));
+  };
+
+  // 重置
+  const handleReset = () => {
+    resetDraft();
+  };
 
   return (
     <div
@@ -118,9 +187,8 @@ function PrefabPreviewEditor({ areaId }: { areaId: string }) {
         color: 'var(--text-primary)',
       }}
     >
-      {/* 缩略图 + 基础信息（横向布局） */}
+      {/* 缩略图 + 基础信息 */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        {/* 缩略图 */}
         <div
           style={{
             width: 64,
@@ -138,13 +206,30 @@ function PrefabPreviewEditor({ areaId }: { areaId: string }) {
           <PrefabThumbnail prefab={prefab} size={60} />
         </div>
 
-        {/* 名称 / ID / Tag */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-bright)', lineHeight: 1.3 }}>
-            {prefab.name}
-          </div>
+          {/* Name 输入 */}
+          <input
+            type="text"
+            value={prefab.name || ''}
+            onChange={(e) => handleMetaChange('name', (e.target as HTMLInputElement).value)}
+            placeholder="Prefab 名称"
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: 'var(--text-bright)',
+              background: 'transparent',
+              border: '1px solid transparent',
+              borderBottom: '1px solid #444',
+              borderRadius: 2,
+              padding: '2px 4px',
+              outline: 'none',
+              lineHeight: 1.3,
+            }}
+            onFocus={(e) => { (e.target as HTMLInputElement).style.borderColor = '#4a90d9'; }}
+            onBlur={(e) => { (e.target as HTMLInputElement).style.borderColor = 'transparent'; (e.target as HTMLInputElement).style.borderBottomColor = '#444'; }}
+          />
           <div style={{ color: 'var(--text-secondary)', fontSize: 10, fontFamily: 'monospace' }}>
-            {prefab.id}
+            {prefabId}
           </div>
           {tag && (
             <span
@@ -167,6 +252,31 @@ function PrefabPreviewEditor({ areaId }: { areaId: string }) {
         </div>
       </div>
 
+      {/* Tags 输入 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Tags:</span>
+        <input
+          type="text"
+          value={prefab.tags?.join(', ') || ''}
+          onChange={(e) => {
+            const raw = (e.target as HTMLInputElement).value;
+            const tags = raw.split(',').map(t => t.trim()).filter(Boolean);
+            handleMetaChange('tags', tags.length > 0 ? tags : undefined);
+          }}
+          placeholder="逗号分隔"
+          style={{
+            flex: 1,
+            fontSize: 11,
+            background: '#2a2a2a',
+            border: '1px solid #333',
+            borderRadius: 3,
+            padding: '3px 6px',
+            color: '#fff',
+            outline: 'none',
+          }}
+        />
+      </div>
+
       {/* 路径 */}
       <div
         style={{
@@ -178,8 +288,45 @@ function PrefabPreviewEditor({ areaId }: { areaId: string }) {
           lineHeight: 1.4,
         }}
       >
-        {path}
+        {rawPath}
       </div>
+
+      {/* 保存 / 重置 */}
+      {dirty && (
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            onClick={handleSave}
+            style={{
+              flex: 1,
+              padding: '6px',
+              background: '#4a90d9',
+              border: 'none',
+              borderRadius: 4,
+              color: '#fff',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            💾 保存
+          </button>
+          <button
+            onClick={handleReset}
+            style={{
+              flex: 1,
+              padding: '6px',
+              background: '#2a2a2a',
+              border: '1px solid #444',
+              borderRadius: 4,
+              color: '#999',
+              fontSize: 12,
+              cursor: 'pointer',
+            }}
+          >
+            🔄 重置
+          </button>
+        </div>
+      )}
 
       {/* 分隔线 */}
       <div style={{ height: 1, background: 'var(--border)', margin: '2px 0' }} />
@@ -191,9 +338,87 @@ function PrefabPreviewEditor({ areaId }: { areaId: string }) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {componentEntries.map(([name, data]) => (
-          <ComponentCard key={name} name={name} data={data} />
+          <ComponentPanel
+            key={name}
+            name={name}
+            displayName={name}
+            data={data as any}
+            schema={COMPONENT_SCHEMAS[name]}
+            onChange={(newData, prop, val) => handleComponentChange(name, newData, prop, val)}
+            removable={name !== 'Transform'}
+            onRemove={() => handleRemoveComponent(name)}
+          />
         ))}
       </div>
+
+      {/* 添加组件 */}
+      <button
+        onClick={() => setShowAddComponent(true)}
+        style={{
+          width: '100%',
+          padding: '8px',
+          background: '#2a2a2a',
+          border: '1px dashed #444',
+          borderRadius: '4px',
+          color: '#999',
+          fontSize: '12px',
+          cursor: 'pointer',
+        }}
+      >
+        + 添加组件
+      </button>
+
+      {showAddComponent && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: '#2a2a2a',
+            border: '1px solid #444',
+            borderRadius: '8px',
+            padding: '16px',
+            zIndex: 1000,
+          }}
+        >
+          <div style={{ marginBottom: '12px', fontWeight: 600 }}>添加组件</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {AVAILABLE_COMPONENTS.filter(c => !prefab.components[c]).map((comp) => (
+              <button
+                key={comp}
+                onClick={() => handleAddComponent(comp)}
+                style={{
+                  padding: '8px 12px',
+                  background: '#333',
+                  border: 'none',
+                  borderRadius: '4px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                {comp}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowAddComponent(false)}
+            style={{
+              marginTop: '12px',
+              width: '100%',
+              padding: '8px',
+              background: 'transparent',
+              border: '1px solid #444',
+              borderRadius: '4px',
+              color: '#999',
+              cursor: 'pointer',
+            }}
+          >
+            取消
+          </button>
+        </div>
+      )}
 
       {/* 底部间距 */}
       <div style={{ height: 8 }} />
@@ -201,14 +426,12 @@ function PrefabPreviewEditor({ areaId }: { areaId: string }) {
       {/* 实例化按钮 */}
       <button
         onClick={() => {
-          if (path) {
-            spawnPrefab(path, 320, 240);
-          }
+          spawnPrefab(prefabId, 320, 240);
         }}
         style={{
           width: '100%',
           padding: '8px 12px',
-          background: '#4a90d9',
+          background: '#4a7c59',
           color: '#fff',
           border: 'none',
           borderRadius: 4,
@@ -221,12 +444,6 @@ function PrefabPreviewEditor({ areaId }: { areaId: string }) {
           gap: 6,
           flexShrink: 0,
         }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.background = '#5aa0e9';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.background = '#4a90d9';
-        }}
       >
         🎯 实例化到场景 (320, 240)
       </button>
@@ -234,30 +451,11 @@ function PrefabPreviewEditor({ areaId }: { areaId: string }) {
   );
 }
 
-function ComponentCard({ name, data }: { name: string; data: Record<string, any> }) {
-  return (
-    <div
-      style={{
-        background: 'rgba(255,255,255,0.03)',
-        borderRadius: 4,
-        padding: '6px 8px',
-        border: '1px solid rgba(255,255,255,0.05)',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ color: '#4a90d9', fontSize: 8 }}>●</span>
-        <span style={{ fontWeight: 600, fontSize: 11 }}>{name}</span>
-      </div>
-      <ComponentDetails name={name} data={data} />
-    </div>
-  );
-}
-
 registerEditor({
   id: 'prefab-preview',
-  name: 'Prefab 预览',
+  name: 'Prefab 编辑器',
   icon: '📦',
-  component: PrefabPreviewEditor,
+  component: PrefabEditor,
 });
 
-export { PrefabPreviewEditor };
+export { PrefabEditor };

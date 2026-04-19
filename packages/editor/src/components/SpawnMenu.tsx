@@ -3,11 +3,12 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { useState, useEffect, useRef } from 'preact/hooks';
-import { prefabs } from '../store/prefabs';
-import type { Prefab } from '../data/Prefab';
+import { prefabs, prefabIdToPath } from '../store/prefabs';
+import type { Prefab, PrefabId } from '../data/Prefab';
+import { getPrefabDisplayName } from '../data/Prefab';
 
 interface SpawnMenuProps {
-  onSelect: (prefabPath: string) => void;
+  onSelect: (prefabId: PrefabId) => void;
   onClose: () => void;
 }
 
@@ -30,21 +31,27 @@ export function SpawnMenu({ onSelect, onClose }: SpawnMenuProps) {
   const listRef = useRef<HTMLDivElement>(null);
 
   // 收集并排序所有 prefab
-  const entries = useRef<Array<{ path: string; prefab: Prefab }>>([]);
+  const entries = useRef<Array<{ prefabId: PrefabId; prefab: Prefab; path: string }>>([]);
   entries.current = Array.from(prefabs.value.entries())
-    .map(([path, prefab]) => ({ path, prefab }))
+    .map(([prefabId, prefab]) => ({
+      prefabId,
+      prefab,
+      path: prefabIdToPath.value.get(prefabId) || prefabId,
+    }))
     .sort((a, b) => {
       const tagA = a.prefab.tags?.[0] ?? '';
       const tagB = b.prefab.tags?.[0] ?? '';
       if (tagA !== tagB) return tagA.localeCompare(tagB);
-      return a.prefab.name.localeCompare(b.prefab.name);
+      return (a.prefab.name || a.prefabId).localeCompare(b.prefab.name || b.prefabId);
     });
 
-  const filtered = entries.current.filter(({ prefab }) => {
+  const filtered = entries.current.filter(({ prefab, prefabId, path }) => {
     const q = query.toLowerCase();
+    const name = getPrefabDisplayName(prefab, prefabId).toLowerCase();
     return (
-      prefab.name.toLowerCase().includes(q) ||
-      prefab.id.toLowerCase().includes(q) ||
+      name.includes(q) ||
+      prefabId.toLowerCase().includes(q) ||
+      path.toLowerCase().includes(q) ||
       (prefab.tags?.[0] ?? '').toLowerCase().includes(q)
     );
   });
@@ -102,7 +109,7 @@ export function SpawnMenu({ onSelect, onClose }: SpawnMenuProps) {
       if (e.key === 'Enter') {
         e.preventDefault();
         if (filtered[safeIndex]) {
-          onSelect(filtered[safeIndex].path);
+          onSelect(filtered[safeIndex].prefabId);
         }
         return;
       }
@@ -124,8 +131,8 @@ export function SpawnMenu({ onSelect, onClose }: SpawnMenuProps) {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  const handleSelect = (path: string) => {
-    onSelect(path);
+  const handleSelect = (prefabId: PrefabId) => {
+    onSelect(prefabId);
   };
 
   return (
@@ -213,13 +220,14 @@ export function SpawnMenu({ onSelect, onClose }: SpawnMenuProps) {
             minHeight: 0,
           }}
         >
-          {filtered.map(({ path, prefab }, i) => {
+          {filtered.map(({ prefabId, prefab, path }, i) => {
             const tag = prefab.tags?.[0];
             const isSelected = i === safeIndex;
+            const displayName = getPrefabDisplayName(prefab, prefabId);
             return (
               <div
-                key={path}
-                onClick={() => handleSelect(path)}
+                key={prefabId}
+                onClick={() => handleSelect(prefabId)}
                 onMouseEnter={() => setSelectedIndex(i)}
                 style={{
                   display: 'flex',
@@ -253,7 +261,7 @@ export function SpawnMenu({ onSelect, onClose }: SpawnMenuProps) {
                   }}
                   title={path}
                 >
-                  {prefab.name}
+                  {displayName}
                 </span>
                 {/* Tag 标签 */}
                 {tag && (

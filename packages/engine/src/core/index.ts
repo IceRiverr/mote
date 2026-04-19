@@ -1,6 +1,9 @@
 // engine/src/core/index.ts
 // 微尘引擎 ECS 核心 —— 统一导出
 
+// Version
+export { ENGINE_VERSION } from './version';
+
 // Types
 export type {
   EntityId,

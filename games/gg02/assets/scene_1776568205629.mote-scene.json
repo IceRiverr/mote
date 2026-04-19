@@ -1,0 +1,71 @@
+{
+  "version": "0.0.2",
+  "kind": "scene",
+  "id": "scene_1776568205629",
+  "name": "Untitled",
+  "width": 640,
+  "height": 480,
+  "grid": {
+    "enabled": true,
+    "size": 32,
+    "snap": true,
+    "color": "rgba(255, 255, 255, 0.2)"
+  },
+  "entities": [
+    {
+      "prefab": "tiny-dungeon_frame_98",
+      "name": "tiny-dungeon_frame_98_1",
+      "transform": {
+        "x": 128,
+        "y": 128,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+      }
+    },
+    {
+      "prefab": "tiny-dungeon_frame_98",
+      "name": "tiny-dungeon_frame_98_2",
+      "transform": {
+        "x": 352,
+        "y": 192,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+      }
+    },
+    {
+      "prefab": "tiny-dungeon_frame_98",
+      "name": "tiny-dungeon_frame_98_3",
+      "transform": {
+        "x": 160,
+        "y": 320,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+      }
+    },
+    {
+      "prefab": "tiny-dungeon_frame_98",
+      "name": "tiny-dungeon_frame_98_4",
+      "transform": {
+        "x": 448,
+        "y": 384,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+      }
+    },
+    {
+      "prefab": "tiny-dungeon_frame_98",
+      "name": "tiny-dungeon_frame_98_5",
+      "transform": {
+        "x": 512,
+        "y": 128,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1
+      }
+    }
+  ]
+}

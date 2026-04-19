@@ -269,13 +269,15 @@ export function isValidProjectConfig(json: unknown): json is ProjectConfig {
   );
 }
 
+import { ENGINE_VERSION } from "@mote/engine/core/version";
+
 /**
  * 验证是否为 Prefab JSON
  */
 export function isPrefabJson(json: unknown): boolean {
   if (!json || typeof json !== "object") return false;
   const obj = json as Record<string, unknown>;
-  return obj.type === "mote-prefab" && typeof obj.id === "string";
+  return obj.kind === "prefab" && obj.version === ENGINE_VERSION && typeof obj.components === "object";
 }
 
 /**
@@ -284,5 +286,5 @@ export function isPrefabJson(json: unknown): boolean {
 export function isSceneJson(json: unknown): boolean {
   if (!json || typeof json !== "object") return false;
   const obj = json as Record<string, unknown>;
-  return obj.type === "mote-scene" && typeof obj.id === "string";
+  return obj.kind === "scene" && obj.version === ENGINE_VERSION && typeof obj.id === "string";
 }

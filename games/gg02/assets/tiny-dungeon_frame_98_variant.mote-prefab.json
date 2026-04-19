@@ -1,18 +1,18 @@
 {
-  "id": "tiny-dungeon_frame_85",
-  "name": "tiny-dungeon_frame_85",
-  "tags": [],
+  "version": "0.0.2",
+  "kind": "prefab",
+  "name": "tiny-dungeon_frame_98_variant",
   "components": {
     "Transform": {
-      "x": 0,
-      "y": 0,
+      "x": 352,
+      "y": 192,
       "rotation": 0,
       "scaleX": 1,
       "scaleY": 1
     },
     "Sprite": {
       "atlas": "tiny-dungeon.mote-sprite.json",
-      "frame": "frame_85",
+      "frame": "frame_98",
       "layer": 0,
       "tint": "#ffffff",
       "flipX": false,

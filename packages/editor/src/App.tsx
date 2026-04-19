@@ -16,7 +16,6 @@ import { LayoutRoot } from "./components/LayoutRoot";
 import { MenuBar } from "./components/MenuBar";
 import { StatusBar } from "./components/StatusBar";
 import { activeTool, type ToolType } from "./store/selection";
-import { loadBuiltinEntityDefs } from "./store/entityDefs";
 import {
   initializeProjectStore,
   saveCurrentProject,
@@ -36,7 +35,6 @@ export function App() {
   // Initialize on mount - auto create in-memory project
   useEffect(() => {
     initializeProjectStore();
-    loadBuiltinEntityDefs();
     // Auto create an in-memory project so editor opens directly
     createInMemoryProject();
   }, []);

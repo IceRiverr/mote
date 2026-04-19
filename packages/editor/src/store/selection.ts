@@ -37,12 +37,6 @@ export const showGrid = signal(true);
 /** Grid line color */
 export const gridColor = signal("rgba(255, 255, 255, 0.08)");
 
-/** Currently selected EntityDef ID for placement */
-export const activeEntityDefId = signal<string | null>(null);
-
-/** Currently selected entity instance ID (for inspection/editing) */
-export const selectedEntityId = signal<string | null>(null);
-
 /**
  * Predefined scale steps for TilePalette.
  * Includes fractional (1/4, 1/2) and integer (1-8) values.

@@ -38,6 +38,8 @@ description: mote 项目（ECS 游戏引擎 + Preact 编辑器）的编码行为
 - **数据优先：** 添加状态前先问"这应该是 Component 吗？" 不要把可变状态直接放在 system 或 manager 上。
 - **渲染器优先：** 触碰图形前先确认功能需要 WebGPU（新 shader）还是可用现有渲染管线。不要在已有 WebGPU 路径时添加 WebGL2 特定代码。
 - **编辑器上下文：** 添加 UI 状态前先检查它应该放在 Signal（`@preact/signals`）中还是临时本地状态。
+- **资源引用优先：** 跨模块引用资源（如 Prefab 引用 SpriteSheet）时，先确认双方使用的**标识符是否一致**（文件名 vs `id` vs 其他键）。不一致必须先对齐，不要写多层回退兼容。
+- **Store 初始化优先：** 使用某个 store 的数据前，先确认该 store 在项目/场景加载时**已被填充**。如果缺失初始化机制，把它提升为独立功能。
 
 ---
 
@@ -85,6 +87,7 @@ description: mote 项目（ECS 游戏引擎 + Preact 编辑器）的编码行为
 - **保持 undo/redo 兼容性。** 如果修改编辑器命令，确保命令模式（execute/undo/redo）仍然工作。
 - **不要改变现有 Component 的形状，除非绝对必要。** 增删字段会破坏保存的场景和序列化。
 - **如果修改 System，先检查类似 system 的 `world.query()` 模式。** 不要发明新的 query 约定。
+- **坐标转换函数（`screenToWorld`/`worldToScreen`）应提取到独立模块**，不要在组件内重复实现。
 
 ---
 
@@ -113,6 +116,7 @@ description: mote 项目（ECS 游戏引擎 + Preact 编辑器）的编码行为
 - **图形变更：** 成功标准必须包含视觉验证。"精灵正确渲染"是弱的。"精灵在正确位置渲染，nearest 过滤，像素艺术不模糊"是强的。
 - **编辑器变更：** 成功标准必须包含交互验证。"面板显示数据"是弱的。"点击 hierarchy 中的 entity 选中它，inspector 在 1 帧内更新"是强的。
 - **性能声明：** 如果优化，要测量。"更快"不是标准。"draw call 从 N 降到 M"是。
+- **Signal 变更验证：** 任何外部修改 signal 的代码，验证时必须确认 UI/Canvas 在 signal 变更后**自动重绘**（通过 `useSignalEffect` 或组件内读取 signal）。
 
 ---
 
@@ -130,7 +134,7 @@ description: mote 项目（ECS 游戏引擎 + Preact 编辑器）的编码行为
 | 纹理过滤默认 `nearest` | 像素艺术变模糊 |
 | 坐标系：左上角原点，Y 向下 | 所有位置计算错误 |
 
-### 编辑器数据层（新增，与 ECS 同级重要）
+### 编辑器数据层（与 ECS 同级重要）
 
 | 约束 | 违反后果 |
 |---|---|
@@ -140,6 +144,16 @@ description: mote 项目（ECS 游戏引擎 + Preact 编辑器）的编码行为
 | **默认值不在 JSON 中显式出现** | 文件冗余、diff 噪音、格式不一致 |
 | **所有保存入口复用统一序列化函数** | 同一数据不同格式（如 `SceneFS.serializeScene` vs `io.sceneToJson`） |
 | 保存文件包含 `version` 字段 | 无法区分格式版本，加载失败难以诊断 |
+| **跨模块资源引用标识符必须一致** | Prefab 用文件名引用 atlas，store 用 `id` 做键 → 查找失败、需要多层回退兼容 |
+| **JSON 文件格式必须与 TS 类型定义一致** | 运行时类型不匹配（如 JSON 存 `{shapes: [...]}`，代码期望 `ColliderShape[]`） |
+
+### 编辑器运行时渲染
+
+| 约束 | 违反后果 |
+|---|---|
+| **Canvas 重绘必须订阅相关 signal** | 外部修改 zoom/camera/store 后 Canvas 不更新 |
+| **Store 数据必须在项目初始化时填充** | 打开项目后 UI 空白、实体显示为占位符 |
+| **像素风纹理过滤用 `nearest`** | 精灵图片模糊 |
 
 ### 设计决策推翻时
 
@@ -161,10 +175,11 @@ description: mote 项目（ECS 游戏引擎 + Preact 编辑器）的编码行为
 - 任务涉及序列化格式变更（会破坏保存的项目）。
 - 你发现自己在为一个看似简单的功能写超过 150 行代码。
 - **用户明确推翻之前的设计决策**（如"entity id 不要了""编辑器只是预览器"）：列出影响面，确认清理范围。
+- **跨模块资源引用标识符不一致**：发现不同模块用不同键引用同一资源时，不要自行兼容，先对齐标识符体系。
 
 ---
 
-## 7. 用户意图变更处理（新增）
+## 7. 用户意图变更处理
 
 用户在编码中途推翻设计是常见情况（如本次"去掉 entity 持久 id""编辑器只是预览器"）。
 
@@ -184,7 +199,7 @@ description: mote 项目（ECS 游戏引擎 + Preact 编辑器）的编码行为
 
 ---
 
-## 8. 常见陷阱（从本次会话总结）
+## 8. 常见陷阱
 
 | 陷阱 | 场景 | 避免方式 |
 |------|------|----------|
@@ -192,5 +207,10 @@ description: mote 项目（ECS 游戏引擎 + Preact 编辑器）的编码行为
 | 多处实现序列化 | `SceneFS.serializeScene` 和 `io.sceneToJson` | 所有保存入口复用 `io.ts` 的函数 |
 | 用实体数量做编号 | `count + 1` → 编号重复 | 用 `getNextEntityName` 基于最大编号 |
 | 运行时 id 写入文件 | `id` 在 `entityToJson` 中输出 | 明确标记运行时-only 字段，序列化时过滤 |
-| 不订阅 signal 导致 UI 不更新 | SceneTree 不响应笔刷绘制 | 渲染函数中读取 `sceneVersion.value` 建立订阅 |
+| 不订阅 signal 导致 UI 不更新 | Canvas 不响应 zoom/camera/store 变更 | 用 `useSignalEffect(() => { signal.value; draw(); })` 建立订阅 |
 | 旧架构文件残留 | EntityDef/TileMap/formats 仍存在 | 推翻设计后检查废弃文件，确认无引用后删除 |
+| **Store 数据未被初始化** | 打开项目后 `spriteSheets` 为空 | 编码前检查 `initializeSubsystems()` 是否覆盖了该 store |
+| **资源引用标识符不一致** | Prefab 用文件名引用 atlas，store 用 `id` 做键 | 统一标识符体系，不要写多层回退兼容 |
+| **JSON 格式与 TS 类型不一致** | JSON 存 `{shapes: [...]}`，代码期望 `ColliderShape[]` | 加载 JSON 时做运行时规范化（`normalizeFrame`） |
+| **重复添加 store 条目** | 同一 SpriteSheet 被多次 `addSpriteSheet()` | 去重替换而非追加：`filter(s => s.id !== newId)` |
+| **坐标转换散落在组件内** | `ViewportCanvas.tsx` 内联 `screenToWorld` | 提取到 `store/viewport.ts` 或独立工具模块 |

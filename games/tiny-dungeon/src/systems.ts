@@ -368,7 +368,7 @@ export function GamePlugin(world: World): void {
 
   // 注册 Prefab
   for (const prefab of ALL_PREFABS) {
-    world.registerPrefab(prefab);
+    world.registerPrefab((prefab as any).id, prefab);
   }
 
   // 注册系统

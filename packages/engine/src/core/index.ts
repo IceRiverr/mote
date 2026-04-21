@@ -41,5 +41,6 @@ export { ResourceStore } from './resource';
 
 // Asset System
 export { validateAssetPath, resolveAssetPath } from './path';
-export { AssetLoader, LoaderRegistry, assetLoaders } from './loader';
+export type { AssetLoader } from './loader';
+export { LoaderRegistry, assetLoaders } from './loader';
 export { AssetManager } from './asset-manager';

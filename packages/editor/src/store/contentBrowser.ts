@@ -349,95 +349,74 @@ export async function loadSceneFromPath(assetPath: string): Promise<boolean> {
  */
 export async function openAssetInSpriteEditor(assetPath: string): Promise<boolean> {
   const fs = getFileSystem();
-  console.log('[ContentBrowser] Opening sprite:', assetPath);
 
   try {
-    // ── Step 1: 读取 JSON ──
+    // 读取 JSON
     const json = await fs.readJson(assetPath);
     if (!json) {
-      console.error('[ContentBrowser] Step 1 FAILED: cannot read JSON:', assetPath);
+      console.error('[ContentBrowser] Cannot read sprite JSON:', assetPath);
       return false;
     }
-    console.log('[ContentBrowser] Step 1 OK: JSON loaded, keys:', Object.keys(json as any).join(', '));
 
-    // ── Step 2: 验证类型（兼容无 type 字段的旧文件）─
     const raw = json as any;
     if (raw.type && raw.type !== 'mote-sprite') {
-      console.error('[ContentBrowser] Step 2 FAILED: type is', raw.type, '(expected mote-sprite)');
+      console.error('[ContentBrowser] Invalid type:', raw.type);
       return false;
     }
-    // 如果无 type 字段但包含 id/name/image/frames，也视为有效
     if (!raw.type && !(raw.image && raw.frames)) {
-      console.error('[ContentBrowser] Step 2 FAILED: missing type and required fields');
+      console.error('[ContentBrowser] Missing required fields');
       return false;
     }
-    console.log('[ContentBrowser] Step 2 OK: valid sprite format');
 
     const spriteJson = json as import('../data/io').SpriteSheetJson;
-
-    // ── Step 3: 解析图片路径 ──
     const imagePath = spriteJson.image;
     if (!imagePath) {
-      console.error('[ContentBrowser] Step 3 FAILED: no image field in JSON');
+      console.error('[ContentBrowser] No image field in JSON');
       return false;
     }
-    console.log('[ContentBrowser] Step 3 OK: image path in JSON =', imagePath);
 
-    // ── Step 4: 尝试读取图片 ──
-    // 策略 A: image 相对 assets/
+    // 尝试读取图片（多策略）
     let fullImagePath = imagePath.startsWith('assets/') ? imagePath : `assets/${imagePath}`;
     let imageDataUrl = await fs.readFileAsDataUrl(fullImagePath);
 
-    // 策略 B: image 相对 JSON 文件所在目录
     if (!imageDataUrl && assetPath.includes('/')) {
       const jsonDir = assetPath.slice(0, assetPath.lastIndexOf('/'));
       fullImagePath = `${jsonDir}/${imagePath}`;
-      console.log('[ContentBrowser] Step 4 RETRY: relative to JSON dir:', fullImagePath);
       imageDataUrl = await fs.readFileAsDataUrl(fullImagePath);
     }
 
-    // 策略 C: 直接按 imagePath 读取（已是完整相对路径）
     if (!imageDataUrl && !imagePath.startsWith('assets/')) {
-      console.log('[ContentBrowser] Step 4 RETRY: direct path:', imagePath);
       imageDataUrl = await fs.readFileAsDataUrl(imagePath);
     }
 
     if (!imageDataUrl) {
-      console.error('[ContentBrowser] Step 4 FAILED: cannot read image. Tried:');
-      console.error('  - assets/${imagePath}');
-      if (assetPath.includes('/')) console.error('  - ${jsonDir}/${imagePath}');
-      console.error('  - ${imagePath} (direct)');
+      console.error('[ContentBrowser] Cannot read image for:', assetPath);
       return false;
     }
-    console.log('[ContentBrowser] Step 4 OK: image loaded, data URL length =', imageDataUrl.length);
 
-    // ── Step 5: 加载 HTMLImageElement ──
+    // 加载图片
     const img = new Image();
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
-      img.onerror = (e) => {
-        console.error('[ContentBrowser] Step 5 FAILED: image.onerror', e);
-        reject(new Error('Image load failed'));
-      };
+      img.onerror = () => reject(new Error('Image load failed'));
       img.src = imageDataUrl;
     });
-    console.log('[ContentBrowser] Step 5 OK: image size', img.naturalWidth, 'x', img.naturalHeight);
 
-    // ── Step 6: 创建 SpriteSheet ──
+    // 创建 SpriteSheet 并注册
     const { spriteSheetFromJson } = await import('../data/io');
     const sheet = spriteSheetFromJson(spriteJson, imageDataUrl);
-    console.log('[ContentBrowser] Step 6 OK: SpriteSheet created,', Object.keys(sheet.frames).length, 'frames');
+    // 记录 JSON 文件路径（去掉 assets/ 前缀，保持和 SpriteSheetFS 一致）
+    sheet.jsonPath = assetPath.startsWith('assets/') ? assetPath.slice(7) : assetPath;
 
-    // ── Step 7: 添加到 store ──
     const { addSpriteSheet, isTemporarySpriteSheet, activeSpriteSheetId } = await import('./spriteSheet');
     addSpriteSheet(sheet, img);
     activeSpriteSheetId.value = sheet.id;
     isTemporarySpriteSheet.value = false;
-    console.log('[ContentBrowser] Step 7 OK: added to store');
 
+    console.log('[ContentBrowser] Sprite opened:', sheet.name, `(${Object.keys(sheet.frames).length} frames)`);
     return true;
   } catch (err) {
-    console.error('[ContentBrowser] UNEXPECTED ERROR:', err);
+    console.error('[ContentBrowser] Failed to open sprite:', err);
     return false;
   }
 }

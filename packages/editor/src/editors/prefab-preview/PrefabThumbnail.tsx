@@ -22,8 +22,10 @@ export function PrefabThumbnail({ prefab, size = 80 }: PrefabThumbnailProps) {
     const atlas = sprite.atlas as string;
     const frameId = sprite.frame as string;
 
-    // 1. 通过 atlas 路径找到对应的 sheet
-    const sheet = spriteSheets.value.find((s) => s.image === atlas || s.sourcePath === atlas);
+    // 1. 通过 atlas 路径找到对应的 sheet（匹配 jsonPath / sourcePath / image）
+    const sheet = spriteSheets.value.find(
+      (s) => s.jsonPath === atlas || s.sourcePath === atlas || s.image === atlas,
+    );
     if (!sheet) return;
 
     // 2. 获取帧数据
@@ -73,7 +75,9 @@ export function PrefabThumbnail({ prefab, size = 80 }: PrefabThumbnailProps) {
   if (sprite?.atlas && sprite?.frame) {
     const atlas = sprite.atlas as string;
     const frameId = sprite.frame as string;
-    const sheet = spriteSheets.value.find((s) => s.image === atlas || s.sourcePath === atlas);
+    const sheet = spriteSheets.value.find(
+      (s) => s.jsonPath === atlas || s.sourcePath === atlas || s.image === atlas,
+    );
     const frame = sheet?.frames[frameId];
 
     if (sheet && frame) {

@@ -3,106 +3,434 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>mote engine</title>
+<title>mote</title>
+<link rel="icon" href="mote-logo.svg" type="image/svg+xml">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #faf8f5;
+    --bg-elevated: #ffffff;
+    --border: #e8e4de;
+    --text: #1a1a1a;
+    --text-secondary: #6b6b6b;
+    --text-muted: #a0a0a0;
+    --accent: #2b6cb0;
+    --accent-hover: #1a4f8a;
+    --game: #2b6cb0;
+    --demo: #2f855a;
+    --tool: #c05621;
+  }
+
   body {
-    background: #0a0a0f;
+    background: var(--bg);
     min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  /* ─── Nav ─── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    color: #e0e0e0;
+    justify-content: space-between;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 20px 32px;
+    background: var(--bg);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
   }
-  header { text-align: center; margin-bottom: 48px; }
-  h1 { font-size: 2rem; font-weight: 200; letter-spacing: 0.15em; }
-  h1 span { color: #6bb8ff; font-weight: 600; }
-  .subtitle { margin-top: 8px; font-size: 0.85rem; color: #444; letter-spacing: 0.05em; }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 20px;
-    width: min(900px, 90vw);
+  nav.scrolled {
+    border-bottom-color: var(--border);
   }
-
-  .card {
-    background: #111118;
-    border: 1px solid #1e1e2e;
-    border-radius: 12px;
-    padding: 24px 20px;
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     text-decoration: none;
     color: inherit;
-    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+  }
+  .nav-brand img {
+    width: 32px;
+    height: 32px;
+    display: block;
+    background: #fff;
+    padding: 3px;
+  }
+  .nav-brand span {
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+  }
+  .nav-links a {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .nav-links a:hover { color: var(--text); }
+
+  /* ─── Layout ─── */
+  .content {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 32px 40px;
+  }
+  section {
+    margin-bottom: 48px;
+  }
+
+  /* ─── Hero ─── */
+  .hero {
+    text-align: center;
+    padding: 40px 0 16px;
+  }
+  .hero-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+  .hero-brand img {
+    width: 72px;
+    height: 72px;
+    display: block;
+    background: #fff;
+    padding: 6px;
+  }
+  .hero h1 {
+    font-size: 4rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  .hero .tagline {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .hero .sub {
+    font-size: 1rem;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+  }
+  .hero-ctas {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn {
+    font-size: 0.95rem;
+    padding: 10px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: inline-block;
+  }
+  .btn-primary {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover { background: #f0eeea; border-color: #d8d4ce; }
+
+  /* ─── Tech ─── */
+  .tech-badges {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+  }
+  .badge {
+    font-size: 0.78rem;
+    padding: 5px 12px;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+  }
+
+  /* ─── Section Title ─── */
+  h2 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+
+  /* ─── Features ─── */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  .feature {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 18px;
+  }
+  .feature-icon {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+  }
+  .feature h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+  .feature p {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  /* ─── Projects ─── */
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 16px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
     display: flex;
     flex-direction: column;
     gap: 8px;
   }
   .card:hover {
-    border-color: #6bb8ff44;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 32px rgba(100, 180, 255, 0.08);
+    border-color: #c8c4be;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+  }
+  .card-icon {
+    font-size: 1.5rem;
   }
   .card-title {
     font-size: 1rem;
-    font-weight: 500;
-    color: #c8e0ff;
+    font-weight: 600;
+    color: var(--text);
   }
   .card-desc {
-    font-size: 0.8rem;
-    color: #555;
-    line-height: 1.5;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    flex: 1;
   }
   .card-tag {
-    margin-top: 4px;
-    font-size: 0.7rem;
-    color: #6bb8ff88;
-    letter-spacing: 0.05em;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+  .card[data-type="game"] .card-tag { color: var(--game); }
+  .card[data-type="demo"] .card-tag { color: var(--demo); }
+  .card[data-type="tool"] .card-tag { color: var(--tool); }
+
+  /* ─── Quick Start ─── */
+  .code-block {
+    background: #1e1e1e;
+    border-radius: 12px;
+    padding: 20px 24px;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+    font-size: 0.85rem;
+    line-height: 1.9;
+    color: #a0a0a0;
+    overflow-x: auto;
+  }
+  .code-block .cmd { color: #e0e0e0; }
+  .code-block .comment { color: #6a6a6a; }
+
+  /* ─── Footer ─── */
+  footer {
+    text-align: center;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+  .footer-links {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+  .footer-links a {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+  }
+  .footer-links a:hover { color: var(--text); }
+  .footer-copy {
+    font-size: 0.78rem;
+    color: var(--text-muted);
   }
 
-  footer {
-    margin-top: 64px;
-    font-size: 0.75rem;
-    color: #2a2a3a;
+  /* 响应式 */
+  @media (max-width: 640px) {
+    nav { padding: 16px 20px; }
+    .nav-links { gap: 16px; }
+    .nav-links a:not(.nav-cta) { display: none; }
+    .content { padding: 0 20px 60px; }
+    .hero { padding: 48px 0 24px; }
+    .hero h1 { font-size: 2.6rem; }
+    .hero-brand img { width: 52px; height: 52px; }
+    .hero .tagline { font-size: 1.05rem; }
+    .feature-grid,
+    .project-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
 <body>
-  <header>
-    <h1><span>mote</span> a tiny web game engine</h1>
-    <p class="subtitle">游戏列表</p>
-  </header>
 
-  <div class="grid">
-    <a class="card" href="/games/breakout/index.html">
-      <div class="card-title">Breakout</div>
-      <div class="card-desc">经典打砖块游戏，1280×960高清画布，支持键盘 / 触屏滑动控制，连击系统。</div>
-      <div class="card-tag">GAME · ARCADE</div>
+  <nav>
+    <a class="nav-brand" href="/">
+      <img src="mote-logo.svg" alt="mote">
+      <span>mote</span>
     </a>
-    <a class="card" href="/games/snake/index.html">
-      <div class="card-title">Snake</div>
-      <div class="card-desc">经典贪吃蛇游戏，支持键盘方向键 / WASD / 触屏控制，高分记录本地存储。</div>
-      <div class="card-tag">GAME · ARCADE</div>
-    </a>
-    <a class="card" href="/games/tiny-town/index.html">
-      <div class="card-title">Tiny Town</div>
-      <div class="card-desc">Kenney Tiny Town 素材的 Tilemap 渲染演示，支持键盘 / 手柄平移视角。</div>
-      <div class="card-tag">DEMO · TILEMAP</div>
-    </a>
-    <a class="card" href="/games/tiny-dungeon/index.html">
-      <div class="card-title">Tiny Dungeon</div>
-      <div class="card-desc">Kenney Tiny Dungeon 素材的俯视角地牢探索，ECS 架构，支持键盘 WASD 移动与攻击。</div>
-      <div class="card-tag">GAME · TOP-DOWN</div>
-    </a>
-    <a class="card" href="/packages/editor/index.html">
-      <div class="card-title">🛠️ Editor (New)</div>
-      <div class="card-desc">全新 Blender 风格编辑器，自由分割布局，视口/场景树/属性面板/资源浏览器。</div>
-      <div class="card-tag">TOOL · EDITOR v2</div>
-    </a>
+    <div class="nav-links">
+      <a href="https://github.com/IceRiverr/mote" target="_blank">GitHub</a>
+    </div>
+  </nav>
+
+  <div class="content">
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-brand">
+        <img src="mote-logo.svg" alt="mote logo">
+        <h1>mote</h1>
+      </div>
+      <p class="tagline">轻量级 Web 2D 游戏引擎</p>
+      <p class="sub">ECS 架构 · WebGPU 渲染 · 浏览器内嵌编辑器</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="/packages/editor/index.html">打开编辑器</a>
+        <a class="btn btn-secondary" href="#games">查看游戏</a>
+      </div>
+    </section>
+
+    <!-- Tech -->
+    <div class="tech-badges">
+      <span class="badge">ECS</span>
+      <span class="badge">WebGPU / WebGL2</span>
+      <span class="badge">WGSL</span>
+      <span class="badge">TypeScript</span>
+      <span class="badge">Preact</span>
+      <span class="badge">Vite</span>
+    </div>
+
+    <!-- Features -->
+    <section>
+      <h2>核心特性</h2>
+      <div class="feature-grid">
+        <div class="feature">
+          <div class="feature-icon">⚡</div>
+          <h3>ECS 架构</h3>
+          <p>Entity-Component-System 设计，数据驱动，一人即可完全掌控全部代码。</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🎨</div>
+          <h3>WebGPU 渲染</h3>
+          <p>原生 WebGPU + WGSL Shader，自动回退 WebGL2，保留完整 Shader 能力。</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">🛠️</div>
+          <h3>浏览器编辑器</h3>
+          <p>Blender 风格布局，视口实时预览，纯前端零后端，打开即编辑。</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">📦</div>
+          <h3>单文件打包</h3>
+          <p>一键 bundle 成独立 HTML，双击运行，无需服务器，直接分享。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Projects -->
+    <section id="games">
+      <h2>游戏与演示</h2>
+      <div class="project-grid">
+        <a class="card" href="/games/breakout/index.html" data-type="game">
+          <div class="card-icon">🧱</div>
+          <div class="card-title">Breakout</div>
+          <div class="card-desc">经典打砖块，1280×960 高清画布，键盘 / 触屏滑动，含连击积分系统。</div>
+          <div class="card-tag">Game · Arcade</div>
+        </a>
+        <a class="card" href="/games/snake/index.html" data-type="game">
+          <div class="card-icon">🐍</div>
+          <div class="card-title">Snake</div>
+          <div class="card-desc">经典贪吃蛇，键盘方向键 / WASD / 触屏操控，高分记录本地持久化。</div>
+          <div class="card-tag">Game · Arcade</div>
+        </a>
+        <a class="card" href="/games/tiny-town/index.html" data-type="demo">
+          <div class="card-icon">🏘️</div>
+          <div class="card-title">Tiny Town</div>
+          <div class="card-desc">Kenney Tiny Town 素材 Tilemap 渲染演示，键盘 / 手柄平移视角。</div>
+          <div class="card-tag">Demo · Tilemap</div>
+        </a>
+        <a class="card" href="/games/tiny-dungeon/index.html" data-type="game">
+          <div class="card-icon">⚔️</div>
+          <div class="card-title">Tiny Dungeon</div>
+          <div class="card-desc">俯视角地牢探索，ECS 架构驱动，WASD 移动与近战攻击系统。</div>
+          <div class="card-tag">Game · Top-Down</div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Quick Start -->
+    <section>
+      <h2>快速开始</h2>
+      <div class="code-block">
+        <span class="cmd">git clone https://github.com/IceRiverr/mote.git</span><br>
+        <span class="cmd">cd mote && npm install</span><br>
+        <span class="cmd">npm run dev</span>      <span class="comment"># 启动开发服务器</span><br>
+        <span class="cmd">npm run build</span>    <span class="comment"># 构建全部</span><br>
+        <span class="cmd">npm run bundle</span>   <span class="comment"># 打包成单个 HTML</span><br>
+        <span class="cmd">npm run deploy</span>   <span class="comment"># 构建并部署</span>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="footer-copy">mote — 一人可控，AI 协力的 Web 2D 游戏引擎</div>
+    </footer>
+
   </div>
 
-  <footer>mote — WebGPU</footer>
+  <script>
+    (function() {
+      const nav = document.querySelector('nav');
+      if (!nav) return;
+      function onScroll() {
+        nav.classList.toggle('scrolled', window.scrollY > 4);
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    })();
+  </script>
+
 </body>
 </html>

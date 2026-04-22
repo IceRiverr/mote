@@ -1,9 +1,0 @@
-{
-  "id": "lava", "name": "Lava Floor", "sprite": "tower-tiles:lava",
-  "shape": "rect", "width": 32, "height": 32, "resizable": true,
-  "color": "#E74C3C", "icon": "🔥", "script": "scripts/lava.ts",
-  "collider": null,
-  "fields": [
-    {"id":"damage","label":"伤害","type":"number","default":100}
-  ]
-}

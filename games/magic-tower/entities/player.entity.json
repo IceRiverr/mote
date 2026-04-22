@@ -1,9 +1,0 @@
-{
-  "id": "player", "name": "Player", "sprite": "characters:player_down",
-  "shape": "rect", "width": 32, "height": 32, "resizable": false,
-  "color": "#4CAF50", "icon": "🧑", "script": "scripts/player-controller.ts",
-  "collider": null,
-  "fields": [
-    {"id":"direction","label":"朝向","type":"string","default":"down"}
-  ]
-}

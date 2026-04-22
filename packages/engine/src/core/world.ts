@@ -143,7 +143,7 @@ export class World {
     const comps = this.entityComponents.get(eid);
     if (!comps) throw new Error(`[World] Entity #${eid} does not exist`);
     const instance = ComponentRegistry.createInstance(cls, data);
-    comps.set(cls.name, instance);
+    comps.set(ComponentRegistry.nameOf(cls) ?? cls.name, instance);
   }
 
   /**
@@ -151,7 +151,7 @@ export class World {
    */
   remove<T>(eid: EntityId, cls: ComponentClass<T>): void {
     const comps = this.entityComponents.get(eid);
-    if (comps) comps.delete(cls.name);
+    if (comps) comps.delete(ComponentRegistry.nameOf(cls) ?? cls.name);
   }
 
   /**
@@ -160,7 +160,7 @@ export class World {
   get<T>(eid: EntityId, cls: ComponentClass<T>): T {
     const comps = this.entityComponents.get(eid);
     if (!comps) throw new Error(`[World] Entity #${eid} does not exist`);
-    return comps.get(cls.name) as T;
+    return comps.get(ComponentRegistry.nameOf(cls) ?? cls.name) as T;
   }
 
   /**
@@ -168,7 +168,7 @@ export class World {
    */
   has<T>(eid: EntityId, cls: ComponentClass<T>): boolean {
     const comps = this.entityComponents.get(eid);
-    return comps ? comps.has(cls.name) : false;
+    return comps ? comps.has(ComponentRegistry.nameOf(cls) ?? cls.name) : false;
   }
 
   // ─── 查询 ───
@@ -189,7 +189,7 @@ export class World {
    * ```
    */
   query(...components: ComponentClass[]): QueryResult {
-    const names = components.map((c) => c.name);
+    const names = components.map((c) => ComponentRegistry.nameOf(c) ?? c.name);
     const matched: EntityId[] = [];
 
     for (const [eid, comps] of this.entityComponents) {

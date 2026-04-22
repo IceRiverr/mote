@@ -209,48 +209,67 @@
   /* ─── Projects ─── */
   .project-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
   }
   .card {
     background: var(--bg-elevated);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 18px 16px;
+    border-radius: 10px;
     text-decoration: none;
     color: inherit;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: transform 0.15s, box-shadow 0.15s;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    overflow: hidden;
   }
   .card:hover {
-    border-color: #c8c4be;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
   }
-  .card-icon {
-    font-size: 1.5rem;
+  .card-cover {
+    height: 140px;
+    position: relative;
+  }
+  .card-cover::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.25) 100%);
+  }
+  .card[data-type="game"]:nth-child(1) .card-cover { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+  .card[data-type="game"]:nth-child(2) .card-cover { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+  .card[data-type="demo"] .card-cover { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+  .card[data-type="game"]:nth-child(4) .card-cover { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+  .card-body {
+    padding: 14px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
   .card-title {
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
     color: var(--text);
   }
   .card-desc {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
-    line-height: 1.55;
-    flex: 1;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .card-tag {
-    font-size: 0.72rem;
-    letter-spacing: 0.06em;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
     font-weight: 500;
     text-transform: uppercase;
+    margin-top: 2px;
   }
   .card[data-type="game"] .card-tag { color: var(--game); }
   .card[data-type="demo"] .card-tag { color: var(--demo); }
-  .card[data-type="tool"] .card-tag { color: var(--tool); }
 
   /* ─── Quick Start ─── */
   .code-block {
@@ -374,28 +393,36 @@
       <h2>游戏与演示</h2>
       <div class="project-grid">
         <a class="card" href="/games/breakout/index.html" data-type="game">
-          <div class="card-icon">🧱</div>
-          <div class="card-title">Breakout</div>
-          <div class="card-desc">经典打砖块，1280×960 高清画布，键盘 / 触屏滑动，含连击积分系统。</div>
-          <div class="card-tag">Game · Arcade</div>
+          <div class="card-cover"></div>
+          <div class="card-body">
+            <div class="card-title">Breakout</div>
+            <div class="card-desc">经典打砖块，键盘 / 触屏滑动，含连击积分系统。</div>
+            <div class="card-tag">Game · Arcade</div>
+          </div>
         </a>
         <a class="card" href="/games/snake/index.html" data-type="game">
-          <div class="card-icon">🐍</div>
-          <div class="card-title">Snake</div>
-          <div class="card-desc">经典贪吃蛇，键盘方向键 / WASD / 触屏操控，高分记录本地持久化。</div>
-          <div class="card-tag">Game · Arcade</div>
+          <div class="card-cover"></div>
+          <div class="card-body">
+            <div class="card-title">Snake</div>
+            <div class="card-desc">经典贪吃蛇，高分记录本地持久化。</div>
+            <div class="card-tag">Game · Arcade</div>
+          </div>
         </a>
         <a class="card" href="/games/tiny-town/index.html" data-type="demo">
-          <div class="card-icon">🏘️</div>
-          <div class="card-title">Tiny Town</div>
-          <div class="card-desc">Kenney Tiny Town 素材 Tilemap 渲染演示，键盘 / 手柄平移视角。</div>
-          <div class="card-tag">Demo · Tilemap</div>
+          <div class="card-cover"></div>
+          <div class="card-body">
+            <div class="card-title">Tiny Town</div>
+            <div class="card-desc">Kenney 素材 Tilemap 渲染演示，键盘 / 手柄平移视角。</div>
+            <div class="card-tag">Demo · Tilemap</div>
+          </div>
         </a>
         <a class="card" href="/games/tiny-dungeon/index.html" data-type="game">
-          <div class="card-icon">⚔️</div>
-          <div class="card-title">Tiny Dungeon</div>
-          <div class="card-desc">俯视角地牢探索，ECS 架构驱动，WASD 移动与近战攻击系统。</div>
-          <div class="card-tag">Game · Top-Down</div>
+          <div class="card-cover"></div>
+          <div class="card-body">
+            <div class="card-title">Tiny Dungeon</div>
+            <div class="card-desc">俯视角地牢探索，WASD 移动与近战攻击。</div>
+            <div class="card-tag">Game · Top-Down</div>
+          </div>
         </a>
       </div>
     </section>

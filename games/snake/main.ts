@@ -1,8 +1,9 @@
 import {
   createGfxDevice, SpriteBatch, TextureAtlas, Camera2D,
-  GameLoop, InputManager, ActionMap, ActionType, Vec2, Color,
+  GameLoop, Vec2, Color,
   TextRenderer,
 } from '@mote/engine';
+import { InputManager, ActionMap, ActionType } from '@mote/engine/Input';
 
 // 动态创建白色纹理 Data URL
 function createWhitePixelDataUrl(): string {

@@ -49,12 +49,12 @@ function inputSystem(world: World, dt: number): void {
   for (const eid of world.query(PlayerTag, Transform)) {
     const transform = world.get(eid, Transform);
 
-    // 计算移动向量（Y-up 坐标系：W/Up = Y 增加，S/Down = Y 减少）
+    // 计算移动向量（Y-down 坐标系：W/Up = Y 减少，S/Down = Y 增加）
     let moveX = 0;
     let moveY = 0;
     
-    if (input.isAnyDown(['KeyW', 'ArrowUp'])) moveY += 1;
-    if (input.isAnyDown(['KeyS', 'ArrowDown'])) moveY -= 1;
+    if (input.isAnyDown(['KeyW', 'ArrowUp'])) moveY -= 1;
+    if (input.isAnyDown(['KeyS', 'ArrowDown'])) moveY += 1;
     if (input.isAnyDown(['KeyA', 'ArrowLeft'])) moveX -= 1;
     if (input.isAnyDown(['KeyD', 'ArrowRight'])) moveX += 1;
 
@@ -358,13 +358,13 @@ import { InputManager } from '@mote/engine';
 
 export function GamePlugin(world: World): void {
   // 注册组件
-  world.registerComponent(PlayerTag);
-  world.registerComponent(EnemyAI);
-  world.registerComponent(Weapon);
-  world.registerComponent(Health);
-  world.registerComponent(Pickup);
-  world.registerComponent(WallTag);
-  world.registerComponent(FloorTag);
+  world.registerComponent(PlayerTag, 'PlayerTag');
+  world.registerComponent(EnemyAI, 'EnemyAI');
+  world.registerComponent(Weapon, 'Weapon');
+  world.registerComponent(Health, 'Health');
+  world.registerComponent(Pickup, 'Pickup');
+  world.registerComponent(WallTag, 'WallTag');
+  world.registerComponent(FloorTag, 'FloorTag');
 
   // 注册 Prefab
   for (const prefab of ALL_PREFABS) {

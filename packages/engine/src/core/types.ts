@@ -50,6 +50,8 @@ export type Plugin = (world: any, options?: any) => void | Promise<void>;
 
 /** 预制体定义（运行时，不存储资源标识） */
 export interface Prefab {
+  /** 预制体唯一标识 */
+  id?: string;
   /** 显示名称 */
   name?: string;
   /** 组件配置 */

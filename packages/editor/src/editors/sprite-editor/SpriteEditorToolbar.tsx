@@ -16,7 +16,7 @@ import { COLLIDER_PRESETS } from '../../data/Collider';
 
 // ── Preset Tool Button ───────────────────────────────────────
 
-function PresetButton({ tool }: { tool: ColliderTool }) {
+function PresetButton({ tool }: { tool: ColliderTool; key?: any }) {
   const info = TOOL_NAMES[tool];
   const active = colliderTool.value === tool;
 

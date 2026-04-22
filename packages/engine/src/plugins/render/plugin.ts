@@ -107,9 +107,9 @@ export async function RenderPlugin(world: World, options: RenderPluginOptions): 
   world.addResource('animations', new Map<string, AnimationDef>());
 
   // 注册组件
-  world.registerComponent(Sprite);
-  world.registerComponent(Camera);
-  world.registerComponent(SpriteAnimation);
+  world.registerComponent(Sprite, 'Sprite');
+  world.registerComponent(Camera, 'Camera');
+  world.registerComponent(SpriteAnimation, 'SpriteAnimation');
 
   // 注册系统（动画系统在游戏逻辑之前，渲染系统在最后）
   world.addSystem(spriteAnimationSystem);

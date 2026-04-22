@@ -240,7 +240,7 @@ function MiniToggle({
   active: boolean;
   onClick: () => void;
   title: string;
-  children: any;
+  children?: any;
 }) {
   return (
     <button

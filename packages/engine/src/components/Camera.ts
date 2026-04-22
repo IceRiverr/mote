@@ -48,9 +48,4 @@ export class Camera {
   active = true;
 }
 
-// 注册到 ComponentMap
-declare module '../core/component' {
-  interface ComponentMap {
-    Camera: Camera;
-  }
-}
+

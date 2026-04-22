@@ -88,7 +88,7 @@ export function spriteRenderSystem(world: World, dt: number): void {
   renderer.camera2D.viewportWidth = camera.width;
   renderer.camera2D.viewportHeight = camera.height;
   renderer.camera2D.backgroundColor = camera.backgroundColor;
-  renderer.camera2D.update();
+  renderer.camera2D.update(dt);
 
   const batch = renderer.batch;
 
@@ -157,15 +157,11 @@ export function spriteRenderSystem(world: World, dt: number): void {
 
     const region = atlas.getRegion(sprite.region);
 
-    // 转换到屏幕坐标
-    const screenX = (transform.x - camX) * zoom + camera.width / 2;
-    const screenY = (transform.y - camY) * zoom + camera.height / 2;
-
     batch.drawQuad(
-      screenX,
-      screenY,
-      region.pixelWidth * transform.scaleX * zoom,
-      region.pixelHeight * transform.scaleY * zoom,
+      transform.x,
+      transform.y,
+      region.pixelWidth * transform.scaleX,
+      region.pixelHeight * transform.scaleY,
       transform.rotation,
       region,
       atlas,

@@ -363,7 +363,7 @@ export function InputPlugin(world: World, options: InputPluginOptions): void {
   });
 
   world.addResource('input', manager);
-  world.registerComponent(PlayerInput);
+  world.registerComponent(PlayerInput, 'PlayerInput');
   world.addSystem(inputSystem);
 
   // 清理

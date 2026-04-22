@@ -5,6 +5,7 @@ export class Camera2D {
   zoom: number;
   rotation: number;
   backgroundColor: Color;
+  viewport: { width: number; height: number; };
   
   /** 视口宽度 */
   get viewportWidth(): number { return this.viewport.width; }
@@ -42,8 +43,8 @@ export class Camera2D {
       cy = Math.round(cy * this.zoom) / this.zoom;
     }
 
-    // Y-up ortho projection
-    const proj = Mat4.ortho(cx - hw, cx + hw, cy - hh, cy + hh, -1, 1);
+    // Y-down ortho projection (matches Canvas: origin top-left, Y down)
+    const proj = Mat4.ortho(cx - hw, cx + hw, cy + hh, cy - hh, -1, 1);
 
     if (this.rotation !== 0) {
       const rot = Mat4.rotationZ(-this.rotation);
@@ -57,7 +58,7 @@ export class Camera2D {
     const hh = this.viewport.height * 0.5;
     return new Vec2(
       this.position.x + (sx - hw) / this.zoom,
-      this.position.y - (sy - hh) / this.zoom,
+      this.position.y + (sy - hh) / this.zoom,
     );
   }
 
@@ -66,7 +67,7 @@ export class Camera2D {
     const hh = this.viewport.height * 0.5;
     return new Vec2(
       (wx - this.position.x) * this.zoom + hw,
-      -(wy - this.position.y) * this.zoom + hh,
+      (wy - this.position.y) * this.zoom + hh,
     );
   }
 

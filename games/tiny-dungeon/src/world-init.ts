@@ -38,7 +38,7 @@ export async function initGameWorld(world: World): Promise<void> {
   // 加载图集
   const renderer = world.getResource('renderer');
   if (renderer) {
-    await renderer.loadAtlas(
+    await (renderer as any).loadAtlas(
       'tiles',
       './assets/tiny-dungeon_tilemap_packed.png',
       './assets/tiny-dungeon_tilemap_packed.mote-sprite.json'
@@ -72,17 +72,18 @@ function generateBorderWalls(
   mapH: number
 ): void {
   for (let col = 0; col < mapW; col++) {
-    // 底部墙壁（Y-up 坐标系，底部是 y=0）
-    spawnWall(world, col * T + T / 2, T / 2);
-    // 顶部墙壁
+    // 底部墙壁（Y-down：屏幕底部 = 大 y）
     spawnWall(world, col * T + T / 2, (mapH - 1) * T + T / 2);
+    // 顶部墙壁（Y-down：屏幕顶部 = 小 y）
+    spawnWall(world, col * T + T / 2, T / 2);
   }
 
   for (let row = 1; row < mapH - 1; row++) {
+    const y = (mapH - 1 - row) * T + T / 2;
     // 左侧墙壁
-    spawnWall(world, T / 2, row * T + T / 2);
+    spawnWall(world, T / 2, y);
     // 右侧墙壁
-    spawnWall(world, (mapW - 1) * T + T / 2, row * T + T / 2);
+    spawnWall(world, (mapW - 1) * T + T / 2, y);
   }
 }
 
@@ -96,7 +97,7 @@ function generateFloor(
   for (let row = 1; row < mapH - 1; row++) {
     for (let col = 1; col < mapW - 1; col++) {
       const x = col * T + T / 2;
-      const y = row * T + T / 2;
+      const y = (mapH - 1 - row) * T + T / 2;
       
       world.spawn({
         Transform: { x, y },
@@ -166,7 +167,7 @@ function generateHouse(world: World, T: number, house: House): void {
   for (let row = 0; row < height; row++) {
     for (let col = 0; col < width; col++) {
       const worldX = (x + col) * T + T / 2;
-      const worldY = (y + row) * T + T / 2;
+      const worldY = (WORLD_CONFIG.mapHeight - 1 - (y + row)) * T + T / 2;
       
       // 四周是墙壁
       if (row === 0 || row === height - 1 || col === 0 || col === width - 1) {
@@ -202,7 +203,7 @@ function spawnGameEntities(world: World, T: number, houses: House[]): void {
   for (let row = 2; row < WORLD_CONFIG.mapHeight - 2; row++) {
     for (let col = 2; col < WORLD_CONFIG.mapWidth - 2; col++) {
       const x = col * T + T / 2;
-      const y = row * T + T / 2;
+      const y = (WORLD_CONFIG.mapHeight - 1 - row) * T + T / 2;
       
       // 检查是否在房子内
       if (!isInsideHouse(col, row, houses)) {

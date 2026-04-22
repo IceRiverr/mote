@@ -107,7 +107,7 @@ export class ActionState {
       if (y === 0) {
         const d = this.mgr.rawDown(c.down)  ? 1 : 0;
         const u = this.mgr.rawDown(c.up)    ? 1 : 0;
-        if (d || u) y = u - d;
+        if (d || u) y = d - u;   // Y-down: down=+1, up=-1
       }
     }
 
@@ -324,7 +324,7 @@ export class InputManager {
       for (let si = 0; si < Math.floor(gp.axes.length / 2); si++) {
         this.stickData[gi][si] = {
           x: applyDeadzone(gp.axes[si * 2]),
-          y: -applyDeadzone(gp.axes[si * 2 + 1]),
+          y: applyDeadzone(gp.axes[si * 2 + 1]),  // Y-down: stick up = -1
         };
       }
 

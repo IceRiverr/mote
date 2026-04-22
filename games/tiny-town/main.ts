@@ -1,5 +1,6 @@
-import { createGfxDevice, SpriteBatch, TextureAtlas, Camera2D, GameLoop, InputManager, ActionMap, ActionType, Vec2, Color } from '@mote/engine';
+import { createGfxDevice, SpriteBatch, TextureAtlas, Camera2D, GameLoop, Vec2, Color } from '@mote/engine';
 import type { AtlasRegion } from '@mote/engine';
+import { InputManager, ActionMap, ActionType } from '@mote/engine/Input';
 
 // ── Tileset Types ─────────────────────────────────────────────────────────────
 interface TilesetTile {

@@ -15,7 +15,7 @@ export default class TriggerScript {
 
   onCollisionEnter(other: any): void {
     if (this.triggered && this.entity.getField('once')) return;
-    const event = this.entity.getField<string>('event');
+    const event = this.entity.getField('event') as string;
     if (event) {
       console.log(`[Trigger] Event fired: ${event}`);
       this.triggered = true;

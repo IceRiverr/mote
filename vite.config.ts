@@ -89,10 +89,8 @@ function copyGameAssetsPlugin() {
           // 返回目录索引，使用完整路径 /games/...
           res.setHeader('Content-Type', 'text/html; charset=utf-8');
           res.end(generateDirectoryListing(fullPath, '/games' + req.url));
-        } else if (stat.isFile()) {
-          // 返回文件
-          res.end(fs.readFileSync(fullPath));
         } else {
+          // 所有文件（包括 .html、.ts、.png 等）都交给 Vite 默认管道处理
           next();
         }
       });
@@ -110,12 +108,26 @@ function copyGameAssetsPlugin() {
         fs.copyFileSync(dungeonConfig, resolve(__dirname, 'dist/games/dungeon/map-editor.config.json'));
       }
 
-      // 复制 tiny-town assets + config
+      // 复制 tiny-dungeon assets
+      const tinyDungeonSrc = resolve(__dirname, 'games/tiny-dungeon/assets');
+      const tinyDungeonDest = resolve(__dirname, 'dist/games/tiny-dungeon/assets');
+      if (fs.existsSync(tinyDungeonSrc)) {
+        fs.mkdirSync(dirname(tinyDungeonDest), { recursive: true });
+        fs.cpSync(tinyDungeonSrc, tinyDungeonDest, { recursive: true });
+      }
+
+      // 复制 tiny-town assets + maps + config
       const tinyTownSrc = resolve(__dirname, 'games/tiny-town/assets');
       const tinyTownDest = resolve(__dirname, 'dist/games/tiny-town/assets');
       if (fs.existsSync(tinyTownSrc)) {
         fs.mkdirSync(dirname(tinyTownDest), { recursive: true });
         fs.cpSync(tinyTownSrc, tinyTownDest, { recursive: true });
+      }
+      const tinyTownMapsSrc = resolve(__dirname, 'games/tiny-town/maps');
+      const tinyTownMapsDest = resolve(__dirname, 'dist/games/tiny-town/maps');
+      if (fs.existsSync(tinyTownMapsSrc)) {
+        fs.mkdirSync(dirname(tinyTownMapsDest), { recursive: true });
+        fs.cpSync(tinyTownMapsSrc, tinyTownMapsDest, { recursive: true });
       }
       const tinyTownConfig = resolve(__dirname, 'games/tiny-town/map-editor.config.json');
       if (fs.existsSync(tinyTownConfig)) {
@@ -127,10 +139,12 @@ function copyGameAssetsPlugin() {
 
 export default defineConfig({
   root: '.',
+  appType: 'mpa',
   resolve: {
-    alias: {
-      '@mote/engine': resolve(__dirname, 'packages/engine/src/index.ts'),
-    },
+    alias: [
+      { find: /^@mote\/engine$/, replacement: resolve(__dirname, 'packages/engine/src/index.ts') },
+      { find: /^@mote\/engine\/(.+)$/, replacement: resolve(__dirname, 'packages/engine/src/$1.ts') },
+    ],
   },
   plugins: [
     preact(),
@@ -145,7 +159,7 @@ export default defineConfig({
         main:       resolve(__dirname, 'index.html'),
         snake:      resolve(__dirname, 'games/snake/index.html'),
         tinyTown:   resolve(__dirname, 'games/tiny-town/index.html'),
-        dungeon:    resolve(__dirname, 'games/dungeon/index.html'),
+        tinyDungeon: resolve(__dirname, 'games/tiny-dungeon/index.html'),
         breakout:   resolve(__dirname, 'games/breakout/index.html'),
         editor:     resolve(__dirname, 'packages/editor/index.html'),
       },

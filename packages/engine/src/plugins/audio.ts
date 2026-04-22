@@ -267,7 +267,7 @@ function audioEmitterSystem(world: World, dt: number): void {
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < emitter.maxDistance) {
-          options.volume *= 1 - dist / emitter.maxDistance;
+          if (options.volume !== undefined) options.volume *= 1 - dist / emitter.maxDistance;
           options.pan = dx / emitter.maxDistance;
           audio.play(emitter.soundKey, options);
         }

@@ -66,9 +66,4 @@ export class Sprite {
   visible = true;
 }
 
-// 注册到 ComponentMap
-declare module '../core/component' {
-  interface ComponentMap {
-    Sprite: Sprite;
-  }
-}
+

@@ -74,7 +74,7 @@ export const ComponentRegistry = {
   createInstance<T>(cls: ComponentClass<T>, data?: Partial<T>): T {
     const instance = new cls();
     if (data) {
-      Object.assign(instance, data);
+      Object.assign(instance as object, data);
     }
     return instance;
   },

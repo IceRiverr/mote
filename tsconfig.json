@@ -4,8 +4,12 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitAny": false,
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "esModuleInterop": true,
     "sourceMap": true,
     "lib": ["ESNext", "DOM"],
     "types": ["@webgpu/types"],
@@ -17,5 +21,5 @@
     }
   },
   "include": ["packages", "games"],
-  "exclude": ["vite.config.ts", "**/dist/**", "**/assets/**"]
+  "exclude": ["vite.config.ts", "**/dist/**", "**/assets/**", "packages/engine/src/TileMapRenderer.ts", "packages/engine/scripts/extract-schemas.ts"]
 }

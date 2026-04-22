@@ -11,7 +11,7 @@
 // Supports: kerning, word wrap, multi-line, alignment, letter/line spacing.
 // ═══════════════════════════════════════════════════════════════════════════
 
-import type { Color } from '../Math.js';
+import type { Color } from '../../Math.js';
 
 // ── Types ────────────────────────────────────────────────────────────────
 

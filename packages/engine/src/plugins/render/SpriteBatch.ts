@@ -191,6 +191,8 @@ export class SpriteBatch {
     region: AtlasRegion,
     atlas: TextureAtlas,
     color: Color = DEFAULT_COLOR,
+    flipX = false,
+    flipY = false,
   ): void {
     if (this.quadCount >= SpriteBatch.MAX_QUADS) this._flush();
     if (atlas !== this.currentAtlas) this._breakBatch(atlas);
@@ -202,24 +204,24 @@ export class SpriteBatch {
       const x0 = x - hw, x1 = x + hw;
       const y0 = y - hh, y1 = y + hh;
 
-      // vertex 0: bottom-left
+      // vertex 0: top-left    (y0 = upper edge in Y-down)
       this.cpuBuffer[base]      = x0; this.cpuBuffer[base + 1]  = y0;
-      this.cpuBuffer[base + 2]  = region.u0; this.cpuBuffer[base + 3]  = region.v1;
+      this.cpuBuffer[base + 2]  = region.u0; this.cpuBuffer[base + 3]  = region.v0;
       this.cpuBuffer[base + 4]  = color.r; this.cpuBuffer[base + 5]  = color.g;
       this.cpuBuffer[base + 6]  = color.b; this.cpuBuffer[base + 7]  = color.a;
-      // vertex 1: bottom-right
+      // vertex 1: top-right
       this.cpuBuffer[base + 8]  = x1; this.cpuBuffer[base + 9]  = y0;
-      this.cpuBuffer[base + 10] = region.u1; this.cpuBuffer[base + 11] = region.v1;
+      this.cpuBuffer[base + 10] = region.u1; this.cpuBuffer[base + 11] = region.v0;
       this.cpuBuffer[base + 12] = color.r; this.cpuBuffer[base + 13] = color.g;
       this.cpuBuffer[base + 14] = color.b; this.cpuBuffer[base + 15] = color.a;
-      // vertex 2: top-right
+      // vertex 2: bottom-right  (y1 = lower edge in Y-down)
       this.cpuBuffer[base + 16] = x1; this.cpuBuffer[base + 17] = y1;
-      this.cpuBuffer[base + 18] = region.u1; this.cpuBuffer[base + 19] = region.v0;
+      this.cpuBuffer[base + 18] = region.u1; this.cpuBuffer[base + 19] = region.v1;
       this.cpuBuffer[base + 20] = color.r; this.cpuBuffer[base + 21] = color.g;
       this.cpuBuffer[base + 22] = color.b; this.cpuBuffer[base + 23] = color.a;
-      // vertex 3: top-left
+      // vertex 3: bottom-left
       this.cpuBuffer[base + 24] = x0; this.cpuBuffer[base + 25] = y1;
-      this.cpuBuffer[base + 26] = region.u0; this.cpuBuffer[base + 27] = region.v0;
+      this.cpuBuffer[base + 26] = region.u0; this.cpuBuffer[base + 27] = region.v1;
       this.cpuBuffer[base + 28] = color.r; this.cpuBuffer[base + 29] = color.g;
       this.cpuBuffer[base + 30] = color.b; this.cpuBuffer[base + 31] = color.a;
     } else {
@@ -230,28 +232,28 @@ export class SpriteBatch {
       const ly0 = -hh, ly1 = hh;
 
       // Unrolled 4 vertices with rotation transform
-      // vertex 0: bottom-left
+      // vertex 0: top-left    (ly0 = -hh → upper edge in Y-down)
       this.cpuBuffer[base]      = x + lx0 * cos - ly0 * sin;
       this.cpuBuffer[base + 1]  = y + lx0 * sin + ly0 * cos;
-      this.cpuBuffer[base + 2]  = region.u0; this.cpuBuffer[base + 3]  = region.v1;
+      this.cpuBuffer[base + 2]  = region.u0; this.cpuBuffer[base + 3]  = region.v0;
       this.cpuBuffer[base + 4]  = color.r; this.cpuBuffer[base + 5]  = color.g;
       this.cpuBuffer[base + 6]  = color.b; this.cpuBuffer[base + 7]  = color.a;
-      // vertex 1: bottom-right
+      // vertex 1: top-right
       this.cpuBuffer[base + 8]  = x + lx1 * cos - ly0 * sin;
       this.cpuBuffer[base + 9]  = y + lx1 * sin + ly0 * cos;
-      this.cpuBuffer[base + 10] = region.u1; this.cpuBuffer[base + 11] = region.v1;
+      this.cpuBuffer[base + 10] = region.u1; this.cpuBuffer[base + 11] = region.v0;
       this.cpuBuffer[base + 12] = color.r; this.cpuBuffer[base + 13] = color.g;
       this.cpuBuffer[base + 14] = color.b; this.cpuBuffer[base + 15] = color.a;
-      // vertex 2: top-right
+      // vertex 2: bottom-right  (ly1 = +hh → lower edge in Y-down)
       this.cpuBuffer[base + 16] = x + lx1 * cos - ly1 * sin;
       this.cpuBuffer[base + 17] = y + lx1 * sin + ly1 * cos;
-      this.cpuBuffer[base + 18] = region.u1; this.cpuBuffer[base + 19] = region.v0;
+      this.cpuBuffer[base + 18] = region.u1; this.cpuBuffer[base + 19] = region.v1;
       this.cpuBuffer[base + 20] = color.r; this.cpuBuffer[base + 21] = color.g;
       this.cpuBuffer[base + 22] = color.b; this.cpuBuffer[base + 23] = color.a;
-      // vertex 3: top-left
+      // vertex 3: bottom-left
       this.cpuBuffer[base + 24] = x + lx0 * cos - ly1 * sin;
       this.cpuBuffer[base + 25] = y + lx0 * sin + ly1 * cos;
-      this.cpuBuffer[base + 26] = region.u0; this.cpuBuffer[base + 27] = region.v0;
+      this.cpuBuffer[base + 26] = region.u0; this.cpuBuffer[base + 27] = region.v1;
       this.cpuBuffer[base + 28] = color.r; this.cpuBuffer[base + 29] = color.g;
       this.cpuBuffer[base + 30] = color.b; this.cpuBuffer[base + 31] = color.a;
     }

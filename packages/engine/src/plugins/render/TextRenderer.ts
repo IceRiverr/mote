@@ -221,11 +221,10 @@ export class TextRenderer {
 
     for (const q of result.quads) {
       // Set up the temp region to avoid allocating per-glyph
-      // Swap V coordinates to fix upside-down text (BMFont y=0 at top, SpriteBatch v0 at top)
       _tmpRegion.u0 = q.u0;
-      _tmpRegion.v0 = q.v1;  // 使用 v1 作为 v0
+      _tmpRegion.v0 = q.v0;
       _tmpRegion.u1 = q.u1;
-      _tmpRegion.v1 = q.v0;  // 使用 v0 作为 v1
+      _tmpRegion.v1 = q.v1;
       _tmpRegion.pixelWidth = q.w;
       _tmpRegion.pixelHeight = q.h;
 

@@ -1,9 +1,0 @@
-{
-  "name": "dungeon",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "@mote/engine": "*"
-  }
-}

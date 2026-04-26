@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [preact()],
   resolve: {
     alias: {
-      '@mote/engine': path.resolve(__dirname, '../engine/src'),
+      '@mote/engine': path.resolve(__dirname, '../packages/engine/src'),
     },
   },
   server: {

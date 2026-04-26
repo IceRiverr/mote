@@ -161,7 +161,7 @@ export default defineConfig({
         tinyTown:   resolve(__dirname, 'games/tiny-town/index.html'),
         tinyDungeon: resolve(__dirname, 'games/tiny-dungeon/index.html'),
         breakout:   resolve(__dirname, 'games/breakout/index.html'),
-        editor:     resolve(__dirname, 'packages/editor/index.html'),
+        editor:     resolve(__dirname, 'editor/index.html'),
       },
     },
   },

@@ -20,6 +20,6 @@
       "@mote/engine/*": ["./packages/engine/src/*"]
     }
   },
-  "include": ["packages", "games"],
+  "include": ["packages", "editor", "games"],
   "exclude": ["vite.config.ts", "**/dist/**", "**/assets/**", "packages/engine/src/TileMapRenderer.ts", "packages/engine/scripts/extract-schemas.ts"]
 }

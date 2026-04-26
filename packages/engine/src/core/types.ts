@@ -25,27 +25,6 @@ export type SpawnConfig = {
   [K in keyof ComponentMap]?: Partial<ComponentMap[K]>;
 };
 
-// ─── System ───
-
-/** 系统函数签名 */
-export type SystemFn = (world: any, dt: number) => void;
-
-/** 系统对象签名 */
-export interface SystemObj {
-  /** 系统名称（用于调试） */
-  name?: string;
-  /** 每帧更新 */
-  update: SystemFn;
-}
-
-/** System 可以是函数或对象 */
-export type System = SystemFn | SystemObj;
-
-// ─── Plugin ───
-
-/** 插件函数，可同步或异步，可接受选项参数 */
-export type Plugin = (world: any, options?: any) => void | Promise<void>;
-
 // ─── Prefab ───
 
 /** 预制体定义（运行时，不存储资源标识） */

@@ -3,12 +3,12 @@
 
 import type { World } from '../../core/world.js';
 import type { EntityId } from '../../core/types.js';
-import { Transform } from '../physics.js';
+import { Transform } from '../transform/plugin.js';
 import { Sprite, Camera, SpriteAnimation, type AnimationDef } from './types.js';
 import { SpriteBatch, type TextureAtlas } from './SpriteBatch.js';
 import type { IGfxDevice } from './IGfxDevice.js';
-import { Camera2D } from '../../Camera2D.js';
-import { Color } from '../../Math.js';
+import { Camera2D } from './Camera2D.js';
+import { Color } from '../../math/index.js';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // 动画系统

@@ -1,40 +1,34 @@
 // engine/src/core/world.ts
-// World —— ECS 核心，串联所有子系统
+// World —— ECS 数据层
 
 import type {
   EntityId,
   ComponentClass,
   SpawnConfig,
-  System,
-  SystemFn,
-  Plugin,
   Prefab,
 } from './types';
 import { Entity } from './entity';
 import { EventBus } from './event';
 import { ResourceStore } from './resource';
-import { ComponentRegistry } from './component';
+import type { ComponentRegistry } from './componentRegistry';
 import { PrefabStore, mergeSpawnConfig } from './prefab';
 import { QueryResult } from './query';
 
 /**
- * World 是 ECS 的核心容器
- * 管理实体生命周期、组件存储、查询、系统调度、事件和资源
+ * World 是 ECS 的数据容器
+ * 管理实体生命周期、组件存储、查询、事件和资源
  */
 export class World {
-  // ─── 内部存储 ───
-
   /** 下一个可用的 EntityId */
   private nextId: EntityId = 1;
+
+  constructor(readonly registry: ComponentRegistry) {}
 
   /** 存活实体集合 */
   private alive = new Set<EntityId>();
 
   /** EntityId → (组件名 → 组件实例) */
   private entityComponents = new Map<EntityId, Map<string, any>>();
-
-  /** 已注册的系统列表（按注册顺序执行） */
-  private systems: Array<{ name: string; update: SystemFn }> = [];
 
   /** 事件总线 */
   private eventBus = new EventBus();
@@ -105,7 +99,7 @@ export class World {
   private _applyConfig(eid: EntityId, config: SpawnConfig): void {
     const comps = this.entityComponents.get(eid)!;
     for (const [name, data] of Object.entries(config)) {
-      const instance = ComponentRegistry.createByName(name, data as any);
+      const instance = this.registry.createByName(name, data as any);
       comps.set(name, instance);
     }
   }
@@ -142,8 +136,8 @@ export class World {
   add<T>(eid: EntityId, cls: ComponentClass<T>, data?: Partial<T>): void {
     const comps = this.entityComponents.get(eid);
     if (!comps) throw new Error(`[World] Entity #${eid} does not exist`);
-    const instance = ComponentRegistry.createInstance(cls, data);
-    comps.set(ComponentRegistry.nameOf(cls) ?? cls.name, instance);
+    const instance = this.registry.createInstance(cls, data);
+    comps.set(this.registry.nameOf(cls) ?? cls.name, instance);
   }
 
   /**
@@ -151,7 +145,7 @@ export class World {
    */
   remove<T>(eid: EntityId, cls: ComponentClass<T>): void {
     const comps = this.entityComponents.get(eid);
-    if (comps) comps.delete(ComponentRegistry.nameOf(cls) ?? cls.name);
+    if (comps) comps.delete(this.registry.nameOf(cls) ?? cls.name);
   }
 
   /**
@@ -160,7 +154,7 @@ export class World {
   get<T>(eid: EntityId, cls: ComponentClass<T>): T {
     const comps = this.entityComponents.get(eid);
     if (!comps) throw new Error(`[World] Entity #${eid} does not exist`);
-    return comps.get(ComponentRegistry.nameOf(cls) ?? cls.name) as T;
+    return comps.get(this.registry.nameOf(cls) ?? cls.name) as T;
   }
 
   /**
@@ -168,7 +162,7 @@ export class World {
    */
   has<T>(eid: EntityId, cls: ComponentClass<T>): boolean {
     const comps = this.entityComponents.get(eid);
-    return comps ? comps.has(ComponentRegistry.nameOf(cls) ?? cls.name) : false;
+    return comps ? comps.has(this.registry.nameOf(cls) ?? cls.name) : false;
   }
 
   // ─── 查询 ───
@@ -189,7 +183,7 @@ export class World {
    * ```
    */
   query(...components: ComponentClass[]): QueryResult {
-    const names = components.map((c) => ComponentRegistry.nameOf(c) ?? c.name);
+    const names = components.map((c) => this.registry.nameOf(c) ?? c.name);
     const matched: EntityId[] = [];
 
     for (const [eid, comps] of this.entityComponents) {
@@ -211,62 +205,11 @@ export class World {
     );
   }
 
-  // ─── 系统管理 ───
+  // ─── 事件队列处理 ───
 
-  /**
-   * 注册系统（手动显式，调用顺序 = 执行顺序）
-   */
-  addSystem(system: System): void {
-    if (typeof system === 'function') {
-      this.systems.push({ name: system.name || 'anonymous', update: system });
-    } else {
-      this.systems.push({ name: system.name || 'anonymous', update: system.update.bind(system) });
-    }
-  }
-
-  /**
-   * 执行一帧更新：运行所有系统 + 处理事件队列
-   */
-  update(dt: number): void {
-    for (const sys of this.systems) {
-      sys.update(this, dt);
-    }
+  /** 处理延迟事件队列（由 App 在合适时机调用） */
+  processEvents(): void {
     this.eventBus.processQueue();
-  }
-
-  // ─── 插件 ───
-
-  /**
-   * 注册插件（支持链式 + 批量 + 带选项）
-   *
-   * ```ts
-   * // 简单插件
-   * world.use(PhysicsPlugin);
-   * 
-   * // 带选项的插件（使用数组元组）
-   * world.use([RenderPlugin, { canvas, width: 800, height: 600 }]);
-   * 
-   * // 混合使用（使用 await）
-   * await world.use(PhysicsPlugin, [RenderPlugin, { canvas }]);
-   * 
-   * // 链式调用
-   * await world.use(PhysicsPlugin).use([RenderPlugin, { canvas }]);
-   * ```
-   */
-  async use(...plugins: Array<Plugin | [Plugin, any]>): Promise<this> {
-    for (const item of plugins) {
-      const isTuple = Array.isArray(item);
-      const plugin = isTuple ? item[0] : item;
-      const options = isTuple ? item[1] : undefined;
-      
-      if (typeof plugin !== 'function') {
-        console.error('[World.use] Invalid plugin:', plugin);
-        throw new TypeError(`plugin is not a function: ${plugin}`);
-      }
-      
-      await plugin(this, options);
-    }
-    return this;
   }
 
   // ─── Prefab ───
@@ -283,23 +226,19 @@ export class World {
   /**
    * 注册组件类到全局 ComponentRegistry
    */
-  registerComponent<T>(cls: ComponentClass<T>, name?: string): void {
-    ComponentRegistry.register(cls, name);
-  }
-
   // ─── 资源 ───
 
   /**
-   * 添加全局资源
+   * 添加全局资源（支持 string 或 class 做 key）
    */
-  addResource<T>(key: string, value: T): void {
+  addResource<T>(key: string | ComponentClass<T>, value: T): void {
     this.resources.add(key, value);
   }
 
   /**
-   * 获取全局资源
+   * 获取全局资源（支持 string 或 class 做 key）
    */
-  getResource<T>(key: string): T {
+  getResource<T>(key: string | ComponentClass<T>): T {
     return this.resources.get<T>(key);
   }
 

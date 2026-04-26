@@ -3,11 +3,11 @@
 
 import type { ComponentClass } from '../../core/types';
 import type { IGfxDevice, IGfxTexture } from './IGfxDevice.js';
-import { Color } from '../../Math.js';
+import { Color } from '../../math/index.js';
 
 export type { IGfxDevice, IGfxTexture, IGfxBuffer, IGfxPipeline } from './IGfxDevice.js';
 export { TextureAtlas, type AtlasRegion } from './SpriteBatch.js';
-export { Color } from '../../Math.js';
+
 
 // ═════════════════════════════════════════════════════════════════════════════
 // 渲染组件
@@ -71,7 +71,7 @@ export interface AnimationDef {
 // 声明组件类型
 // ═════════════════════════════════════════════════════════════════════════════
 
-declare module '../../core/component' {
+declare module '../../core/componentRegistry' {
   interface ComponentMap {
     Sprite: Sprite;
     Camera: Camera;

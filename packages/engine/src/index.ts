@@ -9,7 +9,5 @@ export * from './core/index.js';
 // 渲染插件已包含所有图形功能 (WebGPU/WebGL2 双后端)
 export * from './plugins/index.js';
 
-// ── Math & Utils ──────────────────────────────────────────────────────────────
-export * from './Math.js';
-export * from './Camera2D.js';
-export * from './GameLoop.js';
+// ── Math ─────────────────────────────────────────────────────────────────────
+export * from './math/index.js';

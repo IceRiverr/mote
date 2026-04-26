@@ -3,7 +3,7 @@
 
 import type { IGfxDevice } from './IGfxDevice.js';
 import { SpriteBatch, TextureAtlas } from './SpriteBatch.js';
-import { Camera2D } from '../../Camera2D.js';
+import { Camera2D } from './Camera2D.js';
 import type { Renderer } from './systems.js';
 
 export { type Renderer };

@@ -116,23 +116,6 @@ function copyGameAssetsPlugin() {
         fs.cpSync(tinyDungeonSrc, tinyDungeonDest, { recursive: true });
       }
 
-      // 复制 tiny-town assets + maps + config
-      const tinyTownSrc = resolve(__dirname, 'games/tiny-town/assets');
-      const tinyTownDest = resolve(__dirname, 'dist/games/tiny-town/assets');
-      if (fs.existsSync(tinyTownSrc)) {
-        fs.mkdirSync(dirname(tinyTownDest), { recursive: true });
-        fs.cpSync(tinyTownSrc, tinyTownDest, { recursive: true });
-      }
-      const tinyTownMapsSrc = resolve(__dirname, 'games/tiny-town/maps');
-      const tinyTownMapsDest = resolve(__dirname, 'dist/games/tiny-town/maps');
-      if (fs.existsSync(tinyTownMapsSrc)) {
-        fs.mkdirSync(dirname(tinyTownMapsDest), { recursive: true });
-        fs.cpSync(tinyTownMapsSrc, tinyTownMapsDest, { recursive: true });
-      }
-      const tinyTownConfig = resolve(__dirname, 'games/tiny-town/map-editor.config.json');
-      if (fs.existsSync(tinyTownConfig)) {
-        fs.copyFileSync(tinyTownConfig, resolve(__dirname, 'dist/games/tiny-town/map-editor.config.json'));
-      }
     },
   };
 }
@@ -157,10 +140,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main:       resolve(__dirname, 'index.html'),
-        snake:      resolve(__dirname, 'games/snake/index.html'),
-        tinyTown:   resolve(__dirname, 'games/tiny-town/index.html'),
         tinyDungeon: resolve(__dirname, 'games/tiny-dungeon/index.html'),
-        breakout:   resolve(__dirname, 'games/breakout/index.html'),
         editor:     resolve(__dirname, 'editor/index.html'),
       },
     },

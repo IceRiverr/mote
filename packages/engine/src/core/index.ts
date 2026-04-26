@@ -10,13 +10,15 @@ export type {
   ComponentClass,
   ComponentMap,
   SpawnConfig,
-  SystemFn,
-  SystemObj,
-  System,
-  Plugin,
   Prefab,
   InstanceTypes,
 } from './types';
+
+// App & ECS 门面
+export { App, Time } from './app';
+export type { Plugin } from './plugin';
+export { ScheduleLabel } from './schedule';
+export type { System, SystemFn, SystemObj } from './system';
 
 // World
 export { World } from './world';
@@ -28,7 +30,7 @@ export { Entity } from './entity';
 export { QueryResult } from './query';
 
 // Component
-export { ComponentRegistry } from './component';
+export { ComponentRegistry } from './componentRegistry';
 
 // Prefab
 export { definePrefab, PrefabStore, mergeSpawnConfig } from './prefab';
@@ -38,9 +40,3 @@ export { EventBus } from './event';
 
 // Resource
 export { ResourceStore } from './resource';
-
-// Asset System
-export { validateAssetPath, resolveAssetPath } from './path';
-export type { AssetLoader } from './loader';
-export { LoaderRegistry, assetLoaders } from './loader';
-export { AssetManager } from './asset-manager';

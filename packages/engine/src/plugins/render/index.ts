@@ -22,7 +22,7 @@ export type {
 export { BufferUsage } from './IGfxDevice.js';
 
 // 渲染组件
-export { Sprite, Camera, SpriteAnimation, Color } from './types.js';
+export { Sprite, Camera, SpriteAnimation } from './types.js';
 export type { AnimationDef } from './types.js';
 
 // 图集和批次

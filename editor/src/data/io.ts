@@ -17,8 +17,33 @@ import type {
   PackedSlicing,
   XmlSlicing,
 } from "./SpriteSheet";
-import { validateAssetPath } from "@mote/engine/core/path";
 import { ENGINE_VERSION } from "@mote/engine/core/version";
+
+/** 验证资源路径是否符合规范（内联，不依赖 engine 的已删除 path 模块） */
+function validateAssetPath(path: string): string | null {
+  if (typeof path !== "string" || path.trim() === "") {
+    return "Path must be a non-empty string";
+  }
+  if (path.includes("\\")) {
+    return `Path must use forward slashes (/), not backslashes: "${path}"`;
+  }
+  if (path.startsWith("/")) {
+    return `Absolute paths are not allowed: "${path}"`;
+  }
+  if (/^[a-zA-Z]:/.test(path)) {
+    return `Drive letters are not allowed: "${path}"`;
+  }
+  if (path === ".." || path.startsWith("../") || path.includes("/../")) {
+    return `Path traversal (../) is not allowed: "${path}"`;
+  }
+  if (path.startsWith("assets/") || path === "assets") {
+    return `Path should not include "assets/" prefix: "${path}"`;
+  }
+  if (path.startsWith("./")) {
+    return `Path should not start with "./": "${path}"`;
+  }
+  return null;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // JSON 类型定义

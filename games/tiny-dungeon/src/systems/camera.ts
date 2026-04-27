@@ -5,7 +5,6 @@ import type { World } from '@mote/engine';
 import { Transform } from '@mote/engine';
 import { Camera } from '@mote/engine';
 import { PlayerTag } from '../components.js';
-import { MapData } from '../resources.js';
 
 export function cameraFollowSystem(world: World, _dt: number): void {
   let target: Transform | null = null;
@@ -17,21 +16,16 @@ export function cameraFollowSystem(world: World, _dt: number): void {
 
   if (!target) return;
 
-  const map = world.getResource<MapData>('MapData');
-  const mapW = map.width * map.tileSize;
-  const mapH = map.height * map.tileSize;
-
   for (const eid of world.query(Camera, Transform)) {
     const camera = world.get(eid, Camera);
     const transform = world.get(eid, Transform);
 
-    transform.x += (target.x - transform.x) * 0.08;
-    transform.y += (target.y - transform.y) * 0.08;
+    // 相机视口始终跟随窗口大小（强制偶数，避免 half-viewport 出现小数导致 sub-pixel 偏移）
+    camera.width = Math.floor(window.innerWidth / 2) * 2;
+    camera.height = Math.floor(window.innerHeight / 2) * 2;
 
-    const halfW = camera.width / 2;
-    const halfH = camera.height / 2;
-
-    transform.x = Math.max(halfW, Math.min(mapW - halfW, transform.x));
-    transform.y = Math.max(halfH, Math.min(mapH - halfH, transform.y));
+    // 瞬间锁定：相机直接对齐玩家整数像素位置，消除所有 sub-pixel 缝隙
+    transform.x = Math.round(target.x);
+    transform.y = Math.round(target.y);
   }
 }

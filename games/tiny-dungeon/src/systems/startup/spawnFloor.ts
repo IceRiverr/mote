@@ -1,10 +1,8 @@
 // games/tiny-dungeon/src/systems/startup/spawnFloor.ts
-// Startup: 为 MapData 中每个 Floor 生成地面实体
+// Startup: 生成开放大地图地板
 
 import type { World } from '@mote/engine';
-import { Transform } from '@mote/engine';
-import { FloorTag } from '../../components.js';
-import { MapData } from '../../resources.js';
+import { GameConfig } from '../../resources.js';
 
 /** 精灵索引 */
 const FLOOR_SPRITES = [48, 49, 42];
@@ -14,17 +12,24 @@ function getRandomFloorSprite(): number {
 }
 
 export function spawnFloorSystem(world: World): void {
-  const map = world.getResource<MapData>('MapData');
+  const config = world.getResource<GameConfig>('GameConfig');
+  const { mapWidth, mapHeight, tileSize } = config;
 
-  for (const { x, y } of map.floorTiles()) {
-    world.spawn({
-      Transform: { x, y },
-      Sprite: {
-        atlas: 'tiles',
-        region: `frame_${getRandomFloorSprite()}`,
-        layer: -1,
-      },
-      FloorTag: {},
-    });
+  for (let row = 0; row < mapHeight; row++) {
+    for (let col = 0; col < mapWidth; col++) {
+      world.spawn({
+        Transform: {
+          x: col * tileSize + tileSize / 2,
+          y: row * tileSize + tileSize / 2,
+          scaleX: 2,
+          scaleY: 2,
+        },
+        Sprite: {
+          atlas: 'tiles',
+          region: `frame_${getRandomFloorSprite()}`,
+          layer: -1,
+        },
+      });
+    }
   }
 }

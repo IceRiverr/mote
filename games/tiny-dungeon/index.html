@@ -14,24 +14,16 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: #888;
   }
-  body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
   #game-root {
     position: relative;
     width: 100%; height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
   canvas {
     image-rendering: pixelated;
     touch-action: none;
     display: block;
-    max-width: 100vw;
-    max-height: 100vh;
+    width: 100%;
+    height: 100%;
   }
   #status {
     position: absolute;
@@ -41,6 +33,52 @@
     font-size: 0.75rem;
     color: #444;
     pointer-events: none;
+  }
+  #levelup-panel {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    z-index: 100;
+  }
+  #levelup-panel.active { display: flex; }
+  #levelup-panel h2 {
+    color: #ffd700;
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    text-shadow: 0 0 8px rgba(255,215,0,0.4);
+  }
+  .upgrade-btn {
+    width: 240px;
+    padding: 14px 20px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+    color: #eee;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .upgrade-btn:hover {
+    background: rgba(255,255,255,0.18);
+    border-color: rgba(255,215,0,0.5);
+    color: #fff;
+    transform: scale(1.03);
+  }
+  .upgrade-btn .label {
+    font-weight: 600;
+    color: #ffd700;
+    font-size: 1.1rem;
+  }
+  .upgrade-btn .desc {
+    font-size: 0.8rem;
+    color: #aaa;
+    margin-top: 4px;
   }
   #fallback {
     display: none;
@@ -81,13 +119,28 @@
 </head>
 <body>
   <div id="game-root">
-    <canvas id="canvas" width="640" height="480"></canvas>
+    <canvas id="canvas"></canvas>
     <div id="status">Initializing WebGPU...</div>
     <div id="fallback">
       <p>⚠️ WebGPU is not available on this device/browser.</p>
       <p style="margin-top:8px; font-size:0.8rem; color:#666;">
         Requires: Chrome 113+ / Edge 113+ / Safari 26+
       </p>
+    </div>
+    <div id="levelup-panel">
+      <h2>⚔️ 升级！</h2>
+      <button class="upgrade-btn" id="upg0">
+        <div class="label">伤害 +20%</div>
+        <div class="desc">投射物造成更多伤害</div>
+      </button>
+      <button class="upgrade-btn" id="upg1">
+        <div class="label">攻速 +15%</div>
+        <div class="desc">发射间隔缩短</div>
+      </button>
+      <button class="upgrade-btn" id="upg2">
+        <div class="label">投射物 +1</div>
+        <div class="desc">每次多发射一枚</div>
+      </button>
     </div>
     <button class="fs-btn" id="fsBtn" title="全屏">⛶</button>
   </div>

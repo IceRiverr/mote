@@ -4,10 +4,14 @@
 import type { World } from '@mote/engine';
 import { Transform } from '@mote/engine';
 import { PlayerTag, Health, Pickup } from '../components.js';
+import { GameState } from '../resources.js';
 
 const PICKUP_DISTANCE = 12;
 
 export function pickupSystem(world: World, _dt: number): void {
+  const state = world.getResource<GameState>('GameState');
+  if (state?.paused) return;
+
   let playerEid: number | null = null;
   let playerTransform: Transform | null = null;
   let playerHealth: Health | null = null;

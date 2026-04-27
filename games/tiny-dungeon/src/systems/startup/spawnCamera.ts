@@ -5,7 +5,7 @@ import type { World } from '@mote/engine';
 
 export function spawnCameraSystem(world: World): void {
   world.spawn({
-    Transform: { x: 320, y: 240 },
-    Camera: { width: 640, height: 480 },
+    Transform: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+    Camera: { width: window.innerWidth, height: window.innerHeight },
   });
 }

@@ -6,27 +6,38 @@ export class PlayerTag {}
 
 /** 敌人 AI */
 export class EnemyAI {
-  state: 'idle' | 'chase' = 'idle';
+  speed = 60;
+  damage = 10;
+  attackCooldown = 0;
+  attackInterval = 1.0;
 }
 
-/** 武器组件 - 投掷斧头 */
+/** 玩家受伤无敌 */
+export class HurtCooldown {
+  timer = 0;
+}
+
+/** 武器配置 —— 挂载在玩家身上 */
 export class Weapon {
-  // 状态: idle=跟随玩家, flying=飞行中, returning=返回中
-  state: 'idle' | 'flying' | 'returning' = 'idle';
-  
-  // 投掷参数
-  startX = 0;
-  startY = 0;
-  targetX = 0;
-  targetY = 0;
-  
-  // 飞行参数
-  flySpeed = 300;
-  maxDistance = 60;
-  damage = 50;
-  
-  // 已击中目标记录（防止重复伤害）
+  cooldown = 1.0;       // 发射间隔（秒）
+  timer = 0;            // 当前冷却计时
+  projectileCount = 1;  // 每次发射投射物数量
+  damage = 10;
+  speed = 200;
+  pierce = 0;           // 可穿透敌人数（0=不穿透）
+  range = 300;          // 最大飞行距离
+}
+
+/** 飞行中的投射物 */
+export class Projectile {
+  vx = 0;
+  vy = 0;
+  damage = 10;
+  speed = 200;
+  pierce = 0;           // 剩余可穿透次数
   hitTargets = new Set<number>();
+  distanceFlown = 0;
+  maxDistance = 300;
 }
 
 /** 健康值 */
@@ -41,11 +52,17 @@ export class Pickup {
   amount = 20;
 }
 
-/** 墙壁标记 - 用于碰撞检测 */
-export class WallTag {}
+/** 经验宝石 */
+export class XPOrb {
+  amount = 10;
+}
 
-/** 地面标记 */
-export class FloorTag {}
+/** 玩家等级 */
+export class PlayerLevel {
+  level = 1;
+  xp = 0;
+  xpToNext = 30;
+}
 
 // 声明组件类型扩展
 declare module '@mote/engine' {
@@ -55,7 +72,9 @@ declare module '@mote/engine' {
     Weapon: Weapon;
     Health: Health;
     Pickup: Pickup;
-    WallTag: WallTag;
-    FloorTag: FloorTag;
+    HurtCooldown: HurtCooldown;
+    Projectile: Projectile;
+    XPOrb: XPOrb;
+    PlayerLevel: PlayerLevel;
   }
 }

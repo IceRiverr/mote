@@ -2,7 +2,7 @@
 // Prefab 定义
 
 import { definePrefab } from '@mote/engine';
-import { PlayerTag, EnemyAI, Weapon, Health, Pickup } from './components.js';
+import { PlayerTag, EnemyAI, Weapon, Health, Pickup, HurtCooldown, Projectile } from './components.js';
 
 // 精灵索引（来自 Kenney Tiny Dungeon）
 const SPRITES = {
@@ -24,32 +24,14 @@ export const PlayerPrefab = definePrefab({
   },
 });
 
-/** 武器预制体（斧头） */
-export const AxePrefab = definePrefab({
-  id: 'axe',
-  components: {
-    Transform: {},
-    Sprite: { atlas: 'tiles', region: 'frame_118' },
-    Weapon: {
-      state: 'idle',
-      startX: 0,
-      startY: 0,
-      targetX: 0,
-      targetY: 0,
-      flySpeed: 300,
-      maxDistance: 60,
-      damage: 50,
-    },
-  },
-});
-
 /** 骷髅敌人预制体 */
 export const SkeletonPrefab = definePrefab({
   id: 'skeleton',
   components: {
-    Transform: {},
+    Transform: { scaleX: 2, scaleY: 2 },
     Health: { current: 30, max: 30 },
-    EnemyAI: {},
+    EnemyAI: { speed: 60, damage: 10, attackCooldown: 0, attackInterval: 1.0 },
+    Sprite: { atlas: 'tiles', region: 'frame_121' },
   },
 });
 
@@ -74,7 +56,6 @@ export const PotionBluePrefab = definePrefab({
 /** 所有预制体列表 */
 export const ALL_PREFABS = [
   PlayerPrefab,
-  AxePrefab,
   SkeletonPrefab,
   PotionRedPrefab,
   PotionBluePrefab,

@@ -3,22 +3,24 @@
 
 import type { Plugin, App } from '@mote/engine';
 import { ScheduleLabel } from '@mote/engine';
-import { PlayerTag, EnemyAI, Weapon, Health, Pickup, WallTag, FloorTag } from './components.js';
+import { PlayerTag, EnemyAI, Weapon, Health, Pickup, HurtCooldown, Projectile, XPOrb, PlayerLevel } from './components.js';
 import { ALL_PREFABS } from './prefabs.js';
-import { DEFAULT_CONFIG } from './resources.js';
+import { DEFAULT_CONFIG, GameState } from './resources.js';
 
 // ── Startup Systems ──
 import { loadAssetsSystem } from './systems/startup/loadAssets.js';
-import { generateMapSystem } from './systems/startup/generateMap.js';
-import { spawnWallsSystem } from './systems/startup/spawnWalls.js';
 import { spawnFloorSystem } from './systems/startup/spawnFloor.js';
 import { spawnEntitiesSystem } from './systems/startup/spawnEntities.js';
 import { spawnCameraSystem } from './systems/startup/spawnCamera.js';
 
 // ── Update Systems ──
 import { inputSystem } from './systems/input.js';
-import { throwAttackSystem, weaponFlySystem } from './systems/combat.js';
+import { autoAttackSystem, projectileSystem } from './systems/combat.js';
+import { enemySpawnSystem } from './systems/enemySpawn.js';
+import { enemyChaseSystem } from './systems/enemyChase.js';
+import { enemyDamageSystem } from './systems/enemyDamage.js';
 import { pickupSystem } from './systems/pickup.js';
+import { xpPickupSystem } from './systems/xpPickup.js';
 import { cameraFollowSystem } from './systems/camera.js';
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -31,8 +33,6 @@ const MapGenerationPlugin: Plugin = {
 
   build(app: App) {
     app.addSystems(ScheduleLabel.Startup, [
-      generateMapSystem,
-      spawnWallsSystem,
       spawnFloorSystem,
     ]);
   },
@@ -56,8 +56,13 @@ const CombatPlugin: Plugin = {
 
   build(app: App) {
     app.addSystems(ScheduleLabel.Update, [
-      throwAttackSystem,
-      weaponFlySystem,
+      autoAttackSystem,
+      projectileSystem,
+      enemySpawnSystem,
+    ]);
+    app.addSystems(ScheduleLabel.FixedUpdate, [
+      enemyChaseSystem,
+      enemyDamageSystem,
     ]);
   },
 };
@@ -68,9 +73,12 @@ const PlayerPlugin: Plugin = {
 
   build(app: App) {
     app.addSystems(ScheduleLabel.Update, [
-      inputSystem,
       pickupSystem,
+      xpPickupSystem,
       cameraFollowSystem,
+    ]);
+    app.addSystems(ScheduleLabel.FixedUpdate, [
+      inputSystem,
     ]);
   },
 };
@@ -103,8 +111,10 @@ export class TinyDungeonPlugin implements Plugin {
     app.registerComponent(Weapon);
     app.registerComponent(Health);
     app.registerComponent(Pickup);
-    app.registerComponent(WallTag);
-    app.registerComponent(FloorTag);
+    app.registerComponent(HurtCooldown);
+    app.registerComponent(Projectile);
+    app.registerComponent(XPOrb);
+    app.registerComponent(PlayerLevel);
 
     // 2. 注册 Prefab
     for (const prefab of ALL_PREFABS) {
@@ -113,6 +123,7 @@ export class TinyDungeonPlugin implements Plugin {
 
     // 3. 注册配置 Resource
     app.insertResource('GameConfig', DEFAULT_CONFIG);
+    app.insertResource('GameState', new GameState());
 
     // 4. 加载资源（图集）
     app.addSystems(ScheduleLabel.Startup, [loadAssetsSystem]);

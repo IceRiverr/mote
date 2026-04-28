@@ -6,7 +6,9 @@
 export * from './core/index.js';
 
 // ── Plugins ───────────────────────────────────────────────────────────────────
-// 渲染插件已包含所有图形功能 (WebGPU/WebGL2 双后端)
+// gfx: 图形设备抽象 (WebGPU/WebGL2/Canvas2D)
+// sprite: 2D 精灵批量渲染
+// transform, input, audio, physics, tilemap: 其他功能插件
 export * from './plugins/index.js';
 
 // ── Math ─────────────────────────────────────────────────────────────────────

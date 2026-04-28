@@ -1,12 +1,12 @@
-// engine/src/plugins/render/WebGL2Device.ts
+// engine/src/plugins/gfx/backends/WebGL2Device.ts
 // WebGL2 图形设备实现
 
 import type {
   IGfxDevice, IGfxBuffer, IGfxTexture, IGfxPipeline, IGfxBindGroup, IGfxBindGroupLayout,
   IFrameEncoder, IRenderPass,
   BufferDesc, TextureDesc, PipelineDesc, BindGroupDesc, BindGroupEntry,
-} from './IGfxDevice.js';
-import { BufferUsage } from './IGfxDevice.js';
+} from '../gfxDevice.js';
+import { BufferUsage } from '../gfxDevice.js';
 
 // ── Resource wrappers ─────────────────────────────────────────────────────────
 
@@ -218,7 +218,7 @@ class WebGL2FrameEncoder implements IFrameEncoder {
   submit(): void { /* WebGL 2 is immediate mode — nothing to submit */ }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
   const shader = gl.createShader(type)!;

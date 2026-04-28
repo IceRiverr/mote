@@ -1,4 +1,4 @@
-// engine/src/plugins/render/systems.ts
+// engine/src/plugins/sprite/systems.ts
 // 渲染系统
 
 import type { World } from '../../core/world.js';
@@ -6,8 +6,8 @@ import type { EntityId } from '../../core/types.js';
 import { Transform } from '../transform/plugin.js';
 import { Sprite, Camera, SpriteAnimation, type AnimationDef } from './types.js';
 import { SpriteBatch, type TextureAtlas } from './SpriteBatch.js';
-import type { IGfxDevice } from './IGfxDevice.js';
-import { Camera2D } from './Camera2D.js';
+import type { IGfxDevice } from '../gfx/gfxDevice.js';
+import { Camera2D } from '../gfx/Camera2D.js';
 import { Color } from '../../math/index.js';
 
 // ═════════════════════════════════════════════════════════════════════════════

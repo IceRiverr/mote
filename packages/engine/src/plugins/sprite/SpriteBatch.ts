@@ -1,9 +1,9 @@
-// engine/src/plugins/render/SpriteBatch.ts
+// engine/src/plugins/sprite/SpriteBatch.ts
 // 精灵批处理渲染器 —— 基于 IGfxDevice
 
-import type { IGfxDevice, IGfxBuffer, IGfxTexture, IGfxPipeline, IGfxBindGroup, IGfxBindGroupLayout } from './IGfxDevice.js';
-import { BufferUsage } from './IGfxDevice.js';
-import type { Camera2D } from './Camera2D.js';
+import type { IGfxDevice, IGfxBuffer, IGfxTexture, IGfxPipeline, IGfxBindGroup, IGfxBindGroupLayout } from '../gfx/gfxDevice.js';
+import { BufferUsage } from '../gfx/gfxDevice.js';
+import type { Camera2D } from '../gfx/Camera2D.js';
 import type { Color } from '../../math/index.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -109,8 +109,8 @@ export class SpriteBatch {
   private currentAtlas: TextureAtlas | null = null;
   private batches: BatchEntry[] = [];
 
-  private frameEncoder: import('./IGfxDevice.js').IFrameEncoder | null = null;
-  private renderPass: import('./IGfxDevice.js').IRenderPass | null = null;
+  private frameEncoder: import('../gfx/gfxDevice.js').IFrameEncoder | null = null;
+  private renderPass: import('../gfx/gfxDevice.js').IRenderPass | null = null;
 
   constructor(gfx: IGfxDevice) {
     this.gfx = gfx;

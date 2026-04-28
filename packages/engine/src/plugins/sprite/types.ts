@@ -1,11 +1,11 @@
-// engine/src/plugins/render/types.ts
+// engine/src/plugins/sprite/types.ts
 // 渲染插件类型定义
 
 import type { ComponentClass } from '../../core/types';
-import type { IGfxDevice, IGfxTexture } from './IGfxDevice.js';
+import type { IGfxDevice, IGfxTexture } from '../gfx/gfxDevice.js';
 import { Color } from '../../math/index.js';
 
-export type { IGfxDevice, IGfxTexture, IGfxBuffer, IGfxPipeline } from './IGfxDevice.js';
+export type { IGfxDevice, IGfxTexture, IGfxBuffer, IGfxPipeline } from '../gfx/gfxDevice.js';
 export { TextureAtlas, type AtlasRegion } from './SpriteBatch.js';
 
 

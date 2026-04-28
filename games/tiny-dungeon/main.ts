@@ -2,7 +2,7 @@
 // ECS 架构入口
 
 import { App } from '@mote/engine';
-import { RenderPlugin, InputPlugin, PhysicsPlugin } from '@mote/engine';
+import { GfxPlugin, SpritePlugin, InputPlugin, PhysicsPlugin } from '@mote/engine';
 import { TinyDungeonPlugin } from './src/plugin.js';
 import { GameState } from './src/resources.js';
 import { Weapon } from './src/components.js';
@@ -83,7 +83,8 @@ async function init(): Promise<void> {
   const app = new App({ fixedHz: 60 });
 
   await app.addPlugins([
-    new RenderPlugin({ canvas, width: window.innerWidth, height: window.innerHeight, autoResize: true }),
+    new GfxPlugin({ canvas, backend: 'auto' }),
+    new SpritePlugin({ width: window.innerWidth, height: window.innerHeight, autoResize: true }),
     new InputPlugin({ canvas }),
     PhysicsPlugin,
     new TinyDungeonPlugin(),

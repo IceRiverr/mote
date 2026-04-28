@@ -1,9 +1,9 @@
-// engine/src/plugins/render/renderer.ts
+// engine/src/plugins/sprite/SpriteRenderer.ts
 // 渲染器实现 —— 基于 gfx 的双后端抽象
 
-import type { IGfxDevice } from './IGfxDevice.js';
+import type { IGfxDevice } from '../gfx/gfxDevice.js';
 import { SpriteBatch, TextureAtlas } from './SpriteBatch.js';
-import { Camera2D } from './Camera2D.js';
+import { Camera2D } from '../gfx/Camera2D.js';
 import type { Renderer } from './systems.js';
 
 export { type Renderer };

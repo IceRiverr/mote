@@ -16,7 +16,7 @@
 //   spriteBatch.end();
 // ═══════════════════════════════════════════════════════════════════════════
 
-import type { IGfxDevice, IGfxBindGroupLayout } from './IGfxDevice.js';
+import type { IGfxDevice, IGfxBindGroupLayout } from '../gfx/gfxDevice.js';
 import type { SpriteBatch, AtlasRegion } from './SpriteBatch.js';
 import { TextureAtlas } from './SpriteBatch.js';
 import type { Color } from '../../math/index.js';

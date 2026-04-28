@@ -13,7 +13,7 @@
 
 import type { Color } from '../../math/index.js';
 
-// ── Types ────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────
 
 export interface GlyphData {
   unicode: number;

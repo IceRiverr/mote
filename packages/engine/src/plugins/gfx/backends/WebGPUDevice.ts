@@ -1,11 +1,11 @@
-// engine/src/plugins/render/WebGPUDevice.ts
+// engine/src/plugins/gfx/backends/WebGPUDevice.ts
 // WebGPU 图形设备实现
 
 import type {
   IGfxDevice, IGfxBuffer, IGfxTexture, IGfxPipeline, IGfxBindGroup, IGfxBindGroupLayout,
   IFrameEncoder, IRenderPass,
   BufferDesc, TextureDesc, PipelineDesc, BindGroupDesc,
-} from './IGfxDevice.js';
+} from '../gfxDevice.js';
 
 // ── Resource wrappers ─────────────────────────────────────────────────────────
 

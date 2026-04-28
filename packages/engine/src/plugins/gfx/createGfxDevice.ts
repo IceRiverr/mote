@@ -7,11 +7,6 @@ export async function createGfxDevice(
   canvas: HTMLCanvasElement,
   backend: 'auto' | 'webgpu' | 'webgl2' | 'canvas2d' = 'auto'
 ): Promise<IGfxDevice> {
-  if (backend === 'canvas2d') {
-    const { Canvas2DDevice } = await import('./backends/Canvas2DDevice.js');
-    return await Canvas2DDevice.create(canvas);
-  }
-
   if (backend === 'webgpu') {
     const { WebGPUDevice } = await import('./backends/WebGPUDevice.js');
     return await WebGPUDevice.create(canvas);

@@ -9,7 +9,7 @@ export interface GfxPluginOptions {
   /** Canvas 元素 */
   canvas: HTMLCanvasElement;
   /** 渲染后端：'auto' | 'webgpu' | 'webgl2' | 'canvas2d' */
-  backend?: 'auto' | 'webgpu' | 'webgl2' | 'canvas2d';
+  backend?: 'auto' | 'webgpu' | 'webgl2';
 }
 
 /**

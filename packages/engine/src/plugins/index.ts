@@ -77,7 +77,6 @@ export { createGfxDevice } from './gfx/createGfxDevice.js';
 export { GfxPlugin, type GfxPluginOptions } from './gfx/gfxPlugin.js';
 export { WebGPUDevice } from './gfx/backends/WebGPUDevice.js';
 export { WebGL2Device } from './gfx/backends/WebGL2Device.js';
-export { Canvas2DDevice } from './gfx/backends/Canvas2DDevice.js';
 
 // ── 精灵渲染（2D Sprite 批量渲染）──────────────────────────────────────────
 export { Sprite, Camera, SpriteAnimation } from './sprite/types.js';

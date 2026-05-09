@@ -2,6 +2,7 @@
 
 import type { World, Commands } from '@mote/engine';
 import { Transform } from '@mote/engine';
+import { AudioManager } from '@mote/engine';
 import { PlayerTag, EnemyAI, Weapon, Health, Projectile, XPOrb } from '../components.js';
 import { GameState } from '../resources.js';
 
@@ -40,6 +41,8 @@ export function autoAttackSystem(world: World, dt: number, cmd: Commands): void 
       dirY = Math.sin(angle);
     }
 
+    const audio = world.getResource<AudioManager>('audio');
+
     for (let i = 0; i < weapon.projectileCount; i++) {
       let sx = dirX;
       let sy = dirY;
@@ -67,6 +70,7 @@ export function autoAttackSystem(world: World, dt: number, cmd: Commands): void 
       });
     }
 
+    audio?.play('shoot', { volume: 0.4 });
     weapon.timer = weapon.cooldown;
   }
 }
@@ -110,10 +114,13 @@ export function projectileSystem(world: World, dt: number, cmd: Commands): void 
         health.current -= proj.damage;
         proj.hitTargets.add(enemyEid);
 
+        const audio = world.getResource<AudioManager>('audio');
+        audio?.play('hit', { volume: 0.35 });
 
         if (health.current <= 0) {
           spawnXP(cmd, et.x, et.y);
           cmd.destroy(enemyEid);
+          audio?.play('enemyDie', { volume: 0.4 });
         }
 
         if (proj.pierce <= 0) {

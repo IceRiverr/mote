@@ -138,6 +138,10 @@ export class AudioManager {
   get musicVolume(): number { return this.musicGain.gain.value; }
   set musicVolume(v: number) { this.musicGain.gain.value = v; }
 
+  register(key: string, buffer: AudioBuffer): void {
+    this.cache.set(key, buffer);
+  }
+
   destroy(): void {
     this.stopBGM(0);
     this.cache.clear();

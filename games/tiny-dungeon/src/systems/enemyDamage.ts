@@ -1,7 +1,7 @@
 // Update: 敌人接触伤害 + 玩家无敌帧
 
 import type { World, Commands } from '@mote/engine';
-import { Transform } from '@mote/engine';
+import { Transform, AudioManager } from '@mote/engine';
 import { PlayerTag, EnemyAI, Health, HurtCooldown } from '../components.js';
 import { GameState } from '../resources.js';
 
@@ -61,6 +61,8 @@ export function enemyDamageSystem(world: World, dt: number, cmd: Commands): void
 
       cmd.entity(playerEid).add(HurtCooldown, { timer: PLAYER_INVINCIBLE_TIME });
 
+      const audio = world.getResource<AudioManager>('audio');
+      audio?.play('hurt', { volume: 0.5 });
 
       if (playerHealth.current <= 0) {
         playerHealth.current = 0;

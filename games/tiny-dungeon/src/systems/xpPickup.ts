@@ -1,7 +1,7 @@
 // Update: 经验宝石拾取 + 升级检测
 
 import type { World, Commands } from '@mote/engine';
-import { Transform } from '@mote/engine';
+import { Transform, AudioManager } from '@mote/engine';
 import { PlayerTag, XPOrb, PlayerLevel, Weapon } from '../components.js';
 import { GameState } from '../resources.js';
 
@@ -53,6 +53,11 @@ export function xpPickupSystem(world: World, dt: number, cmd: Commands): void {
     }
   }
 
+  if (toDestroy.length > 0) {
+    const audio = world.getResource<AudioManager>('audio');
+    audio?.play('pickup', { volume: 0.25 });
+  }
+
   // 销毁已拾取的宝石
   for (const eid of toDestroy) {
     cmd.destroy(eid);
@@ -63,6 +68,9 @@ export function xpPickupSystem(world: World, dt: number, cmd: Commands): void {
     playerLevel.xp -= playerLevel.xpToNext;
     playerLevel.level++;
     playerLevel.xpToNext = Math.floor(playerLevel.xpToNext * 1.3);
+
+    const audio = world.getResource<AudioManager>('audio');
+    audio?.play('levelup', { volume: 0.5 });
 
     world.emit('levelup');
   }

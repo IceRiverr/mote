@@ -2,8 +2,9 @@
 // ECS 架构入口
 
 import { App } from '@mote/engine';
-import { GfxPlugin, SpritePlugin, InputPlugin, PhysicsPlugin } from '@mote/engine';
+import { GfxPlugin, SpritePlugin, InputPlugin, PhysicsPlugin, AudioPlugin } from '@mote/engine';
 import { TinyDungeonPlugin } from './src/plugin.js';
+import { generateAndRegisterSounds } from './src/audio.js';
 import { GameState } from './src/resources.js';
 import { Weapon } from './src/components.js';
 
@@ -87,8 +88,15 @@ async function init(): Promise<void> {
     new SpritePlugin({ width: window.innerWidth, height: window.innerHeight, autoResize: true }),
     new InputPlugin({ canvas }),
     PhysicsPlugin,
+    AudioPlugin,
     new TinyDungeonPlugin(),
   ]);
+
+  // 注册程序化音效
+  const audio = app.world.getResource<import('@mote/engine').AudioManager>('audio');
+  if (audio) {
+    generateAndRegisterSounds(audio);
+  }
 
   statusEl.textContent = 'WASD 移动 · 敌人不断涌现 · 存活下去';
 

@@ -67,7 +67,7 @@ export class ComponentRegistry {
   }
 
   /**
-   * 通过数字 id 获取元信息
+   * @internal 运行时数字 id 不稳定，不对外暴露
    */
   metaById(id: number): ComponentMeta | undefined {
     return this._byId[id];
@@ -102,7 +102,7 @@ export class ComponentRegistry {
   }
 
   /**
-   * 通过 class 获取数字 id（O(1）
+   * @internal 运行时数字 id 不稳定，不对外暴露
    */
   idOf(ctor: ComponentClass): number {
     const meta = this._byCtor.get(ctor);
@@ -111,7 +111,7 @@ export class ComponentRegistry {
   }
 
   /**
-   * 通过名称获取数字 id（O(1)）
+   * @internal 运行时数字 id 不稳定，不对外暴露
    */
   idOfName(name: string): number {
     const meta = this._byName.get(name);
@@ -120,7 +120,7 @@ export class ComponentRegistry {
   }
 
   /**
-   * 通过 class 获取注册名（O(1)）
+   * @internal 内部实现细节，不对外暴露
    */
   nameOf(ctor: ComponentClass): string | undefined {
     return this._byCtor.get(ctor)?.name;

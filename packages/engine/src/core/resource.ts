@@ -9,13 +9,13 @@ export class ResourceStore {
   private resources = new Map<string, any>();
 
   /**
-   * 添加全局资源（支持 string 或 class 做 key）
+   * 插入全局资源（支持 string 或 class 做 key）
    * @throws 如果 key 已存在
    */
-  add<T>(key: string | Function, value: T): void {
+  insert<T>(key: string | Function, value: T): void {
     const k = normalizeKey(key);
     if (this.resources.has(k)) {
-      throw new Error(`[Resource] "${k}" already exists. Use replace() to overwrite.`);
+      throw new Error(`[Resource] "${k}" already exists.`);
     }
     this.resources.set(k, value);
   }
@@ -45,13 +45,6 @@ export class ResourceStore {
    */
   has(key: string | Function): boolean {
     return this.resources.has(normalizeKey(key));
-  }
-
-  /**
-   * 替换已有资源
-   */
-  replace<T>(key: string | Function, value: T): void {
-    this.resources.set(normalizeKey(key), value);
   }
 
   /**

@@ -5,8 +5,9 @@ import type { ComponentClass, Prefab } from './types.js';
 import { ComponentRegistry } from './componentRegistry.js';
 import { World } from './world.js';
 import type { Plugin } from './plugin.js';
-import type { System, SystemFn } from './system.js';
+import type { SystemObj } from './system.js';
 import { ScheduleLabel } from './schedule.js';
+import { Commands } from './commands.js';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Time 资源（由 CorePlugin 注册，App 内部也依赖它）
@@ -28,6 +29,13 @@ export class Time {
 // App
 // ═════════════════════════════════════════════════════════════════════════════
 
+/** 系统错误回调签名 */
+export type SystemErrorHandler = (
+  name: string,
+  error: Error,
+  label: ScheduleLabel,
+) => void;
+
 export class App {
   /** 组件类型注册表 */
   readonly registry = new ComponentRegistry();
@@ -39,7 +47,7 @@ export class App {
   private _plugins = new Map<string, Plugin>();
 
   /** 各阶段系统列表 */
-  private _schedules = new Map<ScheduleLabel, SystemFn[]>();
+  private _schedules = new Map<ScheduleLabel, SystemObj[]>();
 
   /** rAF 状态 */
   private _running = false;
@@ -52,6 +60,12 @@ export class App {
 
   /** Time 资源引用（内部使用） */
   private _time: Time;
+
+  /** 系统错误回调 */
+  private _systemErrorHandlers: SystemErrorHandler[] = [];
+
+  /** 系统执行耗时（dev mode） */
+  private _systemTimings = new Map<string, number>();
 
   constructor(options?: { fixedHz?: number }) {
     this.world = new World(this.registry);
@@ -69,18 +83,27 @@ export class App {
 
   // ─── Plugin ───
 
-  /** 注册单个 Plugin（自动展开依赖，去重） */
-  async addPlugin(plugin: Plugin): Promise<this> {
+  /** 注册单个 Plugin（自动展开依赖，去重，检测循环依赖） */
+  async addPlugin(plugin: Plugin, stack?: Set<string>): Promise<this> {
     if (this._plugins.has(plugin.name)) return this;
+
+    const s = stack ?? new Set<string>();
+    if (s.has(plugin.name)) {
+      const chain = [...s, plugin.name].join(' -> ');
+      throw new Error(`[App] Circular plugin dependency detected: ${chain}`);
+    }
+    s.add(plugin.name);
 
     // 先装依赖
     if (plugin.dependencies) {
       for (const dep of plugin.dependencies) {
         if (!this._plugins.has(dep.name)) {
-          await this.addPlugin(dep);
+          await this.addPlugin(dep, s);
         }
       }
     }
+
+    s.delete(plugin.name);
 
     // 执行 build
     await plugin.build(this);
@@ -107,14 +130,10 @@ export class App {
   // ─── System ───
 
   /** 添加系统到指定 Schedule */
-  addSystems(label: ScheduleLabel, systems: readonly System[]): this {
+  addSystems(label: ScheduleLabel, systems: readonly SystemObj[]): this {
     const list = this._schedules.get(label)!;
     for (const sys of systems) {
-      if (typeof sys === 'function') {
-        list.push(sys);
-      } else {
-        list.push(sys.update.bind(sys));
-      }
+      list.push(sys);
     }
     return this;
   }
@@ -167,6 +186,44 @@ export class App {
 
   // ─── 运行 ───
 
+  // ─── 诊断 ───
+
+  /** 注册系统错误回调 */
+  onSystemError(handler: SystemErrorHandler): this {
+    this._systemErrorHandlers.push(handler);
+    return this;
+  }
+
+  /** 获取系统执行耗时（dev mode，毫秒） */
+  getSystemTimings(): Map<string, number> {
+    return new Map(this._systemTimings);
+  }
+
+  /** @internal 执行单个系统，带 try-catch 和计时 */
+  private _runSystem(
+    sys: SystemObj,
+    label: ScheduleLabel,
+    dt: number,
+    cmd: Commands,
+  ): void {
+    const name = sys.name ?? 'anonymous';
+
+    const start = performance.now();
+
+    try {
+      sys.update(this.world, dt, cmd);
+    } catch (e) {
+      for (const h of this._systemErrorHandlers) {
+        h(name, e as Error, label);
+      }
+    }
+
+    const elapsed = performance.now() - start;
+    this._systemTimings.set(name, elapsed);
+  }
+
+  // ─── 运行 ───
+
   /** 启动 rAF 循环 */
   run(): void {
     if (this._running) return;
@@ -174,9 +231,11 @@ export class App {
     this._lastTime = performance.now();
 
     // Startup 阶段
+    const startupCmd = new Commands(this.world);
     for (const sys of this._schedules.get(ScheduleLabel.Startup)!) {
-      sys(this.world, 0);
+      this._runSystem(sys, ScheduleLabel.Startup, 0, startupCmd);
     }
+    startupCmd.flush();
 
     this._tick(performance.now());
   }
@@ -185,6 +244,15 @@ export class App {
   stop(): void {
     this._running = false;
     cancelAnimationFrame(this._rafId);
+
+    // 反向遍历已安装插件，调用 teardown（可选）
+    const pluginNames = Array.from(this._plugins.keys()).reverse();
+    for (const name of pluginNames) {
+      const plugin = this._plugins.get(name);
+      if (plugin?.teardown) {
+        plugin.teardown(this);
+      }
+    }
   }
 
   /** 单帧更新（供外部驱动；内部 run() 也调用它） */
@@ -193,14 +261,16 @@ export class App {
     this._time.elapsed += dt;
     this._time.frame++;
 
+    const cmd = new Commands(this.world);
+
     // First
     for (const sys of this._schedules.get(ScheduleLabel.First)!) {
-      sys(this.world, dt);
+      this._runSystem(sys, ScheduleLabel.First, dt, cmd);
     }
 
     // PreUpdate
     for (const sys of this._schedules.get(ScheduleLabel.PreUpdate)!) {
-      sys(this.world, dt);
+      this._runSystem(sys, ScheduleLabel.PreUpdate, dt, cmd);
     }
 
     // FixedUpdate（可能多次）
@@ -208,7 +278,7 @@ export class App {
     while (this._fixedAccumulator >= this._fixedDt) {
       this._time.fixedDt = this._fixedDt / 1000;
       for (const sys of this._schedules.get(ScheduleLabel.FixedUpdate)!) {
-        sys(this.world, this._time.fixedDt);
+        this._runSystem(sys, ScheduleLabel.FixedUpdate, this._time.fixedDt, cmd);
       }
       this.world.processEvents();
       this._fixedAccumulator -= this._fixedDt;
@@ -216,33 +286,38 @@ export class App {
 
     // Update
     for (const sys of this._schedules.get(ScheduleLabel.Update)!) {
-      sys(this.world, dt);
+      this._runSystem(sys, ScheduleLabel.Update, dt, cmd);
     }
 
     // PostUpdate
     for (const sys of this._schedules.get(ScheduleLabel.PostUpdate)!) {
-      sys(this.world, dt);
+      this._runSystem(sys, ScheduleLabel.PostUpdate, dt, cmd);
     }
 
     this.world.processEvents();
+    cmd.flush();
   }
 
   /** 渲染帧（run() 自动调用；也可外部驱动） */
   render(): void {
+    const cmd = new Commands(this.world);
+
     // PreRender
     for (const sys of this._schedules.get(ScheduleLabel.PreRender)!) {
-      sys(this.world, 0);
+      this._runSystem(sys, ScheduleLabel.PreRender, 0, cmd);
     }
 
     // Render
     for (const sys of this._schedules.get(ScheduleLabel.Render)!) {
-      sys(this.world, 0);
+      this._runSystem(sys, ScheduleLabel.Render, 0, cmd);
     }
 
     // Last
     for (const sys of this._schedules.get(ScheduleLabel.Last)!) {
-      sys(this.world, 0);
+      this._runSystem(sys, ScheduleLabel.Last, 0, cmd);
     }
+
+    cmd.flush();
   }
 
   // ─── 内部 ───

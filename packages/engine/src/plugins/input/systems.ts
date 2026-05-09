@@ -2,11 +2,12 @@
 // 输入系统
 
 import type { World } from '../../core/world.js';
+import type { Commands } from '../../core/commands.js';
 import { PlayerInput } from './components.js';
 import { InputManager } from './plugin.js';
 
 /** 输入系统 —— 每帧更新 PlayerInput 组件 */
-export function inputSystem(world: World, _dt: number): void {
+export function inputSystem(world: World, _dt: number, _cmd: Commands): void {
   const inputManager = world.getResource<InputManager>('input');
   if (!inputManager) return;
 

@@ -2,6 +2,7 @@
 // 物理系统
 
 import type { World } from '../../core/world.js';
+import type { Commands } from '../../core/commands.js';
 import { Transform } from '../transform/plugin.js';
 import {
   Velocity, Acceleration, Friction, RigidBody, Gravity,
@@ -10,7 +11,7 @@ import {
 } from './components.js';
 
 /** 运动学系统 —— 更新位置和速度 */
-export function kinematicSystem(world: World, dt: number): void {
+export function kinematicSystem(world: World, dt: number, _cmd: Commands): void {
   let gravityX = 0;
   let gravityY = 980;
 
@@ -53,7 +54,7 @@ export function kinematicSystem(world: World, dt: number): void {
 }
 
 /** 简单碰撞检测系统 —— AABB vs AABB 和 Circle vs Circle */
-export function collisionDetectionSystem(world: World, _dt: number): void {
+export function collisionDetectionSystem(world: World, _dt: number, _cmd: Commands): void {
   const collisions: Collision[] = [];
 
   const bodies: Array<{

@@ -2,11 +2,12 @@
 // 音频系统
 
 import type { World } from '../../core/world.js';
+import type { Commands } from '../../core/commands.js';
 import { AudioEmitter, BGMPlayer } from './components.js';
 import { AudioManager, type PlayOptions } from './plugin.js';
 
 /** 处理 AudioEmitter 组件 */
-export function audioEmitterSystem(world: World, _dt: number): void {
+export function audioEmitterSystem(world: World, _dt: number, _cmd: Commands): void {
   const audio = world.getResource<AudioManager>('audio');
   if (!audio) return;
 
@@ -47,7 +48,7 @@ export function audioEmitterSystem(world: World, _dt: number): void {
 }
 
 /** 处理 BGMPlayer 组件 */
-export function bgmPlayerSystem(world: World, _dt: number): void {
+export function bgmPlayerSystem(world: World, _dt: number, _cmd: Commands): void {
   const audio = world.getResource<AudioManager>('audio');
   if (!audio) return;
 

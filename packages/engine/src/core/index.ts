@@ -18,7 +18,7 @@ export type {
 export { App, Time } from './app';
 export type { Plugin } from './plugin';
 export { ScheduleLabel } from './schedule';
-export type { System, SystemFn, SystemObj } from './system';
+export type { SystemObj } from './system';
 
 // World
 export { World } from './world';
@@ -27,7 +27,10 @@ export { World } from './world';
 export { Entity } from './entity';
 
 // Query
-export { QueryResult } from './query';
+export { QueryBuilder } from './query';
+
+// Snapshot
+export { Snapshot } from './snapshot';
 
 // Component
 export { ComponentRegistry } from './componentRegistry';
@@ -41,10 +44,13 @@ export type {
 } from './schema';
 
 // Prefab
-export { definePrefab, PrefabStore, mergeSpawnConfig } from './prefab';
+export { definePrefab, PrefabStore } from './prefab';
 
 // Event
 export { EventBus } from './event';
 
 // Resource
 export { ResourceStore } from './resource';
+
+// Commands
+export { Commands, EntityCommands } from './commands';

@@ -55,8 +55,8 @@ export const PhysicsPlugin: Plugin = {
     app.registerComponent(CircleCollider);
 
     app.addSystems(ScheduleLabel.FixedUpdate, [
-      kinematicSystem,
-      collisionDetectionSystem,
+      { name: 'kinematic', update: kinematicSystem },
+      { name: 'collisionDetection', update: collisionDetectionSystem },
     ]);
   },
 };

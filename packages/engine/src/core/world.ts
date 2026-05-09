@@ -11,8 +11,10 @@ import { Entity } from './entity';
 import { EventBus } from './event';
 import { ResourceStore } from './resource';
 import type { ComponentRegistry } from './componentRegistry';
-import { PrefabStore, mergeSpawnConfig } from './prefab';
-import { QueryResult } from './query';
+import { PrefabStore, applyOverrides } from './prefab';
+import { Commands } from './commands';
+import { QueryBuilder } from './query';
+import { Snapshot } from './snapshot';
 
 /**
  * World 是 ECS 的数据容器
@@ -42,6 +44,17 @@ export class World {
   // ─── spawn（统一创建入口） ───
 
   /**
+   * 预订一个 EntityId（alive 但无组件）
+   * 供 Commands 预分配使用
+   */
+  reserveEntity(): EntityId {
+    const eid = this.nextId++;
+    this.alive.add(eid);
+    this.entityComponents.set(eid, new Map());
+    return eid;
+  }
+
+  /**
    * 创建实体的统一入口
    *
    * ```ts
@@ -52,7 +65,7 @@ export class World {
    * ```
    */
   spawn(configOrPrefab?: string | SpawnConfig, overrides?: SpawnConfig): Entity {
-    const eid = this.nextId++;
+    const eid = this.reserveEntity();
     this.alive.add(eid);
     this.entityComponents.set(eid, new Map());
 
@@ -60,7 +73,7 @@ export class World {
       // Prefab 创建
       const prefab = this.prefabs.getOrThrow(configOrPrefab);
       const config = overrides
-        ? mergeSpawnConfig(prefab.components, overrides)
+        ? applyOverrides(prefab.components, overrides)
         : prefab.components;
       this._applyConfig(eid, config);
 
@@ -82,7 +95,7 @@ export class World {
    * 递归创建子实体（内部方法）
    */
   private _spawnChild(parentId: EntityId, prefab: Prefab, overrides?: SpawnConfig): void {
-    const child = this.spawn(overrides ? mergeSpawnConfig(prefab.components, overrides) : prefab.components);
+    const child = this.spawn(overrides ? applyOverrides(prefab.components, overrides) : prefab.components);
     // 如果需要父子关系组件，可以在这里添加
     // child.add(Parent, { id: parentId });
 
@@ -182,15 +195,30 @@ export class World {
    * });
    * ```
    */
-  query(...components: ComponentClass[]): QueryResult {
-    const names = components.map((c) => this.registry.nameOf(c) ?? c.name);
+  query<C extends ComponentClass[]>(...components: C): QueryBuilder<C> {
+    return new QueryBuilder(this, this.registry, components);
+  }
+
+  /**
+   * @internal 供 QueryBuilder 使用，不对外暴露
+   */
+  _internalQuery(withNames: string[], withoutNames: string[]): EntityId[] {
     const matched: EntityId[] = [];
 
     for (const [eid, comps] of this.entityComponents) {
       if (!this.alive.has(eid)) continue;
       let match = true;
-      for (const name of names) {
+
+      for (const name of withNames) {
         if (!comps.has(name)) {
+          match = false;
+          break;
+        }
+      }
+      if (!match) continue;
+
+      for (const name of withoutNames) {
+        if (comps.has(name)) {
           match = false;
           break;
         }
@@ -198,11 +226,7 @@ export class World {
       if (match) matched.push(eid);
     }
 
-    return new QueryResult(
-      matched,
-      components,
-      (eid, cls) => this.get(eid, cls),
-    );
+    return matched;
   }
 
   // ─── 事件队列处理 ───
@@ -232,7 +256,7 @@ export class World {
    * 添加全局资源（支持 string 或 class 做 key）
    */
   addResource<T>(key: string | ComponentClass<T>, value: T): void {
-    this.resources.add(key, value);
+    this.resources.insert(key, value);
   }
 
   /**
@@ -240,6 +264,48 @@ export class World {
    */
   getResource<T>(key: string | ComponentClass<T>): T {
     return this.resources.get<T>(key);
+  }
+
+  // ─── Snapshot ───
+
+  /**
+   * 捕获当前 World 状态的快照
+   */
+  snapshot(): Snapshot {
+    const clonedComponents = new Map<EntityId, Map<string, any>>();
+
+    for (const [eid, comps] of this.entityComponents) {
+      const clonedComps = new Map<string, any>();
+      for (const [name, instance] of comps) {
+        // 浅拷贝组件实例（组件是纯数据对象，浅拷贝足够）
+        clonedComps.set(name, { ...instance });
+      }
+      clonedComponents.set(eid, clonedComps);
+    }
+
+    return Snapshot._create({
+      nextId: this.nextId,
+      alive: new Set(this.alive),
+      entityComponents: clonedComponents,
+    });
+  }
+
+  /**
+   * 从快照恢复 World 状态
+   */
+  restore(snap: Snapshot): void {
+    const data = snap._data;
+    this.nextId = data.nextId;
+    this.alive = new Set(data.alive);
+
+    this.entityComponents = new Map<EntityId, Map<string, any>>();
+    for (const [eid, comps] of data.entityComponents) {
+      const restoredComps = new Map<string, any>();
+      for (const [name, instance] of comps) {
+        restoredComps.set(name, { ...instance });
+      }
+      this.entityComponents.set(eid, restoredComps);
+    }
   }
 
   // ─── 事件 ───

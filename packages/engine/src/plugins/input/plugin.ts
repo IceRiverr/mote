@@ -291,7 +291,7 @@ export class InputPlugin implements Plugin {
 
     app.insertResource('input', manager);
     app.registerComponent(PlayerInput);
-    app.addSystems(ScheduleLabel.PreUpdate, [inputSystem]);
+    app.addSystems(ScheduleLabel.PreUpdate, [{ name: 'input', update: inputSystem }]);
   }
 }
 

@@ -2,10 +2,11 @@
 // 瓦片地图系统
 
 import type { World } from '../../core/world.js';
+import type { Commands } from '../../core/commands.js';
 import { Tilemap, TileAnimation } from './components.js';
 
 /** 瓦片动画系统 —— 更新动画帧 */
-export function tileAnimationSystem(world: World, dt: number): void {
+export function tileAnimationSystem(world: World, dt: number, _cmd: Commands): void {
   for (const eid of world.query(Tilemap, TileAnimation)) {
     const tilemap = world.get(eid, Tilemap);
     const anim = world.get(eid, TileAnimation);

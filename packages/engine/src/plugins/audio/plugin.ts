@@ -199,8 +199,8 @@ export const AudioPlugin: Plugin = {
     const manager = new AudioManager();
     app.insertResource('audio', manager);
     app.addSystems(ScheduleLabel.Update, [
-      audioEmitterSystem,
-      bgmPlayerSystem,
+      { name: 'audioEmitter', update: audioEmitterSystem },
+      { name: 'bgmPlayer', update: bgmPlayerSystem },
     ]);
   },
 };

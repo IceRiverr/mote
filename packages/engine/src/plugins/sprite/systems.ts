@@ -2,6 +2,7 @@
 // 渲染系统
 
 import type { World } from '../../core/world.js';
+import type { Commands } from '../../core/commands.js';
 import type { EntityId } from '../../core/types.js';
 import { Transform } from '../transform/plugin.js';
 import { Sprite, Camera, SpriteAnimation, type AnimationDef } from './types.js';
@@ -17,7 +18,7 @@ import { Color } from '../../math/index.js';
 /**
  * 精灵动画系统 —— 更新动画帧
  */
-export function spriteAnimationSystem(world: World, dt: number): void {
+export function spriteAnimationSystem(world: World, dt: number, _cmd: Commands): void {
   const animations = world.getResource<Map<string, AnimationDef>>('animations');
   if (!animations) return;
 
@@ -63,7 +64,7 @@ export function spriteAnimationSystem(world: World, dt: number): void {
  * 
  * 收集所有可见精灵，使用 SpriteBatch 批量渲染
  */
-export function spriteRenderSystem(world: World, dt: number): void {
+export function spriteRenderSystem(world: World, dt: number, _cmd: Commands): void {
   const renderer = world.getResource<Renderer>('renderer');
   if (!renderer) return;
 

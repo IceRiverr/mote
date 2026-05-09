@@ -58,13 +58,14 @@ export class PrefabStore {
   }
 
   /**
-   * 更新已注册 Prefab 的组件（不替换整个对象）
+   * 替换已有 Prefab 定义
+   * 只影响后续 spawn，不影响已 spawn 的实例
    */
-  update(id: string, components: SpawnConfig): boolean {
-    const prefab = this.prefabs.get(id);
-    if (!prefab) return false;
-    prefab.components = { ...prefab.components, ...components };
-    return true;
+  replace(id: string, prefab: Prefab): void {
+    if (!this.prefabs.has(id)) {
+      throw new Error(`[PrefabStore] Prefab "${id}" not found, cannot replace`);
+    }
+    this.prefabs.set(id, prefab);
   }
 
   /**
@@ -110,5 +111,4 @@ export function applyOverrides(base: SpawnConfig, overrides: SpawnConfig): Spawn
   return result;
 }
 
-/** @deprecated 使用 applyOverrides */
-export const mergeSpawnConfig = applyOverrides;
+

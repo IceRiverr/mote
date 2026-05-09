@@ -59,8 +59,8 @@ export class SpritePlugin implements Plugin {
     app.registerComponent(SpriteAnimation);
 
     // 注册系统（动画在 PreRender，渲染在 Render）
-    app.addSystems(ScheduleLabel.PreRender, [spriteAnimationSystem]);
-    app.addSystems(ScheduleLabel.Render, [spriteRenderSystem]);
+    app.addSystems(ScheduleLabel.PreRender, [{ name: 'spriteAnimation', update: spriteAnimationSystem }]);
+    app.addSystems(ScheduleLabel.Render, [{ name: 'spriteRender', update: spriteRenderSystem }]);
 
     // 自动调整大小
     if (autoResize && canvas) {

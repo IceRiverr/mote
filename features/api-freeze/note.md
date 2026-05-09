@@ -1,0 +1,26 @@
+## 2026-05-09
+
+- 原话："API 锁定不是'把现状冻住'，而是把'用户怎么写游戏'这件事冻住，让 World 存储从 Map 换成 archetype、调度器从 for 循环换成并行图、渲染从 WebGPU 加 fallback，这些都不破坏用户代码。"
+- 原话："v1.0 只保留 `SystemObj`（带 `name`，便于诊断、热替换、调度图可视化），`SystemFn` 内部转 `SystemObj` 后即可，但不导出。"
+- 原话："v1.0 把 `idOf / metaById / idOfName / nameOf` 标 `@internal` 不导出，只保留 `register / has / names / count / get / getOrThrow`。等你真做序列化/网络同步时，再设计专用的稳定 id（带版本号）。"
+- 原话："v1.0 收敛为 `insert(value | key, value) / get / tryGet / has / remove`，删除 `add` 与 `replace` 的命名分裂。"
+- 原话："`mergeSpawnConfig` 注释里已经写了 deprecated，是 `applyOverrides` 的别名。**v1.0 前务必删除**，否则你永远要维护它。这是最干净的一刀。"
+- 原话："PrefabStore.update() 原地 mutate 对预制是危险的（已经 spawn 出去的实例不会同步，但用户会以为会）。要么删除（让用户重新 register），要么改成 `replace(id, newPrefab)` 明确语义为'只影响后续 spawn'。"
+- 原话："必须在锁定前提供一条'延迟修改'通路"，系统签名能拿到 `Commands`：`{ update: (world, dt, cmd: Commands) => { cmd.spawn(...); cmd.destroy(id); } }`。v1.0 至少要把 `Commands` 接口形状定下来，实现可以先用立即模式 + flush。
+- 原话："没有 snapshot，实验场网站（Lotka-Volterra、Schelling、Goodhart 沙盒）全做不了。v1.0 至少定义接口形状：`snapshot(): Snapshot` / `restore(snap)` / `Snapshot` 类型不透明。"
+- 原话："现在 `query(A, B)` 只能匹配'同时拥有 A 和 B'。无 `.without`、无变更检测。这三个是 ECS 的标配，缺了就锁不下。"
+- 原话："当前 `each(fn: (...args: any[]) => void)` 直接丢失类型。**这是用户每天写代码都要踩的坑，锁定前必修**。"
+- 原话："父子关系放在 Plugin 里，不在 core。但必须在 v1.0 文档中明文写死：'父子关系由 TransformPlugin 提供，World 上不原生支持'。"
+- 原话："`App.addSystems()` 内部把 `SystemObj` bind 死了，`sys.name` 在调度器里完全丢失。`name` 必须保留到运行时。"
+- 原话："完成 1–10 后，发 `0.1.0`，**这才是值得锁的 API**。直接锁现在的状态，3 个月内你自己就会想破坏它。"
+- 决策：System 形态选 **方案 A** —— 公开 `SystemObj` 为主，`addSystems` 签名宽容接受函数自动包装成 `SystemObj`，调度器内部始终保留 `name`。不强制用户全部改对象形态。
+- 决策：Commands 获取方式选 **方案 A** —— 参数注入 `update(world, dt, cmd)`，后端自由控制 `cmd` 实现（顺序/并行/WASM/回放）。`QueryResult.each` 回调同步传 `cmd`。
+- 决策：Commands.spawn 返回值和 Bevy 保持一致 —— `World` 内部加 `reserveEntity()` 预分配 id，`cmd.spawn()` 返回 `EntityCommands`（链式排队，但 `.id` 是真实有效 id，可立刻引用）。无临时 id、无缓存失效。
+- 决策：Query 改造选 **方案 A** —— `world.query(...)` 统一返回 `QueryBuilder`（延迟构建），保留现有 `for...of` 和 `each` 语法全部兼容，通过泛型累积做类型推导：`world.query(Transform).with(Velocity).without(Frozen).each((t, v, eid) => { ... })`。
+- 决策：父子关系由 **plugin 提供**，core 不原生支持。`TransformPlugin` 或独立 `HierarchyPlugin` 提供 `Parent` / `Children` 组件。v1.0 文档必须明文写死该边界。Prefab.children 在 plugin 未加载时 flat spawn（无 parent 绑定）。
+- 决策：`World.snapshot() / restore(snap)` 只锁定接口形状，`Snapshot` 为不透明类型。v1.0 内部实现先用最简单可行的 deep clone，资源不进 snapshot。实验场网站的典型用法：`baseline = world.snapshot()` → `for (param of params) { world.restore(baseline); runSimulation(param); }`。
+- 决策：Plugin 循环检测用调用栈追踪 —— `addPlugin` 递归时传 `stack: Set<string>`，发现循环立即抛错。teardown 调用时机在 `app.stop()` 时，顺序为反向遍历 `_plugins`（build 的逆序），逐个调用 `plugin.teardown(app)`（可选实现，不实现的 skip）。
+- 决策：诊断钩子 —— `app.onSystemError((name, error, label) => { ... })`，每个系统 try-catch 独立执行，抛错回调但不中断帧。`app.getSystemTimings()` 返回 `Map<string, number>`（dev mode 下每帧记录）。v1.0 实现最简单版本。
+- 决策：`PrefabStore.update` 删除，改为 `replace(id, newPrefab)`，语义明确为"覆盖已有 prefab 定义，只影响后续 spawn"。`register` 和 `replace` 语义对称。
+- 决策：`ComponentMap` declaration merging **保留**，作为 `SpawnConfig` 类型推导的基础设施（6 个插件全部在用）。砍字符串查询入口 —— 文档承诺"组件查询只接受 class，不接受字符串"（当前代码已实现，无字符串重载）。
+- 决策：headless 模式为文档级契约，不新增 API。`app.update(dt)` 不调用 `render()` 即等价 headless。渲染副作用仅限 `PreRender / Render` 阶段。

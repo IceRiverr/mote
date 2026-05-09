@@ -192,6 +192,6 @@ export const TilemapPlugin: Plugin = {
     app.registerComponent(TilemapCollider);
     app.registerComponent(TileAnimation);
 
-    app.addSystems(ScheduleLabel.Update, [tileAnimationSystem]);
+    app.addSystems(ScheduleLabel.Update, [{ name: 'tileAnimation', update: tileAnimationSystem }]);
   },
 };

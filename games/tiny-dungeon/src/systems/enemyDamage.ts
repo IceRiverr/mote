@@ -1,6 +1,6 @@
 // Update: 敌人接触伤害 + 玩家无敌帧
 
-import type { World } from '@mote/engine';
+import type { World, Commands } from '@mote/engine';
 import { Transform } from '@mote/engine';
 import { PlayerTag, EnemyAI, Health, HurtCooldown } from '../components.js';
 import { GameState } from '../resources.js';
@@ -8,7 +8,7 @@ import { GameState } from '../resources.js';
 const CONTACT_DISTANCE = 14;
 const PLAYER_INVINCIBLE_TIME = 0.5;
 
-export function enemyDamageSystem(world: World, dt: number): void {
+export function enemyDamageSystem(world: World, dt: number, cmd: Commands): void {
   const state = world.getResource<GameState>('GameState');
   if (state?.paused) return;
 
@@ -34,7 +34,7 @@ export function enemyDamageSystem(world: World, dt: number): void {
   if (hurtCooldown) {
     hurtCooldown.timer -= dt;
     if (hurtCooldown.timer <= 0) {
-      world.remove(playerEid, HurtCooldown);
+      cmd.entity(playerEid).remove(HurtCooldown);
     }
   }
 
@@ -59,7 +59,7 @@ export function enemyDamageSystem(world: World, dt: number): void {
       playerHealth.current -= ai.damage;
       ai.attackCooldown = ai.attackInterval;
 
-      world.add(playerEid, HurtCooldown, { timer: PLAYER_INVINCIBLE_TIME });
+      cmd.entity(playerEid).add(HurtCooldown, { timer: PLAYER_INVINCIBLE_TIME });
 
 
       if (playerHealth.current <= 0) {

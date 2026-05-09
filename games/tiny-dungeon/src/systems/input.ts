@@ -1,7 +1,7 @@
 // games/tiny-dungeon/src/systems/input.ts
 // Update: 玩家输入移动（开放大地图，无碰撞）
 
-import type { World } from '@mote/engine';
+import type { World, Commands } from '@mote/engine';
 import { Transform } from '@mote/engine';
 import { InputManager } from '@mote/engine';
 import { PlayerTag } from '../components.js';
@@ -9,7 +9,7 @@ import { GameState } from '../resources.js';
 
 const MOVE_PER_TICK = 2;
 
-export function inputSystem(world: World, _dt: number): void {
+export function inputSystem(world: World, _dt: number, _cmd: Commands): void {
   const state = world.getResource<GameState>('GameState');
   if (state?.paused) return;
 

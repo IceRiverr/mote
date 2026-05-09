@@ -1,7 +1,7 @@
 // games/tiny-dungeon/src/systems/startup/spawnFloor.ts
 // Startup: 生成开放大地图地板
 
-import type { World } from '@mote/engine';
+import type { World, Commands } from '@mote/engine';
 import { GameConfig } from '../../resources.js';
 
 /** 精灵索引 */
@@ -11,7 +11,7 @@ function getRandomFloorSprite(): number {
   return FLOOR_SPRITES[Math.floor(Math.random() * FLOOR_SPRITES.length)];
 }
 
-export function spawnFloorSystem(world: World): void {
+export function spawnFloorSystem(world: World, _dt: number, _cmd: Commands): void {
   const config = world.getResource<GameConfig>('GameConfig');
   const { mapWidth, mapHeight, tileSize } = config;
 

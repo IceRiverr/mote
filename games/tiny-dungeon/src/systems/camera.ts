@@ -1,12 +1,12 @@
 // games/tiny-dungeon/src/systems/camera.ts
 // Update: 相机跟随
 
-import type { World } from '@mote/engine';
+import type { World, Commands } from '@mote/engine';
 import { Transform } from '@mote/engine';
 import { Camera } from '@mote/engine';
 import { PlayerTag } from '../components.js';
 
-export function cameraFollowSystem(world: World, _dt: number): void {
+export function cameraFollowSystem(world: World, _dt: number, _cmd: Commands): void {
   let target: Transform | null = null;
 
   for (const eid of world.query(PlayerTag, Transform)) {

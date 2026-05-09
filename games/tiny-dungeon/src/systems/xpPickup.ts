@@ -1,6 +1,6 @@
 // Update: 经验宝石拾取 + 升级检测
 
-import type { World } from '@mote/engine';
+import type { World, Commands } from '@mote/engine';
 import { Transform } from '@mote/engine';
 import { PlayerTag, XPOrb, PlayerLevel, Weapon } from '../components.js';
 import { GameState } from '../resources.js';
@@ -9,7 +9,7 @@ const MAGNET_RANGE = 120;   // 磁力吸引范围
 const PICKUP_RANGE = 16;    // 拾取范围
 const MOVE_SPEED = 300;     // 宝石飞向玩家的速度（玩家约 120/s）
 
-export function xpPickupSystem(world: World, dt: number): void {
+export function xpPickupSystem(world: World, dt: number, cmd: Commands): void {
   const state = world.getResource<GameState>('GameState');
   if (!state || state.paused) return;
 
@@ -55,7 +55,7 @@ export function xpPickupSystem(world: World, dt: number): void {
 
   // 销毁已拾取的宝石
   for (const eid of toDestroy) {
-    world.destroy(eid);
+    cmd.destroy(eid);
   }
 
   // 检查升级

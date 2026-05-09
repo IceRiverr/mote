@@ -67,17 +67,27 @@ export class Commands {
   /**
    * 延迟创建实体
    * 返回 EntityCommands，其 `.id` 已预分配、立即可用
+   *
+   * ```ts
+   * cmd.spawn({ Transform: { x: 0 } }).add(Velocity, { vx: 5 });
+   * cmd.spawn('skeleton', { Transform: { x: 100 } });
+   * ```
    */
-  spawn(config?: SpawnConfig): EntityCommands {
-    const eid = this.world.reserveEntity();
+  spawn(configOrPrefab?: string | SpawnConfig, overrides?: SpawnConfig): EntityCommands {
+    if (typeof configOrPrefab === 'string') {
+      // Prefab 创建：委托给 World（立即执行，返回真实 Entity）
+      const entity = this.world.spawn(configOrPrefab, overrides);
+      return new EntityCommands(entity.id, this.world, this.queue);
+    }
 
-    if (config) {
-      for (const [name, data] of Object.entries(config)) {
+    // 声明式创建：预分配 id + 排队组件添加
+    const eid = this.world.reserveEntity();
+    if (configOrPrefab) {
+      for (const [name, data] of Object.entries(configOrPrefab)) {
         const cls = this.world.registry.getOrThrow(name);
         this.queue.push({ type: 'add', eid, cls, data });
       }
     }
-
     return new EntityCommands(eid, this.world, this.queue);
   }
 

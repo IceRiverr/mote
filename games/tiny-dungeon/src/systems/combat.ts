@@ -1,6 +1,6 @@
 // Update: 自动武器 + 投射物飞行
 
-import type { World } from '@mote/engine';
+import type { World, Commands } from '@mote/engine';
 import { Transform } from '@mote/engine';
 import { PlayerTag, EnemyAI, Weapon, Health, Projectile, XPOrb } from '../components.js';
 import { GameState } from '../resources.js';
@@ -12,7 +12,7 @@ const AXE_SPRITE = 118;
 // 自动攻击系统
 // ═════════════════════════════════════════════════════════════════════════════
 
-export function autoAttackSystem(world: World, dt: number): void {
+export function autoAttackSystem(world: World, dt: number, cmd: Commands): void {
   const state = world.getResource<GameState>('GameState');
   if (state?.paused) return;
 
@@ -51,7 +51,7 @@ export function autoAttackSystem(world: World, dt: number): void {
         sy = dirX * sin + dirY * cos;
       }
 
-      world.spawn({
+      cmd.spawn({
         Transform: { x: pt.x, y: pt.y, rotation: Math.atan2(sy, sx), scaleX: 2, scaleY: 2 },
         Sprite: { atlas: 'tiles', region: `frame_${AXE_SPRITE}` },
         Projectile: {
@@ -75,7 +75,7 @@ export function autoAttackSystem(world: World, dt: number): void {
 // 投射物飞行系统
 // ═════════════════════════════════════════════════════════════════════════════
 
-export function projectileSystem(world: World, dt: number): void {
+export function projectileSystem(world: World, dt: number, cmd: Commands): void {
   const state = world.getResource<GameState>('GameState');
   if (state?.paused) return;
 
@@ -92,7 +92,7 @@ export function projectileSystem(world: World, dt: number): void {
     proj.distanceFlown += Math.sqrt(moveX * moveX + moveY * moveY);
 
     if (proj.distanceFlown >= proj.maxDistance) {
-      world.destroy(eid);
+      cmd.destroy(eid);
       continue;
     }
 
@@ -112,12 +112,12 @@ export function projectileSystem(world: World, dt: number): void {
 
 
         if (health.current <= 0) {
-          spawnXP(world, et.x, et.y);
-          world.destroy(enemyEid);
+          spawnXP(cmd, et.x, et.y);
+          cmd.destroy(enemyEid);
         }
 
         if (proj.pierce <= 0) {
-          world.destroy(eid);
+          cmd.destroy(eid);
           break;
         } else {
           proj.pierce--;
@@ -132,8 +132,8 @@ export function projectileSystem(world: World, dt: number): void {
 // ═════════════════════════════════════════════════════════════════════════════
 
 /** 敌人死亡掉落经验宝石 */
-function spawnXP(world: World, x: number, y: number): void {
-  world.spawn({
+function spawnXP(cmd: Commands, x: number, y: number): void {
+  cmd.spawn({
     Transform: { x, y, scaleX: 2, scaleY: 2 },
     Sprite: { atlas: 'tiles', region: 'frame_117' }, // 绿色宝石
     XPOrb: { amount: 10 },

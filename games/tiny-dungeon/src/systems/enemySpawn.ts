@@ -1,6 +1,6 @@
 // Update: 敌人持续生成（地图范围内，不在玩家脸上）
 
-import type { World } from '@mote/engine';
+import type { World, Commands } from '@mote/engine';
 import { Transform } from '@mote/engine';
 import { PlayerTag } from '../components.js';
 import { GameConfig, GameState } from '../resources.js';
@@ -9,7 +9,7 @@ const MIN_SPAWN_DIST = 180;   // 至少离玩家这么远
 const MAX_SPAWN_DIST = 500;   // 最远这么远
 const MAX_ATTEMPTS = 8;       // 随机选点最大尝试次数
 
-export function enemySpawnSystem(world: World, dt: number): void {
+export function enemySpawnSystem(world: World, dt: number, cmd: Commands): void {
   const state = world.getResource<GameState>('GameState');
   const config = world.getResource<GameConfig>('GameConfig');
   if (!state || !config || state.paused) return;
@@ -41,7 +41,7 @@ export function enemySpawnSystem(world: World, dt: number): void {
     const pos = findSpawnPos(playerX, playerY, mapW, mapH);
     if (!pos) continue;
 
-    world.spawn('skeleton', {
+    cmd.spawn('skeleton', {
       Transform: { x: pos.x, y: pos.y },
     });
   }

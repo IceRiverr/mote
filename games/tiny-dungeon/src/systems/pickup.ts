@@ -1,14 +1,14 @@
 // games/tiny-dungeon/src/systems/pickup.ts
 // Update: 拾取系统
 
-import type { World } from '@mote/engine';
+import type { World, Commands } from '@mote/engine';
 import { Transform } from '@mote/engine';
 import { PlayerTag, Health, Pickup } from '../components.js';
 import { GameState } from '../resources.js';
 
 const PICKUP_DISTANCE = 12;
 
-export function pickupSystem(world: World, _dt: number): void {
+export function pickupSystem(world: World, _dt: number, cmd: Commands): void {
   const state = world.getResource<GameState>('GameState');
   if (state?.paused) return;
 
@@ -37,7 +37,7 @@ export function pickupSystem(world: World, _dt: number): void {
       if (pickup.kind === 'heal') {
         playerHealth.current = Math.min(playerHealth.max, playerHealth.current + pickup.amount);
       }
-      world.destroy(eid);
+      cmd.destroy(eid);
     }
   }
 }

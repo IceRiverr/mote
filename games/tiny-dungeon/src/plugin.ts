@@ -33,7 +33,7 @@ const MapGenerationPlugin: Plugin = {
 
   build(app: App) {
     app.addSystems(ScheduleLabel.Startup, [
-      spawnFloorSystem,
+      { name: 'spawnFloor', update: spawnFloorSystem },
     ]);
   },
 };
@@ -44,8 +44,8 @@ const SpawnerPlugin: Plugin = {
 
   build(app: App) {
     app.addSystems(ScheduleLabel.Startup, [
-      spawnEntitiesSystem,
-      spawnCameraSystem,
+      { name: 'spawnEntities', update: spawnEntitiesSystem },
+      { name: 'spawnCamera', update: spawnCameraSystem },
     ]);
   },
 };
@@ -56,13 +56,13 @@ const CombatPlugin: Plugin = {
 
   build(app: App) {
     app.addSystems(ScheduleLabel.Update, [
-      autoAttackSystem,
-      projectileSystem,
-      enemySpawnSystem,
+      { name: 'autoAttack', update: autoAttackSystem },
+      { name: 'projectile', update: projectileSystem },
+      { name: 'enemySpawn', update: enemySpawnSystem },
     ]);
     app.addSystems(ScheduleLabel.FixedUpdate, [
-      enemyChaseSystem,
-      enemyDamageSystem,
+      { name: 'enemyChase', update: enemyChaseSystem },
+      { name: 'enemyDamage', update: enemyDamageSystem },
     ]);
   },
 };
@@ -73,12 +73,12 @@ const PlayerPlugin: Plugin = {
 
   build(app: App) {
     app.addSystems(ScheduleLabel.Update, [
-      pickupSystem,
-      xpPickupSystem,
-      cameraFollowSystem,
+      { name: 'pickup', update: pickupSystem },
+      { name: 'xpPickup', update: xpPickupSystem },
+      { name: 'cameraFollow', update: cameraFollowSystem },
     ]);
     app.addSystems(ScheduleLabel.FixedUpdate, [
-      inputSystem,
+      { name: 'input', update: inputSystem },
     ]);
   },
 };
@@ -126,7 +126,9 @@ export class TinyDungeonPlugin implements Plugin {
     app.insertResource('GameState', new GameState());
 
     // 4. 加载资源（图集）
-    app.addSystems(ScheduleLabel.Startup, [loadAssetsSystem]);
+    app.addSystems(ScheduleLabel.Startup, [
+      { name: 'loadAssets', update: loadAssetsSystem },
+    ]);
 
     // 5. 装配子插件（每个子系统独立，未来可插拔）
     await app.addPlugins([

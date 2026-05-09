@@ -1,7 +1,7 @@
 // games/tiny-dungeon/src/systems/startup/spawnEntities.ts
 // Startup: 在 Floor 格子上生成游戏实体
 
-import type { World } from '@mote/engine';
+import type { World, Commands } from '@mote/engine';
 import { GameConfig } from '../../resources.js';
 
 /** 精灵索引 */
@@ -12,7 +12,7 @@ const SPRITES = {
   potion_blue: 116,
 };
 
-export function spawnEntitiesSystem(world: World): void {
+export function spawnEntitiesSystem(world: World, _dt: number, _cmd: Commands): void {
   const config = world.getResource<GameConfig>('GameConfig');
   const { mapWidth, mapHeight, tileSize } = config;
 

@@ -1,11 +1,11 @@
 // Update: 敌人追踪 AI（直直朝玩家冲来）
 
-import type { World } from '@mote/engine';
+import type { World, Commands } from '@mote/engine';
 import { Transform } from '@mote/engine';
 import { PlayerTag, EnemyAI } from '../components.js';
 import { GameState } from '../resources.js';
 
-export function enemyChaseSystem(world: World, dt: number): void {
+export function enemyChaseSystem(world: World, dt: number, _cmd: Commands): void {
   const state = world.getResource<GameState>('GameState');
   if (state?.paused) return;
 

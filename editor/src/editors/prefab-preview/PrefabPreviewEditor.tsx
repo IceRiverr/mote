@@ -19,6 +19,8 @@ import { ComponentPanel } from '../../components/inspector/ComponentPanel';
 import type { Prefab } from '../../data/Prefab';
 import { derivePrefabId, getPrefabDisplayName, PREFAB_KIND } from '../../data/Prefab';
 import { PrefabThumbnail } from './PrefabThumbnail';
+import { getComponentSchema, editableComponentNames } from '../../store/schema';
+import type { ComponentSchema } from '../../store/schema';
 
 const TAG_COLORS: Record<string, string> = {
   environment: '#4a7c59',
@@ -32,60 +34,28 @@ function getTagColor(tag?: string): string {
   return (tag && TAG_COLORS[tag]) || '#4a90d9';
 }
 
-// 模拟的组件 Schema
-const COMPONENT_SCHEMAS: Record<string, any> = {
-  Transform: {
-    properties: {
-      x: { type: "number", label: "X", constraints: { step: 1 } },
-      y: { type: "number", label: "Y", constraints: { step: 1 } },
-      rotation: { type: "number", label: "旋转", constraints: { step: 15 } },
-      scaleX: { type: "number", label: "缩放 X", constraints: { step: 0.1 } },
-      scaleY: { type: "number", label: "缩放 Y", constraints: { step: 0.1 } },
-    },
-  },
-  Sprite: {
-    properties: {
-      atlas: { type: "string", label: "图集" },
-      frame: { type: "string", label: "帧" },
-      layer: { type: "number", label: "层级", constraints: { step: 1 } },
-      tint: { type: "color", label: "染色" },
-      flipX: { type: "boolean", label: "水平翻转" },
-      flipY: { type: "boolean", label: "垂直翻转" },
-      alpha: { type: "number", label: "透明度", constraints: { min: 0, max: 1, step: 0.1 } },
-      visible: { type: "boolean", label: "可见" },
-    },
-  },
-  Collider: {
-    properties: {
-      shapes: { type: "string", label: "形状" },
-      isTrigger: { type: "boolean", label: "触发器" },
-      material: { type: "string", label: "材质" },
-      layer: { type: "number", label: "层级", constraints: { step: 1 } },
-      mask: { type: "number", label: "遮罩" },
-    },
-  },
-  Camera: {
-    properties: {
-      width: { type: "number", label: "宽度", constraints: { step: 1 } },
-      height: { type: "number", label: "高度", constraints: { step: 1 } },
-      zoom: { type: "number", label: "缩放", constraints: { step: 0.1 } },
-      backgroundColor: { type: "string", label: "背景色" },
-      active: { type: "boolean", label: "启用" },
-    },
-  },
-  Rigidbody: {
-    properties: {
-      type: { type: "string", label: "类型" },
-      mass: { type: "number", label: "质量", constraints: { step: 0.1 } },
-      linearDamping: { type: "number", label: "线性阻尼" },
-      angularDamping: { type: "number", label: "角阻尼" },
-      useGravity: { type: "boolean", label: "受重力" },
-      fixedRotation: { type: "boolean", label: "固定旋转" },
-    },
-  },
-};
+// ═══════════════════════════════════════════════════════════════
+// Schema 获取（与 EntityInspector 共用同一套机制）
+// ═══════════════════════════════════════════════════════════════
 
-const AVAILABLE_COMPONENTS = Object.keys(COMPONENT_SCHEMAS).filter(n => n !== 'Transform');
+/**
+ * 获取组件 schema：优先从 engine 动态 schema，缺失字段回退 legacy
+ */
+function getSchema(name: string): ComponentSchema | undefined {
+  return getComponentSchema(name) ?? undefined;
+}
+
+/**
+ * 从 schema 提取默认值对象
+ */
+function getDefaultsFromSchema(schema?: ComponentSchema): Record<string, any> {
+  if (!schema) return {};
+  const defaults: Record<string, any> = {};
+  for (const [k, prop] of Object.entries(schema.properties)) {
+    defaults[k] = prop.default;
+  }
+  return defaults;
+}
 
 function PrefabEditor({ areaId }: { areaId: string }) {
   const rawPath = previewedPrefabPath.value;
@@ -149,13 +119,9 @@ function PrefabEditor({ areaId }: { areaId: string }) {
 
   // 添加组件
   const handleAddComponent = (compName: string) => {
-    const defaults: Record<string, Record<string, any>> = {
-      Sprite: { atlas: '', frame: '', layer: 0, tint: '#ffffff', flipX: false, flipY: false, alpha: 1, visible: true },
-      Collider: { shapes: [{ type: 'rect', width: 16, height: 16 }], isTrigger: false, material: 'default', layer: 1, mask: 0xFFFFFFFF },
-      Camera: { width: 640, height: 480, zoom: 1, backgroundColor: '#000000', active: true },
-      Rigidbody: { type: 'dynamic', mass: 1, linearDamping: 0, angularDamping: 0, useGravity: true, fixedRotation: false },
-    };
-    executeCommand(new AddPrefabComponentCommand(compName, defaults[compName] || {}));
+    const schema = getSchema(compName);
+    const defaults = getDefaultsFromSchema(schema);
+    executeCommand(new AddPrefabComponentCommand(compName, defaults));
     setShowAddComponent(false);
   };
 
@@ -341,9 +307,9 @@ function PrefabEditor({ areaId }: { areaId: string }) {
           <ComponentPanel
             key={name}
             name={name}
-            displayName={name}
+            displayName={getSchema(name)?.displayName ?? name}
             data={data as any}
-            schema={COMPONENT_SCHEMAS[name]}
+            schema={getSchema(name)}
             onChange={(newData, prop, val) => handleComponentChange(name, newData, prop, val)}
             removable={name !== 'Transform'}
             onRemove={() => handleRemoveComponent(name)}
@@ -383,24 +349,26 @@ function PrefabEditor({ areaId }: { areaId: string }) {
           }}
         >
           <div style={{ marginBottom: '12px', fontWeight: 600 }}>添加组件</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {AVAILABLE_COMPONENTS.filter(c => !prefab.components[c]).map((comp) => (
-              <button
-                key={comp}
-                onClick={() => handleAddComponent(comp)}
-                style={{
-                  padding: '8px 12px',
-                  background: '#333',
-                  border: 'none',
-                  borderRadius: '4px',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                {comp}
-              </button>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '40vh', overflow: 'auto' }}>
+            {editableComponentNames.value
+              .filter(c => c !== 'Transform' && !prefab.components[c])
+              .map((comp) => (
+                <button
+                  key={comp}
+                  onClick={() => handleAddComponent(comp)}
+                  style={{
+                    padding: '8px 12px',
+                    background: '#333',
+                    border: 'none',
+                    borderRadius: '4px',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  {getSchema(comp)?.displayName ?? comp}
+                </button>
+              ))}
           </div>
           <button
             onClick={() => setShowAddComponent(false)}

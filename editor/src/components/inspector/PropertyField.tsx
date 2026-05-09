@@ -150,6 +150,69 @@ export function PropertyField({
     );
   }
 
+  // asset 类型 —— 暂时用 string 输入框（后续可加文件选择器）
+  if (type === "asset") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+        <label style={{ width: "80px", fontSize: "12px", color: "#999" }}>
+          {displayLabel}
+        </label>
+        <input
+          type="text"
+          value={value ?? ""}
+          placeholder="path/to/asset"
+          onChange={(e) => onChange((e.target as HTMLInputElement).value)}
+          style={{
+            flex: 1,
+            background: "#2a2a2a",
+            border: "1px solid #444",
+            borderRadius: "3px",
+            padding: "4px 8px",
+            color: "#fff",
+            fontSize: "12px",
+          }}
+        />
+      </div>
+    );
+  }
+
+  // 数组 / object / vec2 —— 用 JSON textarea 编辑
+  if (type === "string[]" || type === "number[]" || type === "object" || type === "vec2") {
+    const json = Array.isArray(value) || typeof value === "object"
+      ? JSON.stringify(value)
+      : String(value ?? "");
+    return (
+      <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "4px" }}>
+        <label style={{ width: "80px", fontSize: "12px", color: "#999", paddingTop: "4px" }}>
+          {displayLabel}
+        </label>
+        <textarea
+          value={json}
+          rows={2}
+          onChange={(e) => {
+            const text = (e.target as HTMLTextAreaElement).value;
+            try {
+              onChange(JSON.parse(text));
+            } catch {
+              onChange(text);
+            }
+          }}
+          style={{
+            flex: 1,
+            background: "#2a2a2a",
+            border: "1px solid #444",
+            borderRadius: "3px",
+            padding: "4px 8px",
+            color: "#fff",
+            fontSize: "12px",
+            resize: "vertical",
+            fontFamily: "monospace",
+          }}
+        />
+      </div>
+    );
+  }
+
   // enum 类型
   if (type === "enum" && constraints?.options) {
     return (

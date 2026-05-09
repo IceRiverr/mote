@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:schemas": "cd ../packages/engine && npx tsx scripts/extract-schemas.ts",
+    "predev": "npm run build:schemas",
+    "prebuild": "npm run build:schemas",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "check": "tsc --noEmit"

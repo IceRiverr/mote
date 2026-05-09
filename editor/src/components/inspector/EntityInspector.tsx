@@ -17,38 +17,82 @@ import { executeCommand } from "../../store/history";
 import { previewedPrefabPath } from "../../store/contentBrowser";
 import { layoutTree } from "../../store/layout";
 import { openEditorForResource } from "../../layout/tree";
+import {
+  getComponentSchema,
+  editableComponentNames,
+} from "../../store/schema";
+import type { ComponentSchema } from "../../store/schema";
 
-// 模拟的组件 Schema（实际应从 component-schemas.json 加载）
-const COMPONENT_SCHEMAS: Record<string, any> = {
-  Transform: {
-    properties: {
-      x: { type: "number", label: "X", constraints: { step: 1 } },
-      y: { type: "number", label: "Y", constraints: { step: 1 } },
-      rotation: { type: "number", label: "旋转", constraints: { step: 15 } },
-      scaleX: { type: "number", label: "缩放 X", constraints: { step: 0.1 } },
-      scaleY: { type: "number", label: "缩放 Y", constraints: { step: 0.1 } },
-    },
-  },
+// ═══════════════════════════════════════════════════════════════
+// Legacy Schema Fallback
+//
+// Editor 早期的 Prefab 数据模型和 engine 组件有细微差异。
+// 在完全对齐前，legacy schema 作为补充：
+//   1. 优先使用 engine 动态 schema（字段类型、约束更准确）
+//   2. 动态 schema 不存在的字段，回退到 legacy（保证旧数据可编辑）
+// ═══════════════════════════════════════════════════════════════
+
+const LEGACY_SCHEMAS: Record<string, ComponentSchema> = {
   Sprite: {
+    name: "Sprite",
+    displayName: "Sprite",
+    editable: true,
     properties: {
-      atlas: { type: "string", label: "图集" },
-      frame: { type: "string", label: "帧" },
-      layer: { type: "number", label: "层级", constraints: { step: 1 } },
-      tint: { type: "color", label: "染色" },
-      flipX: { type: "boolean", label: "水平翻转" },
-      flipY: { type: "boolean", label: "垂直翻转" },
-      alpha: { type: "number", label: "透明度", constraints: { min: 0, max: 1, step: 0.1 } },
-      visible: { type: "boolean", label: "可见" },
+      atlas: { type: "asset", default: "", label: "图集" },
+      frame: { type: "string", default: "", label: "帧" },
+      layer: { type: "number", default: 0, label: "层级", constraints: { step: 1 } },
+      tint: { type: "color", default: "#ffffff", label: "染色" },
+      flipX: { type: "boolean", default: false, label: "水平翻转" },
+      flipY: { type: "boolean", default: false, label: "垂直翻转" },
+      alpha: { type: "number", default: 1, label: "透明度", constraints: { min: 0, max: 1, step: 0.1 } },
+      visible: { type: "boolean", default: true, label: "可见" },
     },
   },
   Collider: {
+    name: "Collider",
+    displayName: "Collider",
+    editable: true,
     properties: {
-      isTrigger: { type: "boolean", label: "触发器" },
-      material: { type: "string", label: "材质" },
-      layer: { type: "number", label: "层级", constraints: { step: 1 } },
+      isTrigger: { type: "boolean", default: false, label: "触发器" },
+      material: { type: "string", default: "default", label: "材质" },
+      layer: { type: "number", default: 1, label: "层级", constraints: { step: 1 } },
     },
   },
 };
+
+/**
+ * 合并动态 schema 和 legacy fallback。
+ * 动态 schema 优先；不存在的字段用 legacy 补充。
+ */
+function getMergedSchema(name: string): ComponentSchema | undefined {
+  const dynamic = getComponentSchema(name);
+  const legacy = LEGACY_SCHEMAS[name];
+
+  if (!dynamic && !legacy) return undefined;
+
+  // Transform 字段在 engine 和 editor 中完全一致，直接用动态
+  if (dynamic && !legacy) return dynamic;
+
+  // 合并：动态优先，legacy 补充缺失字段
+  const props: ComponentSchema["properties"] = {};
+  if (dynamic) {
+    Object.assign(props, dynamic.properties);
+  }
+  if (legacy) {
+    for (const [k, v] of Object.entries(legacy.properties)) {
+      if (!(k in props)) props[k] = v;
+    }
+  }
+
+  return {
+    name: dynamic?.name ?? legacy!.name,
+    displayName: dynamic?.displayName ?? legacy!.displayName,
+    description: dynamic?.description ?? legacy?.description,
+    editable: dynamic?.editable ?? legacy!.editable,
+    properties: props,
+    category: dynamic?.category,
+  };
+}
 
 export function EntityInspector() {
   const entity = singleSelectedEntity.value;
@@ -245,7 +289,7 @@ export function EntityInspector() {
         name="Transform"
         displayName="Transform"
         data={entity.transform}
-        schema={COMPONENT_SCHEMAS.Transform}
+        schema={getMergedSchema("Transform")}
         onChange={handleTransformChange}
         isOverride={false}
         removable={false}
@@ -264,7 +308,7 @@ export function EntityInspector() {
               displayName={name}
               data={data as any}
               overrideStatus={overrideStatus}
-              schema={COMPONENT_SCHEMAS[name]}
+              schema={getMergedSchema(name)}
               onChange={(newData, prop, val) =>
                 handleComponentChange(name, newData, prop, val)
               }
@@ -354,32 +398,48 @@ export function EntityInspector() {
             borderRadius: "8px",
             padding: "16px",
             zIndex: 1000,
+            maxHeight: "60vh",
+            overflow: "auto",
+            minWidth: 240,
           }}
         >
           <div style={{ marginBottom: "12px", fontWeight: 600 }}>
             添加组件
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {["Camera", "Rigidbody"].map((comp) => (
-              <button
-                key={comp}
-                onClick={() => {
-                  // TODO: 添加组件
-                  setShowAddComponent(false);
-                }}
-                style={{
-                  padding: "8px 12px",
-                  background: "#333",
-                  border: "none",
-                  borderRadius: "4px",
-                  color: "#fff",
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-              >
-                {comp}
-              </button>
-            ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "40vh", overflow: "auto" }}>
+            {editableComponentNames.value
+              .filter((name) => !(name in mergedComponents))
+              .map((comp) => (
+                <button
+                  key={comp}
+                  onClick={() => {
+                    const schema = getMergedSchema(comp);
+                    const defaults: Record<string, any> = {};
+                    if (schema) {
+                      for (const [k, v] of Object.entries(schema.properties)) {
+                        defaults[k] = v.default;
+                      }
+                    }
+                    const newOverrides = {
+                      ...(entity.overrides || {}),
+                      [comp]: defaults,
+                    };
+                    updateEntity(entity.id, { overrides: newOverrides });
+                    setShowAddComponent(false);
+                  }}
+                  style={{
+                    padding: "8px 12px",
+                    background: "#333",
+                    border: "none",
+                    borderRadius: "4px",
+                    color: "#fff",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  {getComponentSchema(comp)?.displayName ?? comp}
+                </button>
+              ))}
           </div>
           <button
             onClick={() => setShowAddComponent(false)}

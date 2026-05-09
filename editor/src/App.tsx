@@ -21,11 +21,13 @@ import {
   saveCurrentProject,
   createInMemoryProject,
 } from "./project";
+import { loadComponentSchemas } from "./store/schema";
 
 export function App() {
   // Initialize on mount - auto create in-memory project
   useEffect(() => {
     initializeProjectStore();
+    loadComponentSchemas();
     // Auto create an in-memory project so editor opens directly
     createInMemoryProject();
   }, []);

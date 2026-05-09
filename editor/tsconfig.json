@@ -14,8 +14,8 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@mote/engine": ["../engine/src/index.ts"],
-      "@mote/engine/*": ["../engine/src/*"]
+      "@mote/engine": ["../packages/engine/src/index.ts"],
+      "@mote/engine/*": ["../packages/engine/src/*"]
     },
     "ignoreDeprecations": "6.0"
   },

@@ -1,0 +1,15 @@
+{
+  "version": "0.0.2",
+  "kind": "prefab",
+  "name": "pp01",
+  "tags": [],
+  "components": {
+    "Transform": {
+      "x": 0,
+      "y": 0,
+      "rotation": 0,
+      "scaleX": 1,
+      "scaleY": 1
+    }
+  }
+}

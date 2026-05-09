@@ -2,6 +2,7 @@
 // ComponentRegistry —— 组件类型身份管理
 
 import type { ComponentClass } from './types';
+import type { ComponentSchema } from './schema.js';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // 类型
@@ -15,6 +16,8 @@ export interface ComponentMeta {
   name: string;
   /** 构造函数 */
   ctor: ComponentClass;
+  /** 编辑器 Schema（可选，由 extract-schemas.ts 生成） */
+  schema?: ComponentSchema;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -40,7 +43,7 @@ export class ComponentRegistry {
   /**
    * 注册组件类，返回元信息（已注册则返回已有）
    */
-  register<T>(ctor: ComponentClass<T>, name?: string): ComponentMeta {
+  register<T>(ctor: ComponentClass<T>, name?: string, schema?: ComponentSchema): ComponentMeta {
     const existing = this._byCtor.get(ctor);
     if (existing) return existing;
 
@@ -53,6 +56,7 @@ export class ComponentRegistry {
       id: this._nextId++,
       name: key,
       ctor,
+      schema,
     };
 
     this._byName.set(key, meta);
@@ -70,7 +74,35 @@ export class ComponentRegistry {
   }
 
   /**
-   * 通过 class 获取数字 id（O(1)）
+   * 获取所有带 schema 的组件元信息（供编辑器使用）
+   */
+  schemas(): ComponentSchema[] {
+    return this._byId
+      .filter(m => m?.schema)
+      .map(m => m.schema!);
+  }
+
+  /**
+   * 批量挂载 schema（用于运行时从 JSON 注入）
+   *
+   * 典型场景：
+   *   1. Headless Engine 启动后，把构建时生成的 component-schemas.json
+   *      通过 attachSchemas() 灌入 Registry
+   *   2. Editor 直接读 app.registry.schemas() 获取所有组件定义
+   *
+   * 只给已注册组件附加 schema，不认识的组件名静默跳过
+   */
+  attachSchemas(schemas: ComponentSchema[]): void {
+    for (const s of schemas) {
+      const meta = this._byName.get(s.name);
+      if (meta) {
+        meta.schema = s;
+      }
+    }
+  }
+
+  /**
+   * 通过 class 获取数字 id（O(1）
    */
   idOf(ctor: ComponentClass): number {
     const meta = this._byCtor.get(ctor);

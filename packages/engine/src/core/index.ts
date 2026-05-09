@@ -31,6 +31,14 @@ export { QueryResult } from './query';
 
 // Component
 export { ComponentRegistry } from './componentRegistry';
+export type { ComponentMeta } from './componentRegistry';
+
+// Schema
+export type {
+  PropType,
+  PropertySchema,
+  ComponentSchema,
+} from './schema';
 
 // Prefab
 export { definePrefab, PrefabStore, mergeSpawnConfig } from './prefab';

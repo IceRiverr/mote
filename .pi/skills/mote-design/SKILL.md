@@ -1,6 +1,6 @@
 ---
 name: mote-design
-description: 当用户说"design"、"architecture"、"API design"时触发。对话式轻量设计，按需输出文档。
+description: 当用户说"design"、"architecture"、"API design"、"设计 xxx"时触发。对话式轻量设计，按需输出文档到 features/{slug}/design.md。
 ---
 
 # Mote 设计伙伴
@@ -12,12 +12,21 @@ description: 当用户说"design"、"architecture"、"API design"时触发。对
 ## 1. 两种模式
 
 **模式 A：完整功能设计**
-- 触发：用户说 "design xxx"
-- 流程：4 个约束问题 → 关键决策（2-3 选项）→ 用户确认 → 按需输出 design-xxx.md
+- 触发：用户说 "design xxx"、"设计 xxx 功能"
+- 流程：4 个约束问题 → 关键决策（2-3 选项）→ 用户确认 → 按需输出 features/{slug}/design.md
 
 **模式 B：编码中快速决策**
 - 触发：用户问 "这个 id 怎么办？"
 - 流程：一句话澄清 → 2-3 个选项 + 利弊 → 用户选一个 → 不强制出文档
+- 这类轻量决策建议走 **mote-note** 落到 features/{slug}/notes.md，而不是开新 design 文件
+
+**触发条件不明确时，停下来问用户。不要猜。**
+
+## 1.5 与 notes.md 的关系
+
+- 进入模式 A 时，如果 `features/{slug}/notes.md` 已存在 → **静默读取一遍**，把里面的讨论要点和轻量决策当作设计输入
+- design.md 落盘后，**不要删除或合并 notes.md**。notes 是讨论原话档案，design 是结构化决策快照，两者并存
+- 不要在 design.md 里复制 notes 的原话，只吸收其中的结论
 
 ## 2. 快速约束收集
 
@@ -71,11 +80,23 @@ design 文档是编码时的决策快照，不是实时维护的说明书。
 - 影响文件：Scene.ts, io.ts
 ```
 
-## 输出格式
+## 6. Slug 与目录
+
+设计开始前先确认 slug（kebab-case，例如 `particle-system`）：
+
+1. 用户已在当前会话中确认过 slug → 复用
+2. 用户描述的 feature 在 `features/` 下已存在同名目录 → 复用
+3. 都没有 → AI 主动建议一个 slug，等用户确认或修改
+
+确认后：
+- 若 `features/{slug}/` 不存在 → 创建
+- design 文档落到 `features/{slug}/design.md`
+
+## 7. 输出格式
 
 **轻量模式（默认）：** 对话中解决，不输出文件。
 
-**完整模式（用户要求时）：** `designs/design-{关键词}-{YYYYMMDD}.md`
+**完整模式（用户要求时）：** `features/{slug}/design.md`
 ```
 ## 问题
 1-2 句话

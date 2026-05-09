@@ -67,6 +67,7 @@ export class AudioManager {
   }
 
   play(key: string, options?: PlayOptions): void {
+    if (this.ctx.state !== 'running') return;
     const buffer = this.cache.get(key);
     if (!buffer) {
       console.warn(`Sound not loaded: ${key}`);
@@ -89,6 +90,7 @@ export class AudioManager {
   }
 
   playBGM(key: string, fadeDuration = 0.5): void {
+    if (this.ctx.state !== 'running') return;
     const buffer = this.cache.get(key);
     if (!buffer) {
       console.warn(`BGM not loaded: ${key}`);

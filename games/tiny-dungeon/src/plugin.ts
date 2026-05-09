@@ -22,6 +22,7 @@ import { enemyDamageSystem } from './systems/enemyDamage.js';
 import { pickupSystem } from './systems/pickup.js';
 import { xpPickupSystem } from './systems/xpPickup.js';
 import { cameraFollowSystem } from './systems/camera.js';
+import { hudSystem } from './systems/hud.js';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // 子插件（游戏内部可以再拆分）
@@ -76,6 +77,7 @@ const PlayerPlugin: Plugin = {
       { name: 'pickup', update: pickupSystem },
       { name: 'xpPickup', update: xpPickupSystem },
       { name: 'cameraFollow', update: cameraFollowSystem },
+      { name: 'hud', update: hudSystem },
     ]);
     app.addSystems(ScheduleLabel.FixedUpdate, [
       { name: 'input', update: inputSystem },

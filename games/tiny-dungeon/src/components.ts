@@ -2,7 +2,10 @@
 // 游戏特有组件
 
 /** 玩家标记 */
-export class PlayerTag {}
+export class PlayerTag {
+  /** 当前朝向（弧度，-PI/2 为朝上） */
+  facingAngle = -Math.PI / 2;
+}
 
 /** 敌人 AI */
 export class EnemyAI {

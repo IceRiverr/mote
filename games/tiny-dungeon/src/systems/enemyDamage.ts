@@ -66,7 +66,8 @@ export function enemyDamageSystem(world: World, dt: number, cmd: Commands): void
 
       if (playerHealth.current <= 0) {
         playerHealth.current = 0;
-        // TODO: 游戏结束
+        state.paused = true;
+        world.emit('gameover');
       }
       break;
     }

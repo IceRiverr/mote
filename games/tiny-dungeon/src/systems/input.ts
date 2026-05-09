@@ -7,6 +7,8 @@ import { InputManager } from '@mote/engine';
 import { PlayerTag } from '../components.js';
 import { GameState } from '../resources.js';
 
+const DEFAULT_FACING = -Math.PI / 2;
+
 const MOVE_PER_TICK = 2;
 
 export function inputSystem(world: World, _dt: number, _cmd: Commands): void {
@@ -18,6 +20,7 @@ export function inputSystem(world: World, _dt: number, _cmd: Commands): void {
 
   for (const eid of world.query(PlayerTag, Transform)) {
     const t = world.get(eid, Transform);
+    const tag = world.get(eid, PlayerTag);
 
     let moveX = 0;
     let moveY = 0;
@@ -25,6 +28,11 @@ export function inputSystem(world: World, _dt: number, _cmd: Commands): void {
     if (input.isAnyDown(['KeyS', 'ArrowDown'])) moveY += 1;
     if (input.isAnyDown(['KeyA', 'ArrowLeft'])) moveX -= 1;
     if (input.isAnyDown(['KeyD', 'ArrowRight'])) moveX += 1;
+
+    // 有输入时更新朝向
+    if (moveX !== 0 || moveY !== 0) {
+      tag.facingAngle = Math.atan2(moveY, moveX);
+    }
 
     // 固定 60Hz，每次 tick 移动整数像素
     // 对角线不做归一化（moveX/moveY 只会是 -1/0/1，结果必为整数）

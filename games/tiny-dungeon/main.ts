@@ -17,6 +17,11 @@ const upgBtns = [
   document.getElementById('upg2') as HTMLButtonElement,
 ];
 
+const gameoverPanel = document.getElementById('gameover-panel') as HTMLDivElement;
+const goKillsEl = document.getElementById('go-kills') as HTMLSpanElement;
+const goTimeEl = document.getElementById('go-time') as HTMLSpanElement;
+const goRestartBtn = document.getElementById('go-restart') as HTMLButtonElement;
+
 // 升级选项定义
 interface UpgradeDef {
   label: string;
@@ -41,6 +46,29 @@ function getRandomUpgrades(count: number): UpgradeDef[] {
     result.push(pool.splice(idx, 1)[0]);
   }
   return result;
+}
+
+function formatTime(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function showGameOverPanel(world: App['world']) {
+  const state = world.getResource<GameState>('GameState');
+  if (!state) return;
+  state.paused = true;
+
+  goKillsEl.textContent = String(state.enemiesKilled);
+  goTimeEl.textContent = formatTime(state.elapsedTime);
+  gameoverPanel.classList.add('active');
+
+  // 刷新重新开始按钮（移除旧监听器）
+  const newBtn = goRestartBtn.cloneNode(true) as HTMLButtonElement;
+  goRestartBtn.parentNode!.replaceChild(newBtn, goRestartBtn);
+  newBtn.addEventListener('click', () => {
+    location.reload();
+  });
 }
 
 function showLevelUpPanel(world: App['world']) {
@@ -103,6 +131,11 @@ async function init(): Promise<void> {
   // 监听升级事件
   app.world.on('levelup', () => {
     showLevelUpPanel(app.world);
+  });
+
+  // 监听游戏结束事件
+  app.world.on('gameover', () => {
+    showGameOverPanel(app.world);
   });
 
   app.run();

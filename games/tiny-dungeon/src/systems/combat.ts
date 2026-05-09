@@ -3,11 +3,12 @@
 import type { World, Commands } from '@mote/engine';
 import { Transform } from '@mote/engine';
 import { AudioManager } from '@mote/engine';
+import { Color } from '@mote/engine';
 import { PlayerTag, EnemyAI, Weapon, Health, Projectile, XPOrb } from '../components.js';
 import { GameState } from '../resources.js';
 
 const HIT_DISTANCE = 16;
-const AXE_SPRITE = 118;
+const AXE_SPRITE = 104;
 
 // ═════════════════════════════════════════════════════════════════════════════
 // 自动攻击系统
@@ -55,7 +56,7 @@ export function autoAttackSystem(world: World, dt: number, cmd: Commands): void 
       }
 
       cmd.spawn({
-        Transform: { x: pt.x, y: pt.y, rotation: Math.atan2(sy, sx), scaleX: 2, scaleY: 2 },
+        Transform: { x: pt.x, y: pt.y, rotation: Math.atan2(sy, sx) + Math.PI / 2, scaleX: 2, scaleY: 2 },
         Sprite: { atlas: 'tiles', region: `frame_${AXE_SPRITE}` },
         Projectile: {
           vx: sx * weapon.speed,
@@ -121,6 +122,9 @@ export function projectileSystem(world: World, dt: number, cmd: Commands): void 
           spawnXP(cmd, et.x, et.y);
           cmd.destroy(enemyEid);
           audio?.play('enemyDie', { volume: 0.4 });
+
+          const state = world.getResource<GameState>('GameState');
+          if (state) state.enemiesKilled++;
         }
 
         if (proj.pierce <= 0) {
@@ -142,7 +146,7 @@ export function projectileSystem(world: World, dt: number, cmd: Commands): void 
 function spawnXP(cmd: Commands, x: number, y: number): void {
   cmd.spawn({
     Transform: { x, y, scaleX: 2, scaleY: 2 },
-    Sprite: { atlas: 'tiles', region: 'frame_117' }, // 绿色宝石
+    Sprite: { atlas: 'tiles', region: 'frame_101', color: new Color(0, 1, 0, 1) }, // 绿色宝石
     XPOrb: { amount: 10 },
   });
 }
